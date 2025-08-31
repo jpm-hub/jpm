@@ -1,0 +1,163 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  GO_VERSION: '1.21'
+  PROJECT_NAME: 'jpm'
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}-${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            goos: linux
+            goarch: amd64
+            binary_name: jpm
+            archive_name: jpm-linux-amd64.tar.gz
+          - os: linux
+            arch: arm64
+            goos: linux
+            goarch: arm64
+            binary_name: jpm
+            archive_name: jpm-linux-arm64.tar.gz
+          - os: darwin
+            arch: amd64
+            goos: darwin
+            goarch: amd64
+            binary_name: jpm
+            archive_name: jpm-darwin-amd64.tar.gz
+          - os: darwin
+            arch: arm64
+            goos: darwin
+            goarch: arm64
+            binary_name: jpm
+            archive_name: jpm-darwin-arm64.tar.gz
+          - os: windows
+            arch: amd64
+            goos: windows
+            goarch: amd64
+            binary_name: jpm.exe
+            archive_name: jpm-windows-amd64.zip
+          - os: windows
+            arch: arm64
+            goos: windows
+            goarch: arm64
+            binary_name: jpm.exe
+            archive_name: jpm-windows-arm64.zip
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          echo "Building for ${{ matrix.os }}-${{ matrix.arch }}"
+          go build -ldflags="-s -w" -o ${{ matrix.binary_name }} jpm.go
+          ls -la
+
+      - name: Create release archive
+        run: |
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            # Windows: create ZIP file
+            zip ${{ matrix.archive_name }} ${{ matrix.binary_name }}
+          else
+            # Unix-like: create tar.gz
+            tar -czf ${{ matrix.archive_name }} ${{ matrix.binary_name }}
+          fi
+          ls -la *.tar.gz *.zip 2>/dev/null || true
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive_name }}
+          path: ${{ matrix.archive_name }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from code
+        id: version
+        run: |
+          # Extract version from templates.go
+          VERSION=$(grep -o 'version: [0-9]\+\.[0-9]\+\.[0-9]\+' common/templates.go | head -1 | cut -d' ' -f2)
+          if [ -z "$VERSION" ]; then
+            VERSION="0.0.1"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Found version: $VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          find artifacts -type f -name "*.tar.gz" -o -name "*.zip" | sort
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          body: |
+            ## JPM - JVM Package Manager
+            
+            ### What's New
+            - Automated release for all supported platforms
+            
+            ### Supported Platforms
+            - **Linux**: AMD64, ARM64
+            - **macOS**: Intel (AMD64), Apple Silicon (ARM64)
+            - **Windows**: AMD64, ARM64
+            
+            ### Downloads
+            - `jpm-linux-amd64.tar.gz` - Linux AMD64
+            - `jpm-linux-arm64.tar.gz` - Linux ARM64
+            - `jpm-darwin-amd64.tar.gz` - macOS Intel
+            - `jpm-darwin-arm64.tar.gz` - macOS Apple Silicon
+            - `jpm-windows-amd64.zip` - Windows AMD64
+            - `jpm-windows-arm64.zip` - Windows ARM64
+            
+            ### Installation
+            ```bash
+            # Linux/macOS
+            tar -xzf jpm-<platform>-<arch>.tar.gz
+            sudo mv jpm /usr/local/bin/
+            
+            # Windows
+            # Extract the ZIP and add to PATH
+            ```
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

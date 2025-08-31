@@ -1,0 +1,6 @@
+{
+    "java.project.referencedLibraries": [
+        "jpm_dependencies/**/*.jar",
+        "dist/jarlib-0.0.0.jar"
+    ]
+}

@@ -1,0 +1,96 @@
+name: Build and Test
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches-ignore: [ main ]
+
+env:
+  GO_VERSION: '1.21'
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Build binary
+        run: |
+          go build -o jpm${{ matrix.os == 'windows-latest' && '.exe' || '' }} jpm.go
+          ls -la
+
+  build-all-platforms:
+    name: Build for all platforms
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            goos: linux
+            goarch: amd64
+            binary_name: jpm
+          - os: linux
+            arch: arm64
+            goos: linux
+            goarch: arm64
+            binary_name: jpm
+          - os: darwin
+            arch: amd64
+            goos: darwin
+            goarch: amd64
+            binary_name: jpm
+          - os: darwin
+            arch: arm64
+            goos: darwin
+            goarch: arm64
+            binary_name: jpm
+          - os: windows
+            arch: amd64
+            goos: windows
+            goarch: amd64
+            binary_name: jpm.exe
+          - os: windows
+            arch: arm64
+            goos: windows
+            goarch: arm64
+            binary_name: jpm.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          echo "Building for ${{ matrix.os }}-${{ matrix.arch }}"
+          go build -ldflags="-s -w" -o ${{ matrix.binary_name }} jpm.go
+          echo "Build successful for ${{ matrix.os }}-${{ matrix.arch }}"
+          ls -la
