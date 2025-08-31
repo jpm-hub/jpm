@@ -3,5 +3,4 @@ out
 jpm_dependencies
 dist
 API_KEY
-go.sum
 .DS_Store
