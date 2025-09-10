@@ -34,6 +34,7 @@ func Init() {
 	diffName := false
 	language := "java"
 	handled := []string{}
+	git := false
 	if len(os.Args) >= 2 {
 
 		for i, arg := range os.Args {
@@ -67,6 +68,10 @@ func Init() {
 				println("new module")
 				continue
 			}
+			if strings.Contains(arg, "\\") {
+				println("use foward slashes instead")
+				os.Exit(1)
+			}
 			diffName = true
 			projectName = arg
 			projectNameSlice := strings.Split(projectName, ".")
@@ -79,6 +84,9 @@ func Init() {
 		if !diffName {
 			fmt.Println("Initializing project App")
 		}
+	}
+	if git {
+		COM.RunScript("git init", true)
 	}
 
 	appPathSlice := strings.Split(strings.ReplaceAll(projectName, ".", "/"), "/")
@@ -127,15 +135,7 @@ func Init() {
 	}
 
 	if err := os.MkdirAll(filepath.Join(".vscode"), 0755); err == nil {
-		os.WriteFile(filepath.Join(".vscode", "settings.json"), []byte(`{
-	"java.project.referencedLibraries": [
-		"jpm_dependencies/**/*"
-	],
-	"java.project.sourcePaths": [
-		"."
-	]
-}
-			`), 0644)
+		os.WriteFile(filepath.Join(".vscode", "settings.json"), []byte(COM.GetDotVscodeTemplate(src)), 0644)
 	}
 
 	// Copy junit.jar

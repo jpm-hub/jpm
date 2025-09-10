@@ -1,6 +1,7 @@
 package osless
 
 import (
+	"encoding/json"
 	COM "jpm/common"
 	"os"
 	"path/filepath"
@@ -35,4 +36,36 @@ func HotSwapAgentPlugin(homeDir string) {
 	COM.DownloadFile(url, pluginDir, filename, true, false)
 	os.Rename(filepath.Join(pluginDir, filename), filepath.Join(pluginDir, "hotswap-agent.jar"))
 	println("\033[32m  --- Hotswap-Agent setup done\033[0m")
+}
+
+func Verbose(homeDir string) {
+	configPath := filepath.Join(homeDir, "config.json")
+
+	cfg := make(map[string]interface{})
+
+	// Try to read existing config
+	file, err := os.Open(configPath)
+	if err == nil {
+		defer file.Close()
+		decoder := json.NewDecoder(file)
+		_ = decoder.Decode(&cfg)
+	}
+	// Toggle verbose
+	currentVerbose, ok := cfg["verbose"].(bool)
+	cfg["verbose"] = !ok || !currentVerbose
+
+	// Write config back
+	f, err := os.Create(configPath)
+	if err != nil {
+		println("Failed to write config:", err.Error())
+		return
+	}
+	defer f.Close()
+	encoder := json.NewEncoder(f)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(cfg); err != nil {
+		println("Failed to encode config:", err.Error())
+		return
+	}
+	println("Verbose set to", cfg["verbose"].(bool))
 }

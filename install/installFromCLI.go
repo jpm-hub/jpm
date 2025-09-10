@@ -10,8 +10,8 @@ import (
 	"github.com/juju/errors"
 )
 
-func installFromCLI(path string) {
-	aliases := findExistingAliases(path)
+func installFromCLI() {
+	aliases := findExistingAliases()
 	depString := strings.Join(os.Args[2:], " ")
 	depString = COM.NormalizeSpaces(depString)
 	aliases = append(aliases, "raw")
@@ -21,7 +21,7 @@ func installFromCLI(path string) {
 		depString, err = fromJPMCLI(depString)
 	} else if strings.Split(depString, " ")[0] != "raw" {
 		// is from repo
-		depString, err = fromRepoCLI(path, depString)
+		depString, err = fromRepoCLI(depString)
 
 	} else {
 		// is from raw
@@ -33,7 +33,7 @@ func installFromCLI(path string) {
 
 }
 
-func findExistingAliases(path string) []string {
+func findExistingAliases() []string {
 	repos := getRepoList()
 	aliases := []string{}
 	for _, v := range repos.Repos {
@@ -48,7 +48,7 @@ func fromJPMCLI(depString string) (string, error) {
 	return "", errors.New("not implemented")
 }
 
-func fromRepoCLI(path string, depString string) (string, error) {
+func fromRepoCLI(depString string) (string, error) {
 	// load in the json
 	loadDependencies()
 	repoList := getRepoList()

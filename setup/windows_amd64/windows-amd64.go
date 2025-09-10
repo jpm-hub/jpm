@@ -38,7 +38,7 @@ func dcevmPlugin(homeDir string) {
 	pluginDir := filepath.Join(homeDir, "dcevm")
 	println("  --- Copying")
 	os.MkdirAll(filepath.Join(pluginDir, "bin", "dcevm"), 0755)
-	COM.RunPS("xcopy /E /I /Y \""+filepath.Join(homeDir, strings.TrimSuffix(filename, ".tar.gz"))+"\" \""+pluginDir+"\\\"", true)
-	COM.RunPS("xcopy /E /I /Y \""+filepath.Join(homeDir, strings.TrimSuffix(filename, ".tar.gz"), "bin", "server")+"\" \""+filepath.Join(pluginDir, "bin", "dcevm")+"\\\"", true)
+	COM.RunCMD("xcopy /E /I /Y \""+filepath.Join(homeDir, strings.TrimSuffix(filename, ".tar.gz"))+"\" \""+pluginDir+"\\\"", false)
+	COM.RunCMD("xcopy /E /I /Y \""+filepath.Join(homeDir, strings.TrimSuffix(filename, ".tar.gz"), "bin", "server")+"\" \""+filepath.Join(pluginDir, "bin", "dcevm")+"\\\"", false)
 	println("\033[32m  --- DCEVM setup done\033[0m")
 }

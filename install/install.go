@@ -33,7 +33,7 @@ type Repositories struct {
 }
 
 var scopesAccepted []string = []string{"compile", "runtime", ""}
-var jpmScopes []string = []string{"test", "exec"}
+var jpmScopes []string = []string{"test", "exec", ""}
 var depsList []string = []string{}
 var importList []string = []string{}
 var currentWorkingRepo string
@@ -46,10 +46,14 @@ var latests []string = []string{}
 
 func Install() {
 	println()
-	path, _ := COM.FindPackageYML()
+	COM.FindPackageYML()
 	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
-	execDir := COM.HomeDir()
-	COM.RunScript("cp "+filepath.Join(execDir, "libs", "junit.jar")+" "+filepath.Join("jpm_dependencies", "tests", "junit.jar"), true)
+	homeDir := COM.HomeDir()
+	if COM.IsWindows() {
+		COM.RunCMD("copy "+filepath.Join(homeDir, "libs", "junit.jar")+" "+filepath.Join("jpm_dependencies", "tests", "junit.jar"), true)
+	} else {
+		COM.RunScript("cp "+filepath.Join(homeDir, "libs", "junit.jar")+" "+filepath.Join("jpm_dependencies", "tests", "junit.jar"), true)
+	}
 	if slices.Contains(os.Args, "-f") && !slices.Contains(os.Args, "-repo") {
 		for i, arg := range os.Args {
 			if arg == "-f" {
@@ -66,12 +70,12 @@ func Install() {
 		installFromYML(aliases, deps)
 	case 4:
 		if os.Args[2] == "-repo" {
-			addNewRepo(os.Args[3], path)
+			addNewRepo(os.Args[3])
 			return
 		}
 		fallthrough
 	default:
-		installFromCLI(path)
+		installFromCLI()
 	}
 	if len(downloadInfo) != 0 {
 		print("      Downloading [")
@@ -84,13 +88,18 @@ func Install() {
 			println(v)
 		}
 	}
+
 	dumpDependencies(depMap)
 }
 func QuickInstall() {
 	COM.FindPackageYML()
 	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
-	execDir := COM.HomeDir()
-	COM.RunScript("cp "+filepath.Join(execDir, "libs", "junit.jar")+" "+filepath.Join("jpm_dependencies", "tests", "junit.jar"), true)
+	homeDir := COM.HomeDir()
+	if COM.IsWindows() {
+		COM.RunCMD("copy "+filepath.Join(homeDir, "libs", "junit.jar")+" "+filepath.Join("jpm_dependencies", "tests", "junit.jar"), true)
+	} else {
+		COM.RunScript("cp "+filepath.Join(homeDir, "libs", "junit.jar")+" "+filepath.Join("jpm_dependencies", "tests", "junit.jar"), true)
+	}
 	deps := COM.GetDependencies(false)
 	aliases := findRepoAlias(deps)
 	installFromYML(aliases, deps)
@@ -154,7 +163,11 @@ func fromJPM(deps []string) {
 }
 func fromRepo(dependenciesWithRepo []Repo) {
 	for _, dr := range dependenciesWithRepo {
-		currentOuterScope = dr.DependencyType
+		if !checkValidScope(dr.DependencyType) {
+			currentOuterScope = ""
+		} else {
+			currentOuterScope = dr.DependencyType
+		}
 		currentWorkingRepo = dr.Repo
 		saveAllRepoSubDependencies(&dr)
 	}
@@ -237,14 +250,15 @@ func fromRAW(deps []string) {
 }
 func checkValidScope(scope string) bool {
 	if !slices.Contains(jpmScopes, scope) {
-		println(tab + " Dependency with scope " + scope + ": unknown scope")
+		println()
+		println(tab + " scope " + scope + " is unknown scope")
 		println(tab + " Will be considered as normal dependency")
+		println()
 		return false
 	}
 	return true
 }
 func download(url string, filename string, alias string, scope string, depsInstalled map[string][]string) {
-	//println(url)
 	sc := strings.Split(strings.Trim(scope, "|"), "|")[0]
 	extract := false
 	if len(strings.Split(sc, " ")) == 2 {
@@ -547,7 +561,7 @@ func dumpDependencies(depMap map[string]string) {
 		if strings.HasSuffix(key, "|test") {
 			jar = filepath.Join("tests")
 		}
-		value := strings.TrimSuffix(key, "|tests")
+		value := strings.TrimSuffix(key, "|test")
 		valueS := strings.Split(strings.TrimSuffix(value, "|"), "|")
 		value = valueS[len(valueS)-1]
 		jar = filepath.Join(jar, value+"-"+v+".jar")

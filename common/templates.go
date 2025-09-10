@@ -39,6 +39,21 @@ repos:
 `
 }
 
+func GetDotVscodeTemplate(src string) string {
+	if len(src) == 0 {
+		src = "."
+	}
+	return `{
+	"java.project.referencedLibraries": [
+		"jpm_dependencies/**/*"
+	],
+	"java.project.sourcePaths": [
+		"` + src + `",
+		"tests"
+	]
+}`
+}
+
 func ifSrc(src string) string {
 	if len(src) == 0 {
 		return ""

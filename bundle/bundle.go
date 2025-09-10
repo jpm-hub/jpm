@@ -86,7 +86,9 @@ func Bundle() {
 
 	println("\t --- JAR :", filepath.Join("dist", name))
 	COM.RunScript("cd dist && echo '"+builder.String()+"' && "+builder.String(), true)
-	//os.RemoveAll(filepath.Join("dist", "_dump"))
+	if !COM.Verbose {
+		os.RemoveAll(filepath.Join("dist", "_dump"))
+	}
 }
 func getName() string {
 	if len(os.Args) > 2 && os.Args[2] != "-fat" && os.Args[2] != "-exe" {
@@ -100,8 +102,8 @@ func copyFromOut() {
 	dst := "dist/_dump"
 	destwin := "dist\\_dump"
 	if COM.IsWindows() {
-		cmd := fmt.Sprintf(`xcopy /E /I /Y "%s\" "%s\"`, destwin, src)
-		COM.RunPS(cmd, true)
+		cmd := fmt.Sprintf(`xcopy /E /I /Y "%s\" "%s\"`, src, destwin)
+		COM.RunCMD(cmd, true)
 		os.RemoveAll("dist\\_dump\\tests")
 	} else {
 		cmd := fmt.Sprintf(`rsync -a --exclude 'tests' "%s"/ "%s"/`, src, dst)
@@ -113,9 +115,10 @@ func copyFromDependencies(dir string) {
 	dst := dir
 	if COM.IsWindows() {
 		cmd := fmt.Sprintf(`xcopy /E /I /Y "%s\" "%s\"`, src, dst)
-		COM.RunPS(cmd, true)
+		COM.RunCMD(cmd, true)
 		os.RemoveAll(filepath.Join(dir, ".lock.json"))
-		os.RemoveAll(filepath.Join(dir, "tests", "execs"))
+		os.RemoveAll(filepath.Join(dir, "tests"))
+		os.RemoveAll(filepath.Join(dir, "execs"))
 	} else {
 		cmd := fmt.Sprintf(`rsync -a --exclude 'tests' --exclude 'execs' "%s"/ "%s"/`, src, dst)
 		COM.RunScript(cmd, true)

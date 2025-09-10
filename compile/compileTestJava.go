@@ -45,7 +45,13 @@ func compileTestJava() error {
 		return err
 	}
 	allJavas := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "*.java"), findAllSrcFile("tests", "*.java")}, " ")
-	err4 := COM.RunScript(COM.JAVAC()+" -proc:full "+args+" -cp \""+"out/tests:"+jarFilesString+"\" -d out/tests "+allJavas, true)
+	var err4 error
+	if COM.IsWindows() {
+		err4 = COM.RunCMD(COM.JAVAC()+" -proc:full "+args+" -cp \""+"out/tests;"+jarFilesString+"\" -d out/tests "+allJavas, true)
+	} else {
+		err4 = COM.RunScript(COM.JAVAC()+" -proc:full "+args+" -cp \""+"out/tests:"+jarFilesString+"\" -d out/tests "+allJavas, true)
+	}
+
 	err5 := endCheckLastLineForErrors(r, w, originalOut)
 	if err4 != nil || err5 != nil {
 		return fmt.Errorf("\033[31m test compilation failed for java\033[0m")

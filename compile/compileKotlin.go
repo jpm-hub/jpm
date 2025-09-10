@@ -28,9 +28,19 @@ func compileKotlin() error {
 		}
 	}
 	jarFilesString := builder.String()
+	if jarFilesString == "" {
+		jarFilesString = " "
+	}
 
-	allKts := findAllSrcFile(COM.SrcDir(), "*.kt")
-	err1 := COM.RunScript(COM.KOTLINC()+" "+args+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
+	var err1 error
+	if COM.IsWindows() {
+		allKts := findAllSrcFile(COM.SrcDir(), ".")
+		err1 = COM.RunCMD(COM.KOTLINC()+" "+args+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
+	} else {
+		allKts := findAllSrcFile(COM.SrcDir(), "*.kt")
+		err1 = COM.RunScript(COM.KOTLINC()+" "+args+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
+	}
+
 	if err1 != nil {
 		fmt.Println("\033[31mkotlin compilation failed\033[0m")
 		return fmt.Errorf("compilation failed for kotlin")

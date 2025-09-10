@@ -1,12 +1,14 @@
 package doctor
 
 import (
+	"fmt"
 	COM "jpm/common"
 	"os"
 	"path/filepath"
 )
 
 func Doctor(silent bool) bool {
+	CheckVerobse()
 	good := CheckJava(silent)
 
 	good = checkHotSwapAgent(silent) && good
@@ -16,18 +18,9 @@ func Doctor(silent bool) bool {
 	return good
 }
 
-//	func checkCommand(cmd string, help string, silent bool) bool {
-//		if err := exec.Command("sh", "-c", "which "+cmd).Run(); err != nil && !silent {
-//			println("\n\033[31m( " + cmd + " )\033[0m is not accesible")
-//			println("\t" + help + "\n")
-//			return false
-//		} else {
-//			if !silent {
-//				println("\033[32m( " + cmd + " )\033[0m works")
-//			}
-//			return true
-//		}
-//	}
+func CheckVerobse() {
+	fmt.Println("\033[32m( Verobse )\033[0m", COM.Verbose)
+}
 
 func checkHotSwapAgent(silent bool) bool {
 	hotswapFile := filepath.Join(COM.HomeDir(), "libs", "hotswap-agent.jar")
@@ -70,7 +63,6 @@ func CheckJava(silent bool) bool {
 		if err := COM.RunScript("which javac || where javac", false); err != nil && !silent {
 			println("\n\033[31m( java )\033[0m is not accesible")
 			println("\tfix: jpm setup -java   -> uses jetbrains dcevm for 'jpm run -hot'")
-			println("\tor: brew install openjdk\n")
 			return false
 		}
 		if !silent {
@@ -88,10 +80,12 @@ func CheckJava(silent bool) bool {
 }
 
 func checkJar(silent bool) bool {
-	if err := COM.RunScript("which jar || where jar", false); err != nil {
+	if err := COM.RunScript("which jar", false); err != nil {
 		if !silent {
 			println("\n\033[31m( jar )\033[0m is not accesible, you won't be able to bundle your app")
-			println("\ttfix: brew install openjdk\n")
+			println("\tfix        : sdk install openjdk\n")
+			println("\tfix windows: winget install openjdk\n")
+
 		}
 		return false
 	} else {

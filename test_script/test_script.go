@@ -9,7 +9,6 @@ import (
 
 func TestScript() error {
 	COM.FindPackageYML()
-	jarPath := filepath.Join("..", "jpm_dependencies", "tests", "junit.jar")
 	argsMap := COM.ParseArgs()
 	os.RemoveAll(filepath.Join("out", "tests"))
 	allTestArgs, found := argsMap["test"]
@@ -18,7 +17,12 @@ func TestScript() error {
 		args = allTestArgs
 	}
 	err := COMPILE.CompileTest()
-	err2 := COM.RunScript("cd out && "+COM.JAVA()+" -cp \""+jarPath+":../jpm_dependencies/*:../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher  --class-path tests --scan-classpath --disable-banner "+args, true)
+	var err2 error
+	if COM.IsWindows() {
+		err2 = COM.RunCMD("cd out && "+COM.JAVA()+" -cp \"./tests;../jpm_dependencies/*;../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher  --class-path tests --scan-classpath --disable-banner "+args, true)
+	} else {
+		err2 = COM.RunScript("cd out && "+COM.JAVA()+" -cp \"../jpm_dependencies/*:../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher  --class-path tests --scan-classpath --disable-banner "+args, true)
+	}
 	if err != nil {
 		return err
 	}

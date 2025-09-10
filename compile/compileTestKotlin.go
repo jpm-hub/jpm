@@ -26,7 +26,7 @@ func compileTestKotlin() error {
 			if builder.Len() > 0 {
 				builder.WriteString(separator)
 			}
-			builder.WriteString(filepath.Join("jpm_dependencies", "tests") + "/")
+			builder.WriteString("jpm_dependencies/tests/")
 			builder.WriteString(file.Name())
 		}
 	}
@@ -41,10 +41,14 @@ func compileTestKotlin() error {
 	}
 	jarFilesString := builder.String()
 
-	allkts := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "*.kt"), findAllSrcFile("tests", "*.kt")}, " ")
-	// err3 := COM.RunScript(COM.KOTLINC()+" -include-runtime -cp \""+jarFilesString+"\" -d out/tests "+allkts, true)
-	// allkts =
-	err4 := COM.RunScript(COM.KOTLINC()+" -cp \""+"out/tests:"+jarFilesString+"\" "+args+" -d out/tests "+allkts, true)
+	var err4 error
+	if COM.IsWindows() {
+		allkts := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "."), findAllSrcFile("tests", ".")}, " ")
+		err4 = COM.RunCMD(COM.KOTLINC()+" "+args+" -cp \""+"out/tests;"+jarFilesString+"\" -d out/tests "+allkts, true)
+	} else {
+		allkts := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "*.kt"), findAllSrcFile("tests", "*.kt")}, " ")
+		err4 = COM.RunScript(COM.KOTLINC()+" -cp \""+"out/tests:"+jarFilesString+"\" "+args+" -d out/tests "+allkts, true)
+	}
 	if err4 != nil {
 		return fmt.Errorf("\033[31m test compilation failed for kotlin\033[0m")
 	}

@@ -4,15 +4,18 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"unicode"
 
 	"github.com/codeclysm/extract/v4"
@@ -20,6 +23,7 @@ import (
 )
 
 var g_yamlPath string = ""
+var Verbose = false
 var env map[string]string = map[string]string{}
 var packageYML PackageYAMLSimple
 
@@ -109,6 +113,29 @@ func (om *OrderedMap) MarshalYAML() (interface{}, error) {
 		return node, nil
 	}
 	return node, nil
+}
+
+func Init() {
+	homeDir := HomeDir()
+	configPath := filepath.Join(homeDir, "config.json")
+	type configStruct struct {
+		Verbose bool `json:"verbose"`
+	}
+	var cfg configStruct
+
+	file, err := os.Open(configPath)
+	if err != nil {
+		// config.json does not exist, set Verbose to false
+		Verbose = false
+		return
+	}
+	defer file.Close()
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&cfg); err != nil {
+		Verbose = false
+		return
+	}
+	Verbose = cfg.Verbose
 }
 
 func JAVAC() string {
@@ -236,7 +263,6 @@ func FindPackageYML() (string, string) {
 		if _, err := os.Stat(ymlPath); err == nil {
 			os.Chdir(dir)
 			g_yamlPath = ymlPath
-			println(g_yamlPath)
 			VerifyPackageYML()
 			return ymlPath, dir
 		}
@@ -309,7 +335,7 @@ func AddToSection(sectionName string, sectionValue any) {
 			}
 
 			for k, v := range repoMap {
-				fmt.Println("Adding", k, v)
+				fmt.Println("Adding", k+":", v)
 				newRepos.Values[k] = v
 				newRepos.Order = append(newRepos.Order, k)
 			}
@@ -514,13 +540,16 @@ func GetDependencies(isFatal bool) []string {
 	}
 	return deps
 }
-func RunPS(script string, showStdOut bool) error {
+func RunCMD(script string, showStdOut bool) error {
 	var cmd *exec.Cmd
-	if tmpFile, err := os.CreateTemp("", "jpm_script_*.ps1"); err == nil {
-		tmpFile.WriteString(script)
-		println(script)
+	if tmpFile, err := os.CreateTemp("", "jpm_script_*.cmd"); err == nil {
+		tmpFile.WriteString("@echo off\n" + script)
+		if Verbose {
+			println("\033[33m--(verbose command)==>  " + script + "\033[0m")
+			showStdOut = true
+		}
 		tmpFile.Close()
-		cmd = exec.Command("powershell", "-File", tmpFile.Name())
+		cmd = exec.Command("cmd", "/C", tmpFile.Name())
 		defer os.Remove(tmpFile.Name())
 		if dir, err := os.Getwd(); err == nil {
 			cmd.Dir = dir
@@ -530,12 +559,37 @@ func RunPS(script string, showStdOut bool) error {
 			cmd.Stderr = os.Stderr
 			cmd.Stdin = os.Stdin
 		}
-		return cmd.Run()
+
+		// Set up signal handling for Ctrl+C
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT)
+		defer signal.Stop(sigChan)
+		// Start the command
+		if err := cmd.Start(); err == nil {
+			done := make(chan error, 1)
+			go func() {
+				done <- cmd.Wait()
+			}()
+			select {
+			case err := <-done:
+				return err
+			case sig := <-sigChan:
+				// Kill the process immediately when Ctrl+C is pressed
+				if cmd.Process != nil {
+					cmd.Process.Kill()
+				}
+				return fmt.Errorf("process terminated by signal: %v", sig)
+			}
+		}
+		return fmt.Errorf("failed to trap signals")
 	}
 	return fmt.Errorf("failed to run")
 }
 func RunScript(script string, showStdOut bool) error {
-	println(script)
+	if Verbose {
+		println("\033[33m--(verbose command)==> " + script + "\033[0m")
+		showStdOut = true
+	}
 	var cmd *exec.Cmd
 	if IsWindows() {
 		cmd = exec.Command("C:\\Program Files\\Git\\bin\\bash.exe", "-c", script)
@@ -598,6 +652,9 @@ func CleanupExtract(dirname string, filename string) {
 	os.Remove(filepath.Join(dirname, filename))
 }
 func DownloadFile(url string, dirpath string, filename string, override bool, returnContent bool) (error, []byte) {
+	if Verbose {
+		println(url)
+	}
 	filePath := filepath.Join(dirpath, filename)
 	// Get the data first to check response
 	resp, err := http.Get(url)

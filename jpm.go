@@ -25,6 +25,7 @@ import (
 // add docker to init
 // add windows support (scripts and back slashes)
 func main() {
+	COM.Init()
 	if len(os.Args) == 1 {
 		COM.PrintArt()
 		println()
@@ -116,8 +117,8 @@ func main() {
 		INSTALL.Install()
 	case "setup":
 		if len(os.Args) == 3 {
-			tags := []string{"-java", "-kotlin", "-junit", "-HotSwapAgent"}
-			if slices.Contains(tags, os.Args[2]) {
+			sw := []string{"-java", "-kotlin", "-junit", "-HotSwapAgent", "-verbose"}
+			if slices.Contains(sw, os.Args[2]) {
 				SETUP.Setup(os.Args[2])
 				os.Exit(0)
 			}

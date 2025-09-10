@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func addNewRepo(repoString string, path string) {
+func addNewRepo(repoString string) {
 	aliasAndaddr := strings.SplitN(repoString, ":", 2)
 	alias := strings.ToLower(aliasAndaddr[0])
 	addr := aliasAndaddr[1]

@@ -6,6 +6,7 @@ import (
 	DARM64 "jpm/setup/darwin_arm64"
 	LAARCH64 "jpm/setup/linux_aarch64"
 	LAMD64 "jpm/setup/linux_amd64"
+	"jpm/setup/osless"
 	WAMD64 "jpm/setup/windows_amd64"
 	WARM64 "jpm/setup/windows_arm64"
 	"os"
@@ -20,6 +21,12 @@ func Setup(setupSwitch string) {
 
 	// Create app home directory if it doesn't exist
 	os.MkdirAll(appHomeDir, 0755)
+
+	switch setupSwitch {
+	case "-verbose":
+		osless.Verbose(appHomeDir)
+		return
+	}
 
 	switch osArch {
 	case "linux-arm64":
