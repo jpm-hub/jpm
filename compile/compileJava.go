@@ -19,11 +19,11 @@ func compileJava() error {
 	}
 	var builder strings.Builder
 	for _, file := range jpm_dependenciesFiles {
-		if strings.HasSuffix(file.Name(), ".jar") || strings.HasSuffix(file.Name(), ".class") || strings.HasSuffix(file.Name(), ".zip") {
+		if strings.HasSuffix(file.Name(), ".jar") || strings.HasSuffix(file.Name(), ".zip") {
 			if builder.Len() > 0 {
 				builder.WriteString(separator)
 			}
-			builder.WriteString("jpm_dependencies" + slash)
+			builder.WriteString("jpm_dependencies/")
 			builder.WriteString(file.Name())
 		}
 	}
@@ -33,7 +33,7 @@ func compileJava() error {
 		return err
 	}
 	allJavas := findAllSrcFile(COM.SrcDir(), "*.java")
-	err1 := COM.RunScript(COM.JAVAC()+" -proc:full "+args+" -cp \""+jarFilesString+"\" -d out "+allJavas, true)
+	err1 := COM.RunPS(COM.JAVAC()+" -proc:full "+args+" -cp \""+jarFilesString+"\" -d out "+allJavas, true)
 	err = endCheckLastLineForErrors(r, w, originalOut)
 	if err1 != nil || err != nil {
 		fmt.Println("\033[31mjava compilation failed\033[0m")

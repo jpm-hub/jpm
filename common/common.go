@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"unicode"
@@ -113,14 +112,22 @@ func (om *OrderedMap) MarshalYAML() (interface{}, error) {
 }
 
 func JAVAC() string {
-	DCEVM := filepath.Join(HomeDir(), "dcevm", "bin", "javac")
+	javac := "javac"
+	if IsWindows() {
+		javac = javac + ".exe"
+	}
+	DCEVM := filepath.Join(HomeDir(), "dcevm", "bin", javac)
 	if _, err := os.Stat(DCEVM); !os.IsNotExist(err) {
 		return DCEVM
 	}
 	return "javac"
 }
 func JAVA() string {
-	DCEVM := filepath.Join(HomeDir(), "dcevm", "bin", "java")
+	java := "java"
+	if IsWindows() {
+		java = java + ".exe"
+	}
+	DCEVM := filepath.Join(HomeDir(), "dcevm", "bin", java)
 	if _, err := os.Stat(DCEVM); !os.IsNotExist(err) {
 		return DCEVM
 	}
@@ -129,11 +136,11 @@ func JAVA() string {
 
 func KOTLINC() string {
 	kotlinc := ""
-	if runtime.GOOS == "windows" {
-		kotlinc = filepath.Join(HomeDir(), "kotlinc", "bin", "kotlinc.bat")
-	} else {
-		kotlinc = filepath.Join(HomeDir(), "kotlinc", "bin", "kotlinc")
+	ktc := "kotlinc"
+	if IsWindows() {
+		ktc = ktc + ".bat"
 	}
+	kotlinc = filepath.Join(HomeDir(), "kotlinc", "bin", ktc)
 	if _, err := os.Stat(kotlinc); !os.IsNotExist(err) {
 		return kotlinc
 	}
@@ -220,16 +227,19 @@ func FindPackageYML() (string, string) {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	if g_yamlPath != "" {
+		return g_yamlPath, filepath.Dir(g_yamlPath)
+	}
 
 	for {
 		ymlPath := filepath.Join(dir, "package.yml")
 		if _, err := os.Stat(ymlPath); err == nil {
 			os.Chdir(dir)
 			g_yamlPath = ymlPath
+			println(g_yamlPath)
 			VerifyPackageYML()
 			return ymlPath, dir
 		}
-
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
@@ -343,7 +353,8 @@ func AddToSection(sectionName string, sectionValue any) {
 
 func GetSection(section string, isFatal bool) any {
 	if packageYML.Package == "" {
-		FindPackageYML()
+		println("package section of package.yml cannot be empty")
+		os.Exit(1)
 	}
 	switch section {
 	case "main":
@@ -392,7 +403,7 @@ func GetSection(section string, isFatal bool) any {
 	}
 }
 
-func ParseScripts(path string) map[string]string {
+func ParseScripts() map[string]string {
 	return GetSection("scripts", true).(map[string]string)
 }
 
@@ -475,7 +486,11 @@ func ParseEnvVars(prefix string) string {
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			line := scanner.Text()
-			lines = append(lines, prefix+" "+line)
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			l := strings.SplitN(line, "=", 2)
+			lines = append(lines, prefix+l[0]+"=\""+l[1]+"\"")
 		}
 
 		if err := scanner.Err(); err != nil {
@@ -499,15 +514,32 @@ func GetDependencies(isFatal bool) []string {
 	}
 	return deps
 }
-
-func RunScript(script string, showStdOut bool) error {
-	//println(script)
+func RunPS(script string, showStdOut bool) error {
 	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		// On Windows, use cmd.exe to create a process group
-		cmd = exec.Command("cmd", "/C", script)
+	if tmpFile, err := os.CreateTemp("", "jpm_script_*.ps1"); err == nil {
+		tmpFile.WriteString(script)
+		println(script)
+		tmpFile.Close()
+		cmd = exec.Command("powershell", "-File", tmpFile.Name())
+		defer os.Remove(tmpFile.Name())
+		if dir, err := os.Getwd(); err == nil {
+			cmd.Dir = dir
+		}
+		if showStdOut {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+		}
+		return cmd.Run()
+	}
+	return fmt.Errorf("failed to run")
+}
+func RunScript(script string, showStdOut bool) error {
+	println(script)
+	var cmd *exec.Cmd
+	if IsWindows() {
+		cmd = exec.Command("C:\\Program Files\\Git\\bin\\bash.exe", "-c", script)
 	} else {
-		// On Unix, use sh -c with exec to ensure proper process group
 		cmd = exec.Command("sh", "-c", script)
 	}
 	if dir, err := os.Getwd(); err == nil {
@@ -527,13 +559,7 @@ func HomeDir() string {
 		// Fallback to current directory if home directory can't be determined
 		return "."
 	}
-
-	// Use .jpm for Unix-like systems and jpm for Windows
 	appDir := ".jpm"
-	if runtime.GOOS == "windows" {
-		appDir = "jpm"
-	}
-
 	// Create the directory if it doesn't exist
 	dirPath := filepath.Join(homeDir, appDir)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
@@ -628,6 +654,7 @@ func WriteYAML(filePath string, data interface{}) error {
 func IsWindows() bool {
 	return os.PathSeparator == '\\'
 }
+
 func CapitalizeFirst(s string) string {
 	if s == "" {
 		return ""

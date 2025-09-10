@@ -8,9 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
-	"syscall"
 
 	COM "jpm/common"
 	COMPILE "jpm/compile"
@@ -22,6 +20,7 @@ var command string = "jpm compile"
 var procs []*os.Process = []*os.Process{}
 
 func Watch(fromRun bool) {
+	COM.FindPackageYML()
 	// Create a new watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -73,13 +72,7 @@ func killpids() {
 		if proc == nil {
 			continue
 		}
-		if runtime.GOOS == "windows" {
-			// On Windows, use taskkill to kill the process tree
-			exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(proc.Pid)).Run()
-		} else {
-			// On Unix, kill the process group
-			syscall.Kill(-proc.Pid, syscall.SIGKILL)
-		}
+		killProcessGroup(proc)
 	}
 }
 
@@ -247,10 +240,8 @@ func runScriptWithPID(script string) *os.Process {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
-	// Set process group ID for Unix systems
-	if runtime.GOOS != "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	}
+	// Set process group attributes (platform-specific)
+	setProcessGroupAttr(cmd)
 
 	err := cmd.Start()
 	if err != nil {

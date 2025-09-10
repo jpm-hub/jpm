@@ -86,7 +86,7 @@ func Bundle() {
 
 	println("\t --- JAR :", filepath.Join("dist", name))
 	COM.RunScript("cd dist && echo '"+builder.String()+"' && "+builder.String(), true)
-	os.RemoveAll(filepath.Join("dist", "_dump"))
+	//os.RemoveAll(filepath.Join("dist", "_dump"))
 }
 func getName() string {
 	if len(os.Args) > 2 && os.Args[2] != "-fat" && os.Args[2] != "-exe" {
@@ -98,9 +98,11 @@ func getName() string {
 func copyFromOut() {
 	src := "out"
 	dst := "dist/_dump"
+	destwin := "dist\\_dump"
 	if COM.IsWindows() {
-		cmd := fmt.Sprintf(`robocopy "%s" "%s" /E /XD tests /NFL /NDL /NJH /NJS /nc /ns /np`, src, dst)
-		COM.RunScript(cmd, true)
+		cmd := fmt.Sprintf(`xcopy /E /I /Y "%s\" "%s\"`, destwin, src)
+		COM.RunPS(cmd, true)
+		os.RemoveAll("dist\\_dump\\tests")
 	} else {
 		cmd := fmt.Sprintf(`rsync -a --exclude 'tests' "%s"/ "%s"/`, src, dst)
 		COM.RunScript(cmd, true)
@@ -110,8 +112,10 @@ func copyFromDependencies(dir string) {
 	src := "jpm_dependencies"
 	dst := dir
 	if COM.IsWindows() {
-		cmd := fmt.Sprintf(`robocopy "%s" "%s" /E /XD tests execs /NFL /NDL /NJH /NJS /nc /ns /np`, src, dst)
-		COM.RunScript(cmd, true)
+		cmd := fmt.Sprintf(`xcopy /E /I /Y "%s\" "%s\"`, src, dst)
+		COM.RunPS(cmd, true)
+		os.RemoveAll(filepath.Join(dir, ".lock.json"))
+		os.RemoveAll(filepath.Join(dir, "tests", "execs"))
 	} else {
 		cmd := fmt.Sprintf(`rsync -a --exclude 'tests' --exclude 'execs' "%s"/ "%s"/`, src, dst)
 		COM.RunScript(cmd, true)
@@ -124,8 +128,8 @@ func createScripts(main string) {
 	if !found {
 		args = ""
 	}
-	unix := fmt.Sprintf(COM.ParseEnvVars("export")+"java %v -cp ./*:jar_libraries/* %s", args, main)
-	windows := fmt.Sprintf(COM.ParseEnvVars("set")+"java %v -cp .\\*;jar_libraries\\* %s", args, main)
+	unix := fmt.Sprintf(COM.ParseEnvVars("export ")+"java %v -cp ./*:jar_libraries/* %s", args, main)
+	windows := fmt.Sprintf(COM.ParseEnvVars("set ")+"java %v -cp ./*;jar_libraries/* %s", args, main)
 
 	os.WriteFile(filepath.Join("dist", "run.sh"), []byte(unix+"\n"), 0755)
 	os.WriteFile(filepath.Join("dist", "run.cmd"), []byte(windows+"\r\n"), 0755)

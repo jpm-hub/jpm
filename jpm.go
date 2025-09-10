@@ -124,8 +124,8 @@ func main() {
 		}
 		fallthrough
 	default:
-		path, _ := COM.FindPackageYML()
-		scripts := COM.ParseScripts(path)
+		COM.FindPackageYML()
+		scripts := COM.ParseScripts()
 		scriptCmd, found := scripts[scriptName]
 		if !found {
 			fmt.Printf("Script '%s' not found in package.yml\n", scriptName)

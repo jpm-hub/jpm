@@ -19,11 +19,11 @@ func compileKotlin() error {
 	}
 	var builder strings.Builder
 	for _, file := range jpm_dependenciesFiles {
-		if strings.HasSuffix(file.Name(), ".jar") || strings.HasSuffix(file.Name(), ".class") || strings.HasSuffix(file.Name(), ".zip") {
+		if strings.HasSuffix(file.Name(), ".jar") || strings.HasSuffix(file.Name(), ".zip") {
 			if builder.Len() > 0 {
 				builder.WriteString(separator)
 			}
-			builder.WriteString("jpm_dependencies" + slash)
+			builder.WriteString("jpm_dependencies/")
 			builder.WriteString(file.Name())
 		}
 	}

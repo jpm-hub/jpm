@@ -129,7 +129,10 @@ func Init() {
 	if err := os.MkdirAll(filepath.Join(".vscode"), 0755); err == nil {
 		os.WriteFile(filepath.Join(".vscode", "settings.json"), []byte(`{
 	"java.project.referencedLibraries": [
-		"jpm_dependencies/**/*.jar",
+		"jpm_dependencies/**/*"
+	],
+	"java.project.sourcePaths": [
+		"."
 	]
 }
 			`), 0644)

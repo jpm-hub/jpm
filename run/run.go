@@ -15,12 +15,16 @@ func Run() error {
 	if !found {
 		args = ""
 	}
-	prefix := "export"
+	prefix := "export "
 	if COM.IsWindows() {
-		prefix = "set"
+		prefix = "$env:"
 	}
 	if len(os.Args) == 2 {
-		return COM.RunScript(COM.ParseEnvVars(prefix)+"cd out && "+COM.JAVA()+" "+args+" -cp \".:./*:../jpm_dependencies/*\" "+mainClass, true)
+		if COM.IsWindows() {
+			return COM.RunPS(COM.ParseEnvVars(prefix)+"cd out; "+COM.JAVA()+" "+args+" -cp \".;./*;../jpm_dependencies/*\" "+mainClass, true)
+		} else {
+			return COM.RunScript(COM.ParseEnvVars(prefix)+"cd out && "+COM.JAVA()+" "+args+" -cp \".:./*:../jpm_dependencies/*\" "+mainClass, true)
+		}
 	}
 	allRunArgs, found := argsMap["hotswap"]
 	argshs := ""
@@ -40,7 +44,11 @@ func Run() error {
 			}
 			COMPILE.Compile()
 			go WATCH.Watch(true)
-			return COM.RunScript(COM.ParseEnvVars(prefix)+"cd out && "+COM.JAVA()+" "+args+" -XX:HotswapAgent=fatjar -XXaltjvm=dcevm -javaagent:"+COM.HomeDir()+"/libs/hotswap-agent.jar=autoHotswap=true,"+argshs+" -cp \".:./*:../jpm_dependencies/*\" "+mainClass+" "+runArgs, true)
+			if COM.IsWindows() {
+				return COM.RunPS(COM.ParseEnvVars(prefix)+"cd out; "+COM.JAVA()+" "+args+" -XX:HotswapAgent=fatjar -XXaltjvm=dcevm -javaagent:"+COM.HomeDir()+"\\libs\\hotswap-agent.jar=autoHotswap=true,"+argshs+" -cp \".;./*;../jpm_dependencies/*\" "+mainClass+" "+runArgs, true)
+			} else {
+				return COM.RunScript(COM.ParseEnvVars(prefix)+"cd out && "+COM.JAVA()+" "+args+" -XX:HotswapAgent=fatjar -XXaltjvm=dcevm -javaagent:"+COM.HomeDir()+"/libs/hotswap-agent.jar=autoHotswap=true,"+argshs+" -cp \".:./*:../jpm_dependencies/*\" "+mainClass+" "+runArgs, true)
+			}
 		} else {
 			for i := 2; i < len(os.Args); i++ {
 				if i > 2 {
@@ -48,7 +56,11 @@ func Run() error {
 				}
 				runArgs += os.Args[i]
 			}
-			return COM.RunScript(COM.ParseEnvVars(prefix)+"cd out && "+COM.JAVA()+" "+args+" -cp \".:./*:../jpm_dependencies/*\" "+mainClass+" "+runArgs, true)
+			if COM.IsWindows() {
+				return COM.RunPS(COM.ParseEnvVars(prefix)+"cd out; "+COM.JAVA()+" "+args+" -cp \".;./*;../jpm_dependencies/*\" "+mainClass+" "+runArgs, true)
+			} else {
+				return COM.RunScript(COM.ParseEnvVars(prefix)+"cd out && "+COM.JAVA()+" "+args+" -cp \".:./*:../jpm_dependencies/*\" "+mainClass+" "+runArgs, true)
+			}
 		}
 	}
 	println("run command has wrong args")
