@@ -16,7 +16,7 @@ var separator string = ":"
 var argsMap map[string]string
 
 func initCompile() {
-	COM.FindPackageYML()
+	COM.FindPackageYML(true)
 	os.MkdirAll("out", 0755)
 	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
 	if COM.IsWindows() {

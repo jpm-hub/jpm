@@ -10,8 +10,12 @@ import (
 )
 
 func Bundle() {
-
-	COM.FindPackageYML()
+	COM.FindPackageYML(true)
+	println("\t\033[32mCompiling \033[0m")
+	err := COM.RunScript("jpm compile", true)
+	if err != nil {
+		os.Exit(1)
+	}
 	packageName := COM.GetSection("package", true).(string)
 	os.MkdirAll(filepath.Join("dist", "_dump"), 0755)
 	verison := COM.GetSection("version", true).(string)
@@ -67,7 +71,8 @@ func Bundle() {
 			exec = "e " + name + " " + main
 
 		case "-native":
-
+			println("Bundling to native is not yet supported")
+			os.Exit(1)
 		default:
 			println("unknown switch", arg)
 		}
@@ -88,7 +93,7 @@ func Bundle() {
 	builder.WriteString(classes)
 
 	println("\t --- JAR :", filepath.Join("dist", name))
-	COM.RunScript("cd dist && "+builder.String(), true)
+	COM.RunScript("cd dist && "+builder.String(), false)
 	if !COM.Verbose {
 		os.RemoveAll(filepath.Join("dist", "_dump"))
 	}
@@ -106,11 +111,11 @@ func copyFromOut() {
 	destwin := "dist\\_dump"
 	if COM.IsWindows() {
 		cmd := fmt.Sprintf(`xcopy /E /I /Y "%s\" "%s\"`, src, destwin)
-		COM.RunCMD(cmd, true)
+		COM.RunCMD(cmd, false)
 		os.RemoveAll("dist\\_dump\\tests")
 	} else {
 		cmd := fmt.Sprintf(`rsync -a --exclude 'tests' "%s"/ "%s"/`, src, dst)
-		COM.RunScript(cmd, true)
+		COM.RunScript(cmd, false)
 	}
 }
 func copyFromDependencies(dir string) {
@@ -118,13 +123,13 @@ func copyFromDependencies(dir string) {
 	dst := dir
 	if COM.IsWindows() {
 		cmd := fmt.Sprintf(`xcopy /E /I /Y "%s\" "%s\"`, src, dst)
-		COM.RunCMD(cmd, true)
+		COM.RunCMD(cmd, false)
 		os.RemoveAll(filepath.Join(dir, ".lock.json"))
 		os.RemoveAll(filepath.Join(dir, "tests"))
 		os.RemoveAll(filepath.Join(dir, "execs"))
 	} else {
 		cmd := fmt.Sprintf(`rsync -a --exclude 'tests' --exclude 'execs' "%s"/ "%s"/`, src, dst)
-		COM.RunScript(cmd, true)
+		COM.RunScript(cmd, false)
 	}
 }
 func extractJarAndZip() {}
@@ -133,9 +138,11 @@ func createScripts(main string) {
 	args, found := argsMap["run"]
 	if !found {
 		args = ""
+	} else {
+		args = " " + args
 	}
-	unix := fmt.Sprintf(COM.ParseEnvVars("export ")+"java %v -cp ./*:jar_libraries/* %s", args, main)
-	windows := fmt.Sprintf(COM.ParseEnvVars("set ")+"java %v -cp ./*;jar_libraries/* %s", args, main)
+	unix := fmt.Sprintf(COM.ParseEnvVars("export ")+"java%s -cp ./*:jar_libraries/* %s", args, main)
+	windows := fmt.Sprintf(COM.ParseEnvVars("set ")+"java%s -cp ./*;jar_libraries/* %s", args, main)
 
 	os.WriteFile(filepath.Join("dist", "run.sh"), []byte(unix+"\n"), 0755)
 	os.WriteFile(filepath.Join("dist", "run.cmd"), []byte(windows+"\r\n"), 0755)

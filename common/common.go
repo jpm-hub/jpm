@@ -248,7 +248,7 @@ func VerifyPackageYML() {
 		}
 	}
 }
-func FindPackageYML() (string, string) {
+func FindPackageYML(fatal bool) (string, string) {
 	dir, err := os.Getwd()
 	if err != nil {
 		fmt.Println(err)
@@ -272,8 +272,10 @@ func FindPackageYML() (string, string) {
 		}
 		dir = parent
 	}
-	println("package.yml not found")
-	os.Exit(1)
+	if fatal {
+		println("package.yml not found")
+		os.Exit(1)
+	}
 	return "", ""
 }
 
@@ -378,7 +380,7 @@ func AddToSection(sectionName string, sectionValue any) {
 }
 
 func GetSection(section string, isFatal bool) any {
-	if packageYML.Package == "" {
+	if packageYML.Package == "" && g_yamlPath != "" {
 		println("package section of package.yml cannot be empty")
 		os.Exit(1)
 	}

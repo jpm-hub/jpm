@@ -46,7 +46,7 @@ var latests []string = []string{}
 
 func Install() {
 	println()
-	COM.FindPackageYML()
+	COM.FindPackageYML(true)
 	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
 	homeDir := COM.HomeDir()
 	if COM.IsWindows() {
@@ -92,7 +92,7 @@ func Install() {
 	dumpDependencies(depMap)
 }
 func QuickInstall() {
-	COM.FindPackageYML()
+	COM.FindPackageYML(true)
 	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
 	homeDir := COM.HomeDir()
 	if COM.IsWindows() {

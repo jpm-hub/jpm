@@ -86,7 +86,8 @@ jpm_dependencies
 }
 
 func GetJavaTestTemplate(packaging string, className string) string {
-	return `import org.junit.*;
+	return `package tests;
+import org.junit.*;
 import ` + packaging + `.` + className + `;
 public class Test` + className + ` {
 	@Test
@@ -98,7 +99,8 @@ public class Test` + className + ` {
 }
 
 func GetKotlinTestTemplate(packaging string, className string) string {
-	return `import org.junit.*
+	return `package tests;
+import org.junit.*
 import kotlin.test.*
 import ` + packaging + `.` + className + `;
 class Test` + className + ` {
@@ -112,9 +114,9 @@ class Test` + className + ` {
 
 func PrintArt() {
 	println(`   ____________  ___
-  |_  | ___ \  \/  |  version: 0.0.1
-    | | |_/ / .  . |  The simpler
-    | |  __/| |\/| |  package manager
-/\__/ / |   | |  | |  for your
-\____/\_|   \_|  |_/  JVM project`)
+  |_  | ___ \  \/  |  version      : 0.0.1
+    | | |_/ / .  . |  java version : 24
+    | |  __/| |\/| |  The simpler package manager
+/\__/ / |   | |  | |  And build tool
+\____/\_|   \_|  |_/  for your JVM project`)
 }

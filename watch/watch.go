@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 
 	COM "jpm/common"
 	COMPILE "jpm/compile"
@@ -20,7 +21,7 @@ var command string = "jpm compile"
 var procs []*os.Process = []*os.Process{}
 
 func Watch(fromRun bool) {
-	COM.FindPackageYML()
+	COM.FindPackageYML(true)
 	// Create a new watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -46,6 +47,7 @@ func Watch(fromRun bool) {
 			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
 				if matchesPattern(event.Name, patterns) {
 					refresh(fromRunWatch)
+					time.Sleep(time.Second)
 				}
 			}
 		}

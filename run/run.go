@@ -8,7 +8,7 @@ import (
 )
 
 func Run() error {
-	COM.FindPackageYML()
+	COM.FindPackageYML(true)
 	mainClass := COM.GetSection("main", true).(string)
 	argsMap := COM.ParseArgs()
 	args, found := argsMap["run"]

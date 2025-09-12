@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 
@@ -24,15 +25,25 @@ import (
 // add jpm bundle -fat (creates a fat jar)
 // add docker to init
 // add windows support (scripts and back slashes)
+var scriptsS []string = []string{}
+var scripts map[string]string
+
 func main() {
 	COM.Init()
 	if len(os.Args) == 1 {
 		COM.PrintArt()
 		println()
-		DOC.Doctor(false)
+		DOC.Doctor(false, false)
 		return
 	}
 	scriptName := os.Args[1]
+
+	COM.FindPackageYML(false)
+	scripts = COM.ParseScripts()
+	scriptCmd, found := scripts[scriptName]
+	for k := range maps.Keys(scripts) {
+		scriptsS = append(scriptsS, k)
+	}
 
 	switch scriptName {
 	case "-h":
@@ -89,22 +100,28 @@ func main() {
 		fmt.Println("\t\t-x: extract zip or tar.gz files from raw dependencies")
 		return
 	case "doctor":
-		DOC.Doctor(false)
+		execOverride("init")
+		DOC.Doctor(false, true)
 	case "init":
+		execOverride("init")
 		INIT.Init()
 	case "create":
+		execOverride("create")
 		CREATE.Create()
 	case "compile":
+		execOverride("compile")
 		if COMPILE.Compile() != nil {
 			os.Exit(1)
 		}
 	case "run":
+		execOverride("run")
 		if RUN.Run() != nil {
 			os.Exit(1)
 		}
 	case "watch":
 		WATCH.Watch(false)
 	case "bundle":
+		execOverride("bundle")
 		BUNDLE.Bundle()
 	case "test":
 		if err := TEST.TestScript(); err != nil {
@@ -125,18 +142,28 @@ func main() {
 		}
 		fallthrough
 	default:
-		COM.FindPackageYML()
-		scripts := COM.ParseScripts()
-		scriptCmd, found := scripts[scriptName]
 		if !found {
 			fmt.Printf("Script '%s' not found in package.yml\n", scriptName)
 			os.Exit(1)
 		}
-		cmd := scriptCmd
-		if err := COM.RunScript(cmd, true); err != nil {
+		if err := COM.RunScript(scriptCmd, true); err != nil {
 			fmt.Printf("Error running script '%s': %v \n", scriptName, err)
 			os.Exit(1)
 		}
 	}
 
+}
+
+func execOverride(sc string) {
+	if os.Getenv("JPM_OVERRIDE") != "TRUE" {
+		if slices.Contains(scriptsS, sc+"@") {
+			println("\033[33mOverriding: jpm", sc, "\033[0m")
+			cmd := "export JPM_OVERRIDE=TRUE\n" + scripts[sc+"@"]
+			if err := COM.RunScript(cmd, true); err != nil {
+				fmt.Printf("Error running script '%s': %v \n", sc, err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		}
+	}
 }

@@ -159,8 +159,11 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		optional := figureOutOptional(dep, pom)
 		// if scope == import add to import depsManagement list
 
-		if (optional == "" || strings.ToLower(optional) == "false") && slices.Contains(scopesAccepted, scope) {
+		if (optional == "" || strings.ToLower(optional) == "false") && slices.Contains(scopesAccepted, scope) && !strings.HasPrefix(groupID, "org.junit") {
 			groupid := figureOutGroupID(dep, pom)
+			if strings.HasPrefix(groupid, "org.junit") {
+				continue
+			}
 			dep.GroupID = groupid
 			artifactid := figureOutArtifactID(dep, pom)
 			dep.ArtifactID = artifactid

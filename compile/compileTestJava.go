@@ -47,9 +47,9 @@ func compileTestJava() error {
 	allJavas := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "*.java"), findAllSrcFile("tests", "*.java")}, " ")
 	var err4 error
 	if COM.IsWindows() {
-		err4 = COM.RunCMD(COM.JAVAC()+" -proc:full "+args+" -cp \""+"out/tests;"+jarFilesString+"\" -d out/tests "+allJavas, true)
+		err4 = COM.RunCMD(COM.JAVAC()+" -proc:full "+args+" -cp \""+"out;"+jarFilesString+"\" -d out "+allJavas, true)
 	} else {
-		err4 = COM.RunScript(COM.JAVAC()+" -proc:full "+args+" -cp \""+"out/tests:"+jarFilesString+"\" -d out/tests "+allJavas, true)
+		err4 = COM.RunScript(COM.JAVAC()+" -proc:full "+args+" -cp \""+"out:"+jarFilesString+"\" -d out "+allJavas, true)
 	}
 
 	err5 := endCheckLastLineForErrors(r, w, originalOut)
