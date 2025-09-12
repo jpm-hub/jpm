@@ -54,7 +54,7 @@ func Bundle() {
 			// classes = "-C _dump ."
 
 			// maybe i'll need to implement maven shade here, instead of doing it by hand
-			println("Bundling with a fat jar is not yet supported")
+			println("Bundling to a fat jar is not yet supported")
 			os.Exit(1)
 		case "-exe":
 			main = COM.GetSection("main", true).(string)
@@ -65,6 +65,9 @@ func Bundle() {
 			println("\t --- Bundleling with", main, "as execution Main-Class")
 			createScripts(main)
 			exec = "e " + name + " " + main
+
+		case "-native":
+
 		default:
 			println("unknown switch", arg)
 		}
@@ -85,7 +88,7 @@ func Bundle() {
 	builder.WriteString(classes)
 
 	println("\t --- JAR :", filepath.Join("dist", name))
-	COM.RunScript("cd dist && echo '"+builder.String()+"' && "+builder.String(), true)
+	COM.RunScript("cd dist && "+builder.String(), true)
 	if !COM.Verbose {
 		os.RemoveAll(filepath.Join("dist", "_dump"))
 	}
