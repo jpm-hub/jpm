@@ -638,6 +638,10 @@ func createExecScript(scope, scriptName, filename string) {
 	if scope != "exec" || !strings.HasSuffix(filename, ".jar") {
 		return
 	}
+	separator := ":"
+	if COM.IsWindows() {
+		separator = ";"
+	}
 	filename = "jpm_dependencies/execs/" + filename
 	scriptCmd := `
 	mainc=$(unzip -p ` + filename + ` META-INF/MANIFEST.MF | grep Main-Class | awk '/Main-Class:/ {print $2}'|tr -d '\n'| tr -d '\r')
@@ -645,6 +649,6 @@ func createExecScript(scope, scriptName, filename string) {
 		exit 1
 	fi
 	echo "#!/bin/bash" > jpm_dependencies/execs/` + scriptName + `
-	printf "java -p jpm_dependencies/execs -cp \"jpm_dependencies/execs/*\" %s %s" "$mainc" '$@' >> jpm_dependencies/execs/` + scriptName
+	printf "java -p \"jpm_dependencies` + separator + `jpm_dependencies/execs\ -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$mainc" '$@' >> jpm_dependencies/execs/` + scriptName
 	COM.RunScript(scriptCmd, true)
 }

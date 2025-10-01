@@ -100,7 +100,7 @@ func main() {
 		return
 	case "setup":
 		if len(os.Args) == 3 {
-			sw := []string{"-java", "-kotlin", "-junit", "-HotSwapAgent", "-verbose"}
+			sw := []string{"-java", "-kotlin", "-junit", "-HotSwapAgent", "-v", "-jpx"}
 			if slices.Contains(sw, os.Args[2]) {
 				SETUP.Setup(os.Args[2])
 				return

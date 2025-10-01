@@ -3,6 +3,7 @@ package osless
 import (
 	"encoding/json"
 	COM "jpm/common"
+	JPX "jpm/jpx"
 	"os"
 	"path/filepath"
 )
@@ -68,4 +69,18 @@ func Verbose(homeDir string) {
 		return
 	}
 	println("Verbose set to", cfg["verbose"].(bool))
+}
+
+func Jpx() {
+	execDir, err := os.Executable()
+	if err != nil {
+		println("Failed to get executable directory:", err.Error())
+		return
+	}
+	execDir = filepath.Dir(execDir)
+	if COM.IsWindows() {
+		os.WriteFile(execDir+"\\jpx.cmd", []byte(JPX.SHTemplate()), 0755)
+	} else {
+		os.WriteFile(execDir+"/jpx", []byte(JPX.SHTemplate()), 0755)
+	}
 }

@@ -226,7 +226,7 @@ func sanitize(s string) string {
 		if (r >= 'a' && r <= 'z') ||
 			(r >= 'A' && r <= 'Z') ||
 			(r >= '0' && r <= '9') ||
-			r == '-' || r == '_' || (r == '.' && strings.Count(s, ".") == 1) {
+			r == '-' || r == '_' {
 			b.WriteRune(r)
 		} else {
 			println("invalide input :", s)

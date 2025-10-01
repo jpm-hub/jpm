@@ -23,8 +23,11 @@ func Setup(setupSwitch string) {
 	os.MkdirAll(appHomeDir, 0755)
 
 	switch setupSwitch {
-	case "-verbose":
+	case "-v":
 		osless.Verbose(appHomeDir)
+		return
+	case "-jpx":
+		osless.Jpx()
 		return
 	}
 

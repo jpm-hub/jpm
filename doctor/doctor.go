@@ -14,6 +14,7 @@ func Doctor(silent bool, ask bool) bool {
 	asked = ask
 	CheckVerobse()
 	good := CheckJava(silent)
+	good = CheckJPX(silent) && good
 	good = CheckGit(silent) && good
 	good = checkHotSwapAgent(silent) && good
 	good = checkJUnit(silent) && good
@@ -29,7 +30,7 @@ func CheckVerobse() {
 		fmt.Println("\033[32m[ Verobse ]\033[0m", COM.Verbose)
 	}
 	if asked {
-		println("\ttoggle: jpm setup -verbose")
+		println("\ttoggle: jpm setup -v")
 	}
 }
 
@@ -111,6 +112,21 @@ func CheckGit(silent bool) bool {
 	} else {
 		if !silent {
 			println("\033[32m( git )\033[0m works")
+		}
+	}
+	return true
+}
+
+func CheckJPX(silent bool) bool {
+	if err := runScript("which jpx || where jpx", false); err != nil && !silent {
+		println("\n\033[31m( jpx )\033[0m is not accesible")
+		if asked {
+			println("\tfix    : jpm setup -jpx'")
+		}
+		return false
+	} else {
+		if !silent {
+			println("\033[32m( jpx )\033[0m works")
 		}
 	}
 	return true
