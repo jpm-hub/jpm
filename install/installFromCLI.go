@@ -11,6 +11,7 @@ import (
 func installFromCLI() {
 	aliases := findExistingAliases()
 	depString := strings.Join(os.Args[2:], " ")
+	strings.ReplaceAll(depString, "--save-dev", "exec")
 	depString = COM.NormalizeSpaces(depString)
 	aliases = append(aliases, "raw", "local")
 	prefix := strings.Split(depString, " ")[0]
