@@ -10,18 +10,7 @@ import (
 	COM "jpm/common"
 )
 
-func copyFile(src, dst string) error {
-	if _, err := os.Stat(dst); err == nil {
-		return nil // File already exists, skip copying
-	}
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(dst, data, 0644)
-}
-
-func Init() {
+func Init(cliargs []string) {
 	if dir, err := os.Getwd(); err == nil {
 		ymlPath := filepath.Join(dir, "package.yml")
 		if _, err := os.Stat(ymlPath); err == nil {
@@ -35,9 +24,9 @@ func Init() {
 	language := "java"
 	handled := []string{}
 	git := false
-	if len(os.Args) >= 2 {
-
-		for i, arg := range os.Args {
+	docker := false
+	if len(cliargs) >= 2 {
+		for i, arg := range cliargs {
 			if i < 2 {
 				continue
 			}
@@ -46,13 +35,11 @@ func Init() {
 			}
 			handled = append(handled, arg)
 			if arg == "-git" {
-				COM.RunScript("git init", true)
+				git = true
 				continue
 			}
 			if arg == "-docker" {
-				fmt.Println("Adding Dockerfile")
-				// COM.RunScript("echo '" + getDockerTemplate() + "' > Dokerfile",true)
-				// COM.RunScript("echo '" + getDockerComposeTemplate() + "' > Dokerfile",true)
+				docker = true
 				continue
 			}
 			if arg == "-kt" {
@@ -85,15 +72,11 @@ func Init() {
 			fmt.Println("Initializing project App")
 		}
 	}
-	if git {
-		COM.RunScript("git init", true)
-	}
 
 	appPathSlice := strings.Split(strings.ReplaceAll(projectName, ".", "/"), "/")
 	className := COM.CapitalizeFirst(appPathSlice[len(appPathSlice)-1]) // App
-	className = strings.ReplaceAll(className, "-", "_")
-	appMainJavaFile := className + ".java" // App.java
-	appMainKotlinFile := className + ".kt" // App.kt
+	appMainJavaFile := className + ".java"                              // App.java
+	appMainKotlinFile := className + ".kt"                              // App.kt
 	appDir := appPathSlice[0]
 	if len(appPathSlice) > 1 {
 		appDir = strings.Join(appPathSlice[:len(appPathSlice)-1], "/") // com/app
@@ -137,23 +120,29 @@ func Init() {
 	if err := os.MkdirAll(filepath.Join(".vscode"), 0755); err == nil {
 		os.WriteFile(filepath.Join(".vscode", "settings.json"), []byte(COM.GetDotVscodeTemplate(src)), 0644)
 	}
-
-	// Copy junit.jar
-	execDir := COM.HomeDir()
-	srcJar := filepath.Join(execDir, "libs", "junit.jar")
-	dstJar := filepath.Join("jpm_dependencies", "tests", "junit.jar")
-	if err := copyFile(srcJar, dstJar); err != nil {
-		fmt.Printf("Error copying junit.jar: %v\n", err)
-		os.Exit(1)
-	}
 	switch language {
 	case "java":
 		initJava(appMainJavaFile, packaging, className, src)
 	case "kotlin":
 		initKotlin(appMainKotlinFile, packaging, className, src)
 	}
-
-	COM.PrintArt()
-	println("\n\tyour new project is ready to \033[34mrun\033[0m : jpm start")
-	println("\tyour new project is ready to \033[32mtest\033[0m : jpm test \n")
+	COM.CopyToDependencies(language)
+	if git {
+		COM.RunScript("git init", true)
+	}
+	if docker {
+		if err := os.WriteFile("Dockerfile", []byte(COM.GetDockerFileTempalte()), 0644); err != nil {
+			fmt.Printf("Error creating package.yml: %v\n", err)
+			os.Exit(1)
+		}
+		if err := os.WriteFile("docker-compose.yml", []byte(COM.GetDockerComposeTempalte(packaging)), 0644); err != nil {
+			fmt.Printf("Error creating test file: %v\n", err)
+			os.Exit(1)
+		}
+	}
+	if len(cliargs) == 2 {
+		COM.PrintArt()
+		println("\n\tyour new project is ready to \033[34mrun\033[0m : jpm start")
+		println("\tyour new project is ready to \033[32mtest\033[0m : jpm test \n")
+	}
 }

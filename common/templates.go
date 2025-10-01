@@ -32,8 +32,8 @@ package: ` + p[len(p)-1] + ifSrc(src) + `
 scripts:
   start : jpm compile && jpm run
   dev: jpm watch _ "jpm start"
-  clean: rm -rf out/*
-dependencies:` + ifkotlinTest(language) + `
+  clean: rm -rf out/* dist
+dependencies:
 repos:
   - mvn: https://repo1.maven.org/maven2/
 `
@@ -48,8 +48,7 @@ func GetDotVscodeTemplate(src string) string {
 		"jpm_dependencies/**/*"
 	],
 	"java.project.sourcePaths": [
-		"` + src + `",
-		"tests"
+		"` + src + `"
 	]
 }`
 }
@@ -64,8 +63,7 @@ func ifSrc(src string) string {
 func ifkotlinTest(language string) string {
 	if language == "kotlin" {
 		return `
-  - mvn org.jetbrains.kotlin kotlin-test:latest test
-  - mvn org.jetbrains.kotlin kotlin-stdlib:latest`
+  - mvn org.jetbrains.kotlin kotlin-test:latest test`
 	}
 	return ""
 }
@@ -102,14 +100,35 @@ func GetKotlinTestTemplate(packaging string, className string) string {
 	return `package tests;
 import org.junit.*
 import kotlin.test.*
-import ` + packaging + `.` + className + `;
+import ` + packaging + `.*;
 class Test` + className + ` {
 	@Test
 	fun test() {
-		` + className + ` app = ` + className + `();
-		assertEquals("Hello, World",app.run());
+		assertEquals("Hello, World",run());
 	}
 }`
+}
+
+func GetDockerFileTempalte() string {
+	return `FROM eclipse-temurin:25-jdk
+WORKDIR /app
+COPY dist/ ./
+RUN chmod +x run.sh
+CMD ["./run.sh"]
+`
+}
+
+func GetDockerComposeTempalte(packaging string) string {
+	return `version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ` + packaging + `
+    image: ` + packaging + `:latest
+    ports: ["3000:3000"]
+`
 }
 
 func PrintArt() {

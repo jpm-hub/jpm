@@ -22,7 +22,21 @@ func Create() {
 			os.Exit(1)
 		}
 	}
-
+	files, err2 := os.ReadDir(".")
+	if err2 != nil {
+		fmt.Println("Failed to read current directory:", err2)
+		os.Exit(1)
+	}
+	if len(files) > 0 {
+		fmt.Print("\033[38;5;208mDirectory is not empty. Continue? (y/N): \033[0m")
+		var response string
+		fmt.Scanf("%s", &response)
+		response = strings.ToLower(strings.TrimSpace(response))
+		if response != "y" && response != "yes" {
+			fmt.Println("Aborted.")
+			os.Exit(0)
+		}
+	}
 	if len(os.Args) < 3 {
 		println("Provide template name")
 		os.Exit(1)
@@ -49,7 +63,7 @@ func Create() {
 	// Download from jpm repo (override local)
 	err, _ = COM.DownloadFile(COM.JPM_REPO_API+"templates/"+os.Args[2]+"/"+template, templatesDir, template, true, false)
 	if err == nil {
-		fmt.Println("\033[32m  template script saved\033[0m")
+		fmt.Println("\033[32mtemplate script saved\033[0m")
 	}
 	// Check if the template file exists
 	templatePath = filepath.Join(templatesDir, template)
@@ -70,38 +84,33 @@ jump:
 	}
 
 	//start message
-	println(removeSpacer(parse(templateYml["<start-message>"].(string))))
+	println(removeSpacer(templateYml["<start-message>"].(string)))
 
 	// run <jpm-init>
-	init := parse(templateYml["<jpm-init>"].(string))
-	if init != "" {
-		args := strings.Split(init, " ")
-		script := "jpm init "
-		for _, v := range args {
-			script = script + sanitize(v) + " "
-		}
-		if err := COM.RunScript(script, false); err != nil {
-			println(err.Error())
-			os.Exit(1)
-		}
+	if err := COM.RunScript(parse(templateYml["<jpm-init>"].(string)), true); err != nil {
+		println(err)
+		os.Exit(1)
 	}
 	// run <template-init>
 	if val, ok := templateYml["<template-init>"]; ok {
 		build(val.([]any))
 	}
 	// run <templating>
-	templating := parse(templateYml["<templating>"].(string))
+	templating := parse(templateYml["<templating>"])
 	if templating != "" {
 		if val, ok := templateYml[templating]; ok {
 			build(val.([]any))
 		}
 	}
 	// print <finish-message>
-	println(removeSpacer(parse(templateYml["<finish-message>"].(string))))
+	println(removeSpacer(parse(templateYml["<finish-message>"])))
 }
 
-func parse(str string) string {
-	result := str
+func parse(str any) string {
+	result, ok := str.(string)
+	if !ok {
+		return ""
+	}
 	for {
 		startIdx := strings.Index(result, "{{")
 		if startIdx == -1 {
@@ -113,15 +122,24 @@ func parse(str string) string {
 		}
 		endIdx += startIdx
 		varName := strings.TrimSpace(result[startIdx+2 : endIdx])
+		if _, ok := templateYml[varName]; ok {
+			if _, ok := templateYml[varName+"is_jpm_defined"]; ok {
+				result = result[:startIdx] + templateYml[varName].(string) + result[endIdx+2:]
+				continue
+			}
+			if txt, ok := templateYml[varName].(string); ok {
+				addTexModifiers(txt, varName)
+				templateYml[varName+"is_jpm_defined"] = "true"
+			}
+		}
 		if ok, t := verifyIfInput(templateYml[varName]); ok {
 			switch t {
+			case "text-sanitized":
+				txt := inputTextSanitized(templateYml[varName].(string))
+				addTexModifiers(txt, varName)
 			case "text":
 				txt := inputText(templateYml[varName].(string))
-				templateYml[varName] = txt
-				templateYml[varName+".under"] = strings.ReplaceAll(txt, "-", "_")
-				templateYml[varName+".title"] = COM.CapitalizeFirst(txt)
-				templateYml[varName+".under.title"] = COM.CapitalizeFirst(templateYml[varName+".under"].(string))
-				templateYml[varName+".title.under"] = strings.ReplaceAll(templateYml[varName+".title"].(string), "-", "_")
+				addTexModifiers(txt, varName)
 			case "number":
 				templateYml[varName] = inputNumber(templateYml[varName].(string))
 			case "choice":
@@ -132,12 +150,15 @@ func parse(str string) string {
 				templateYml[key] = inputChoice(key, prompt)
 			}
 			templateYml[varName] = templateYml[key].(map[string]string)[val]
+		} else if ok, val := verifyIfConditionnal(varName); ok {
+			templateYml[varName] = val
 		} else {
 			if _, ok := templateYml[varName]; !ok {
-				fmt.Printf("\033[31m%s could not be found \n(do not use .under or .title before getting the value)\033[0m\n", varName)
+				fmt.Printf("\033[31m%s could not be found \n(do not refer to .snake or .camel before getting the value)\033[0m\n", varName)
 
 			}
 		}
+		templateYml[varName+"is_jpm_defined"] = "true"
 		val, ok := templateYml[varName].(string)
 		if !ok {
 			// If not found, remove the unmatched {{KEY}} to avoid infinite loop
@@ -146,11 +167,22 @@ func parse(str string) string {
 		}
 		result = result[:startIdx] + val + result[endIdx+2:]
 	}
+	result = strings.ReplaceAll(result, "{\\{", "{{")
+	result = strings.ReplaceAll(result, "}\\}", "}}")
 	return result
+}
+
+func addTexModifiers(txt, varName string) {
+	templateYml[varName] = txt
+	templateYml[varName+".snake"] = strings.ReplaceAll(txt, "-", "_")
+	templateYml[varName+".camel"] = COM.CapitalizeFirst(txt)
 }
 
 func verifyIfInput(s any) (bool, string) {
 	if val, ok := s.(string); ok {
+		if strings.Contains(val, "<input-text-sanitized>") {
+			return true, "text-sanitized"
+		}
 		if strings.Contains(val, "<input-text>") {
 			return true, "text"
 		}
@@ -175,16 +207,29 @@ func verifyIfChoice(varName string) (bool, string, string) {
 	return false, "", ""
 }
 
+func verifyIfConditionnal(varName string) (bool, string) {
+	// {{if-eq lang[language] kotlin -> - mvn org.jetbrains.kotlin kotlin-test:latest test}}
+	if strings.HasPrefix(varName, "if-eq ") {
+		varName = COM.NormalizeSpaces(varName)
+		vars := strings.SplitN(varName, " ", 5)
+		if templateYml[vars[1]] == vars[2] && vars[3] == "->" && len(vars[4]) > 0 {
+			return true, vars[4]
+		}
+		return true, ""
+	}
+	return false, ""
+}
+
 func sanitize(s string) string {
 	var b strings.Builder
 	for _, r := range s {
 		if (r >= 'a' && r <= 'z') ||
 			(r >= 'A' && r <= 'Z') ||
 			(r >= '0' && r <= '9') ||
-			r == '-' || r == '_' {
+			r == '-' || r == '_' || (r == '.' && strings.Count(s, ".") == 1) {
 			b.WriteRune(r)
 		} else {
-			println("invalide jpm init command")
+			println("invalide input :", s)
 			os.Exit(1)
 		}
 	}
@@ -201,13 +246,14 @@ func build(fileList []any) error {
 					value = ""
 				}
 				paresedFile := parse(key)
-				if COM.IsWindows() {
-					paresedFile = strings.ReplaceAll(paresedFile, "/", "\\")
-				}
 				paresedContent := parse(value)
-				if strings.HasSuffix(paresedFile, "/") || strings.HasSuffix(paresedFile, "\\") {
+				if strings.HasSuffix(paresedFile, "/") {
 					// it's an empty dir
 					os.MkdirAll(paresedFile, 0755)
+				} else if strings.HasPrefix(paresedFile, "!") {
+					// remove this file or dir
+					pathToRemove := strings.TrimPrefix(paresedFile, "!")
+					os.RemoveAll(pathToRemove)
 				} else {
 					dir := filepath.Dir(paresedFile)
 					if dir != "." {
@@ -238,6 +284,9 @@ func build(fileList []any) error {
 
 func removeSpacer(str string) string {
 	i := 0
+	if !strings.HasPrefix(str, "^") {
+		return str
+	}
 	for {
 		if strings.HasPrefix(str, "^") {
 			str = strings.TrimPrefix(str, "^")

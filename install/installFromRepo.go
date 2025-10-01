@@ -20,6 +20,7 @@ type dependency struct {
 	Version    string
 	scope      string
 	optional   string
+	Classifier string
 }
 type pom struct {
 	Parent               *dependency
@@ -49,6 +50,7 @@ type document struct {
 			Version    string `xml:"version"`
 			Scope      string `xml:"scope"`
 			Optional   string `xml:"optional"`
+			Classifier string `xml:"classifier"`
 		} `xml:"dependencies>dependency"`
 	} `xml:"dependencyManagement"`
 	Dependencies []struct {
@@ -57,17 +59,177 @@ type document struct {
 		Version    string `xml:"version"`
 		Scope      string `xml:"scope"`
 		Optional   string `xml:"optional"`
+		Classifier string `xml:"classifier"`
 	} `xml:"dependencies>dependency"`
 
 	Properties struct {
 		Value string `xml:",innerxml"`
 	} `xml:"properties"`
 }
+type LastestRepo struct {
+	Metadata   xml.Name `xml:"metadata"`
+	Versioning struct {
+		Latest  string `xml:"latest"`
+		Release string `xml:"release"`
+	} `xml:"versioning"`
+}
+type props struct {
+	p map[string]string
+}
+
+var resolvedAlready map[string]uint8 = map[string]uint8{}
+
+func getRepoList() Repositories {
+	repoSection := COM.GetSection("repos", false)
+	repos := Repositories{
+		Repos: []Repo{},
+	}
+	if repoSection == nil {
+		return repos
+	}
+	repoSectionListMap := repoSection.([]any)
+	for _, r := range repoSectionListMap {
+		repoSectionMap := r.(map[string]string)
+		url := ""
+		alias := ""
+		username := ""
+		password := ""
+		for k, v := range repoSectionMap {
+			switch k {
+			case "username":
+				username = v
+			case "password":
+				password = v
+			case "type":
+			default:
+				alias = k
+				if !strings.HasSuffix(v, "/") {
+					url = v + "/"
+				} else {
+					url = v
+				}
+			}
+		}
+		repos.Repos = append(repos.Repos, Repo{Alias: strings.ToLower(alias), Repo: url, Username: username, Password: password})
+	}
+	return repos
+}
+func findExistingAliases() []string {
+	repos := getRepoList()
+	aliases := []string{}
+	for _, v := range repos.Repos {
+		aliases = append(aliases, v.Alias)
+	}
+	return aliases
+}
+func findAllRepoDeps(deps []string, repoList Repositories) (repos map[string][]Repo, raws []string) {
+	repos = map[string][]Repo{}
+	for _, v := range deps {
+		found := false
+		for _, repoFromYaml := range repoList.Repos {
+			v = COM.NormalizeSpaces(v)
+			if strings.HasPrefix(v, repoFromYaml.Alias) {
+				r, err := disectRepoDepString(v, repoFromYaml.Repo, repoFromYaml.Alias)
+				if err == nil {
+					found = true
+					repos[repoFromYaml.Repo] = append(repos[repoFromYaml.Repo], r)
+				}
+			}
+		}
+		if !found {
+			raws = append(raws, v)
+		}
+	}
+	return repos, raws
+}
+func disectRepoDepString(depString string, repoURL string, alias string) (Repo, error) {
+	dSlice := strings.Split(depString, " ")
+	if len(dSlice) < 3 {
+		println("\033[31m" + tab + "The dependency : " + depString + " is ambigious and will be ignored\033[0m")
+		return Repo{}, errors.New("The dependency : " + depString + " is ambigious")
+	}
+	artver := strings.Split(dSlice[2], ":")
+	t := ""
+	if len(dSlice) == 3 {
+		t = ""
+	} else if len(dSlice) == 4 {
+		t = dSlice[3]
+	} else {
+		println("\033[31m" + tab + "The dependency : " + depString + " is ambigious\033[0m")
+		return Repo{}, errors.New("The dependency : " + depString + " is ambigious")
+	}
+	version := ""
+	if len(artver) == 2 {
+		version = artver[1]
+	}
+	return Repo{
+		Repo:       repoURL,
+		Alias:      alias,
+		GroupID:    dSlice[1],
+		ArtefactID: artver[0],
+		ArtVer:     COM.NormalizeSpaces(version),
+		Scope:      t,
+	}, nil
+}
+func saveAllRepoSubDependencies(dr *Repo) error {
+	version := dr.ArtVer
+	var err error
+	if dr.ArtVer == "" {
+		version, err = figureOutLastestRepo(dr.GroupID, dr.ArtefactID)
+		if err != nil {
+			println("\033[31m  --- " + strings.ToUpper(dr.Alias) + ": Resolving " + dr.ArtefactID + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
+			return errors.New("not nil")
+		}
+		dr.ArtVer = version
+		// modify the yaml at this point
+		COM.ReplaceDependency(fmt.Sprintf("%s %s %s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.Scope), fmt.Sprintf("%s %s %s:%s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.Scope))
+	}
+	if dr.ArtVer == "latest" {
+		version, err = figureOutLastestRepo(dr.GroupID, dr.ArtefactID)
+		if err != nil {
+			println("\033[31m  --- " + strings.ToUpper(dr.Alias) + ": Resolving " + dr.ArtefactID + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
+			return errors.New("not nil")
+		}
+		dr.ArtVer = "latest"
+	}
+	println("\033[32m  --- " + strings.ToUpper(dr.Alias) + "\033[0m: Resolving " + dr.ArtefactID + ":" + version)
+	print("      Resolving   [")
+	createExecScript(dr.Scope, dr.ArtefactID, dr.ArtefactID+"-"+version+".jar")
+	downloadDepsRepo(dr.GroupID, dr.ArtefactID, version, false)
+	figureOutAllLatestAndDownload()
+	println("]")
+	return nil
+}
+func addRepoSubDependenciesToDownloadList(url string) {
+	for k, v := range resolveDependecy() {
+		gas := strings.Split(k, "|")
+		groupID := gas[0]
+		artefactID := gas[1]
+		classifier := ""
+		if len(gas) == 4 {
+			classifier = "-" + gas[0]
+			groupID = gas[1]
+			artefactID = gas[2]
+		}
+		version := v
+		scope := ""
+		if len(gas) == 3 && len(gas[2]) > 1 {
+			scope = gas[2]
+		}
+		url := url + strings.ReplaceAll(groupID, ".", "/") + "/" + artefactID + "/" + version + "/" + artefactID + "-" + version + classifier + ".jar"
+		filename := artefactID + "-" + version + classifier + ".jar"
+		downloadInfo[url] = []string{filename, "" + scope + "|"}
+	}
+}
 
 func parsePOM(pomContent string) pom {
 	var doc document
 
-	xml.Unmarshal([]byte(pomContent), &doc)
+	decoder := xml.NewDecoder(strings.NewReader(pomContent))
+	decoder.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+		return input, nil
+	}
+	decoder.Decode(&doc)
 	result := pom{
 		Properties: make(map[string]string),
 	}
@@ -75,6 +237,7 @@ func parsePOM(pomContent string) pom {
 	// Parse properties
 	var p props
 	xml.Unmarshal([]byte("<jpm.root>"+strings.TrimSpace(doc.Properties.Value)+"</jpm.root>"), &p)
+
 	result.Properties = p.p
 
 	// Parse parent
@@ -101,6 +264,7 @@ func parsePOM(pomContent string) pom {
 					Version:    dep.Version,
 					optional:   dep.Optional,
 					scope:      dep.Scope,
+					Classifier: dep.Classifier,
 				},
 			)
 		}
@@ -116,6 +280,7 @@ func parsePOM(pomContent string) pom {
 				Version:    dep.Version,
 				optional:   dep.Optional,
 				scope:      dep.Scope,
+				Classifier: dep.Classifier,
 			},
 		)
 	}
@@ -129,29 +294,40 @@ func parsePOM(pomContent string) pom {
 	return result
 }
 
-func downloadDepsRepo(repo string, groupID string, artifactID string, version string, scopeImport bool) *pom {
-	currentWorkingRepo = repo
+func downloadDepsRepo(groupID string, artifactID string, version string, scopeImport bool) *pom {
+	if version == "" {
+		return nil
+	}
 	// Download and parse POM file
 	pomURL := fmt.Sprintf("%s/%s/%s/%s-%s", strings.ReplaceAll(groupID, ".", "/"), artifactID, version, artifactID, version)
-	pomURL = repo + strings.ReplaceAll(pomURL, "//", "/")
+	pomURL = currentWorkingRepo + strings.ReplaceAll(pomURL, "//", "/")
 	dep := groupID + "|" + artifactID + "|" + currentOuterScope
 	pomContent := ""
+
 	if _, ok := cache[pomURL]; !ok {
 		var err error
 		pomContent, err = downloadPOM(pomURL + ".pom")
 		if err != nil {
+			println("\n  --- Unable to download " + err.Error())
+			println(pomURL + ".pom")
 			return nil
 		}
 		// Parse POM XML
 		cache[pomURL] = parsePOM(pomContent)
 	}
 	pom := cache[pomURL]
+	if resolvedAlready[groupID+"|"+artifactID] > 3 {
+		return &pom
+	}
 	if scopeImport {
 		savingImports(&pom)
 		return &pom
 	}
 	if strings.ToLower(pom.packaging) != "pom" {
-		depsList = append(depsList, dep, version)
+		if checkRepoExcludes(artifactID) {
+			return &pom
+		}
+		depsList[currentWorkingRepo] = append(depsList[currentWorkingRepo], dep, version)
 	}
 
 	for _, dep := range pom.Dependencies {
@@ -168,18 +344,34 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 			artifactid := figureOutArtifactID(dep, pom)
 			dep.ArtifactID = artifactid
 			version := figureOutVersion(dep, pom)
-			depsList = append(depsList, groupid+"|"+artifactid+"|"+currentOuterScope, version)
-			p := downloadDepsRepo(repo, groupid, artifactid, version, false)
+			classifier := figureOutRepoClassifier(dep)
+			if checkRepoExcludes(artifactid) {
+				continue
+			}
+			depsList[currentWorkingRepo] = append(depsList[currentWorkingRepo], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
+			resolvedAlready[groupID+"|"+artifactID] += 1
+			p := downloadDepsRepo(groupid, artifactid, version, false)
 			if p != nil {
 				continue
 			}
 			latests = append(latests, groupid+"|"+artifactid)
-			println(tab + " failed to have :" + groupid + " " + artifactid + " " + version + " from: " + pomURL)
+			addFinishMessage(tab + " failed to resolve :" + groupid + " " + artifactid + " " + version + " from: " + pomURL)
 		}
 	}
 	return &pom
 }
-
+func checkRepoExcludes(artifactID string) bool {
+	for _, excluded := range excludes {
+		if strings.Contains(artifactID, excluded) && currentOuterScope != "exec" {
+			if COM.Verbose {
+				addFinishMessage("Info : excluded " + artifactID)
+				foundExcluded(artifactID)
+			}
+			return true
+		}
+	}
+	return false
+}
 func savingImports(p *pom) {
 	for _, dm := range p.DependencyManagement.Dependencies {
 		groupid := figureOutGroupID(dm, *p)
@@ -194,7 +386,7 @@ func savingImports(p *pom) {
 func checkParentProperty(p pom, propertyName string) string {
 
 	if p.Parent != nil {
-		parentPom := downloadDepsRepo(currentWorkingRepo, p.Parent.GroupID, p.Parent.ArtifactID, p.Parent.Version, false)
+		parentPom := downloadDepsRepo(p.Parent.GroupID, p.Parent.ArtifactID, p.Parent.Version, false)
 		if parentPom != nil {
 		recheckProp:
 			if value, ok := p.Properties[propertyName]; ok {
@@ -211,12 +403,10 @@ func checkParentProperty(p pom, propertyName string) string {
 }
 
 func checkParentDependencyManagement(pom pom, groupID string, artifactID string) (string, string, string, *pom) {
-	// time.Sleep(time.Millisecond * 800)
-	// println("got into :" + pom.gid + " " + pom.aid)
 	if pom.Parent == nil {
 		return "", "", "", nil
 	}
-	parent := downloadDepsRepo(currentWorkingRepo, pom.Parent.GroupID, pom.Parent.ArtifactID, pom.Parent.Version, false)
+	parent := downloadDepsRepo(pom.Parent.GroupID, pom.Parent.ArtifactID, pom.Parent.Version, false)
 	if parent != nil && parent.DependencyManagement != nil {
 		imports := []string{}
 	afterImports:
@@ -224,7 +414,7 @@ func checkParentDependencyManagement(pom pom, groupID string, artifactID string)
 			if managedDep.scope == "import" && !slices.Contains(imports, managedDep.GroupID+"|"+managedDep.ArtifactID+"|"+currentOuterScope) {
 				imports = append(imports, managedDep.GroupID+"|"+managedDep.ArtifactID+"|"+currentOuterScope)
 				version := figureOutVersion(managedDep, *parent)
-				p := downloadDepsRepo(currentWorkingRepo, managedDep.GroupID, managedDep.ArtifactID, version, true)
+				p := downloadDepsRepo(managedDep.GroupID, managedDep.ArtifactID, version, true)
 				if p != nil && p.DependencyManagement != nil {
 					parent.DependencyManagement.Dependencies = append(parent.DependencyManagement.Dependencies, p.DependencyManagement.Dependencies...)
 				}
@@ -288,7 +478,7 @@ func figureOutVersion(depwithversion dependency, p pom) string {
 			return value
 		}
 
-		// if not found check for parent by using downloadDepsRepo(currentWorkingRepo,parentGroupID,parentArtifactID,parentVersion)
+		// if not found check for parent by using downloadDepsRepo(parentGroupID,parentArtifactID,parentVersion)
 		value := checkParentProperty(p, propertyName)
 		if value != "" {
 			return value
@@ -462,12 +652,30 @@ func figureOutArtifactID(depwithartifactid dependency, pom pom) string {
 	return depwithartifactid.ArtifactID
 }
 
-type Lastest struct {
-	Metadata   xml.Name `xml:"metadata"`
-	Versioning struct {
-		Latest  string `xml:"latest"`
-		Release string `xml:"release"`
-	} `xml:"versioning"`
+func figureOutRepoClassifier(dep dependency) string {
+	if dep.Classifier == "" {
+		return ""
+	}
+	classDep := COM.GetSection("classifiers", false).(map[string]string)
+	vals, oks := classDep["*"]
+	valA, okA := classDep[dep.ArtifactID]
+	valG, okG := classDep[dep.GroupID]
+	if okA {
+		return valA + "|"
+	} else if okG {
+		return valG + "|"
+	} else if oks {
+		return vals + "|"
+	}
+	if !strings.HasPrefix(dep.Classifier, "${") {
+		addFinishMessage("Info : default clasifier -> " + dep.Classifier + " is used for " + dep.ArtifactID)
+		return dep.Classifier + "|"
+	}
+	c := strings.TrimSuffix(strings.TrimPrefix(dep.Classifier, "${"), "}")
+	if _, ok := resolvedAlready[dep.GroupID+"|"+dep.ArtifactID]; !ok {
+		addFinishMessage("Warning : clasifier -> " + c + " needs to be specified for " + dep.ArtifactID)
+	}
+	return ""
 }
 
 func figureOutAllLatestAndDownload() {
@@ -486,15 +694,15 @@ func figureOutAllLatestAndDownload() {
 
 }
 func figureOutLatestAndDownload(groupID string, artifactID string) error {
-	version, err := figureOutLastest(groupID, artifactID)
+	version, err := figureOutLastestRepo(groupID, artifactID)
 	if err != nil {
 		return err
 	}
-	downloadDepsRepo(currentWorkingRepo, groupID, artifactID, version, false)
+	downloadDepsRepo(groupID, artifactID, version, false)
 	return nil
 }
-func figureOutLastest(groupID string, artifactID string) (string, error) {
-	var doc Lastest
+func figureOutLastestRepo(groupID string, artifactID string) (string, error) {
+	var doc LastestRepo
 	vesionningUrl := fmt.Sprintf("%s/%s/maven-metadata.xml", strings.ReplaceAll(groupID, ".", "/"), artifactID)
 	vesionningUrl = currentWorkingRepo + strings.ReplaceAll(vesionningUrl, "//", "/")
 	err, content := COM.DownloadFile(vesionningUrl, "", "", false, true)
@@ -527,10 +735,6 @@ func downloadPOM(pomURL string) (string, error) {
 	}
 	print("-")
 	return string(body), nil
-}
-
-type props struct {
-	p map[string]string
 }
 
 func (x *props) UnmarshalXML(decoder *xml.Decoder, start xml.StartElement) error {

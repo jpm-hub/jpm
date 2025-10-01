@@ -28,9 +28,9 @@ func TestScript() error {
 				break
 			}
 		}
-		err2 = COM.RunCMD("cd out && "+COM.JAVA()+" -cp \"./;../jpm_dependencies/"+hasDeps+";../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner "+args, true)
+		err2 = COM.RunCMD("cd out && "+COM.JAVA()+" -p ../jpm_dependencies;../jpm_dependencies/tests -cp \"./;../jpm_dependencies/"+hasDeps+";../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
 	} else {
-		err2 = COM.RunScript("cd out && "+COM.JAVA()+" -cp \"../jpm_dependencies/*:../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner "+args, true)
+		err2 = COM.RunScript("cd out && "+COM.JAVA()+" -p ../jpm_dependencies:../jpm_dependencies/tests -cp \".:../jpm_dependencies/*:../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
 	}
 	if err != nil {
 		return err

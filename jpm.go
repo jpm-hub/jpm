@@ -5,6 +5,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strings"
 
 	BUNDLE "jpm/bundle"
 	COM "jpm/common"
@@ -21,10 +22,12 @@ import (
 
 // TODO:
 // add comment support for package.yml (when updating repos and deps from cli)
-// add support for jpm install (from a jpm repo) (no derived dependencies)
 // add jpm bundle -fat (creates a fat jar)
-// add docker to init
-// add windows support (scripts and back slashes)
+// add jpm bundle -native (creates a native executable with graalvm maybe or jlink)
+// add suport for additionnal classpath and modulepath in package.yml
+// add detection of version downgrade in install
+// add support for inner projects and local dependencies
+// add support for multiple packages compilation and bundling to create classified jars
 var scriptsS []string = []string{}
 var scripts map[string]string
 
@@ -37,14 +40,6 @@ func main() {
 		return
 	}
 	scriptName := os.Args[1]
-
-	COM.FindPackageYML(false)
-	scripts = COM.ParseScripts()
-	scriptCmd, found := scripts[scriptName]
-	for k := range maps.Keys(scripts) {
-		scriptsS = append(scriptsS, k)
-	}
-
 	switch scriptName {
 	case "-h":
 		fallthrough
@@ -78,10 +73,10 @@ func main() {
 		fmt.Println("\t\t\"(src/**)\": determines the file that will trigger the command ( _ to ignore)")
 		fmt.Println("\t\t\"<command>\": execute this command before compilation when files change ( _ to ignore)")
 		println()
-		fmt.Println(" \033[33mjpm bundle\033[0m [name] [-fat, -exe] :") // add windows ach, arm ach and linux and darwin and all one day maybe
+		fmt.Println(" \033[33mjpm bundle\033[0m [name] [-fat, -exec] :") // add windows ach, arm ach and linux and darwin and all one day maybe
 		fmt.Println("\t\tCreates a jar")
 		fmt.Println("\t\t-fat: Creates a fat jar (all inccluded, one file)")
-		fmt.Println("\t\t-exe: Creates an executable jar and scripts")
+		fmt.Println("\t\t-exec: Creates an executable jar and scripts")
 		fmt.Println(" \033[33mjpm test\033[0m :\tRuns tests with junit under tests/")
 		println()
 		fmt.Println(" \033[33mjpm install\033[0m [-f] :\tInstalls the dependencies from package.yml")
@@ -100,11 +95,30 @@ func main() {
 		fmt.Println("\t\t-x: extract zip or tar.gz files from raw dependencies")
 		return
 	case "doctor":
-		execOverride("init")
+		execOverride("doctor")
 		DOC.Doctor(false, true)
+		return
+	case "setup":
+		if len(os.Args) == 3 {
+			sw := []string{"-java", "-kotlin", "-junit", "-HotSwapAgent", "-verbose"}
+			if slices.Contains(sw, os.Args[2]) {
+				SETUP.Setup(os.Args[2])
+				return
+			}
+		}
+	}
+
+	COM.FindPackageYML(false)
+	scripts = COM.ParseScripts()
+	scriptCmd, found := scripts[scriptName]
+	for k := range maps.Keys(scripts) {
+		scriptsS = append(scriptsS, k)
+	}
+
+	switch scriptName {
 	case "init":
 		execOverride("init")
-		INIT.Init()
+		INIT.Init(os.Args)
 	case "create":
 		execOverride("create")
 		CREATE.Create()
@@ -119,11 +133,13 @@ func main() {
 			os.Exit(1)
 		}
 	case "watch":
+		execOverride("watch")
 		WATCH.Watch(false)
 	case "bundle":
 		execOverride("bundle")
 		BUNDLE.Bundle()
 	case "test":
+		execOverride("test")
 		if err := TEST.TestScript(); err != nil {
 			println("\n" + err.Error())
 			os.Exit(1)
@@ -131,22 +147,19 @@ func main() {
 	case "i":
 		fallthrough
 	case "install":
+		execOverride("install")
 		INSTALL.Install()
-	case "setup":
-		if len(os.Args) == 3 {
-			sw := []string{"-java", "-kotlin", "-junit", "-HotSwapAgent", "-verbose"}
-			if slices.Contains(sw, os.Args[2]) {
-				SETUP.Setup(os.Args[2])
-				os.Exit(0)
-			}
-		}
-		fallthrough
 	default:
+		argsStr := ""
+		if len(os.Args) > 1 {
+			argsStr = strings.TrimSpace(strings.Join(os.Args[2:], " "))
+		}
 		if !found {
 			fmt.Printf("Script '%s' not found in package.yml\n", scriptName)
 			os.Exit(1)
 		}
-		if err := COM.RunScript(scriptCmd, true); err != nil {
+		cmd := "export PATH=\"$PATH:$(pwd)/jpm_dependencies/execs\"\n" + strings.ReplaceAll(scriptCmd, "...args@", argsStr)
+		if err := COM.RunScript(cmd, true); err != nil {
 			fmt.Printf("Error running script '%s': %v \n", scriptName, err)
 			os.Exit(1)
 		}
@@ -155,10 +168,15 @@ func main() {
 }
 
 func execOverride(sc string) {
-	if os.Getenv("JPM_OVERRIDE") != "TRUE" {
+	if os.Getenv("JPM_OVERRIDE") != sc {
+		// Join all the args from os.Args except os.Args[0] into a string
+		argsStr := ""
+		if len(os.Args) > 1 {
+			argsStr = strings.TrimSpace(strings.Join(os.Args[2:], " "))
+		}
 		if slices.Contains(scriptsS, sc+"@") {
-			println("\033[33mOverriding: jpm", sc, "\033[0m")
-			cmd := "export JPM_OVERRIDE=TRUE\n" + scripts[sc+"@"]
+			println("\033[33mOverriding: "+"'"+"jpm", sc+"'", "for "+"'"+"jpm", sc+"@"+"'", "\033[0m")
+			cmd := "export JPM_OVERRIDE=" + sc + "\nexport PATH=\"$PATH:$(pwd)/jpm_dependencies/execs\"\n" + strings.ReplaceAll(scripts[sc+"@"], "...args@", argsStr)
 			if err := COM.RunScript(cmd, true); err != nil {
 				fmt.Printf("Error running script '%s': %v \n", sc, err)
 				os.Exit(1)

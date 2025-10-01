@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"syscall"
@@ -26,18 +27,29 @@ var g_yamlPath string = ""
 var Verbose = false
 var env map[string]string = map[string]string{}
 var packageYML PackageYAMLSimple
+var parsed []string = []string{}
 
+type Dependencies struct {
+	Classified bool                         `json:"classified"`
+	JPM        map[string]string            `json:"JPM"`
+	Repos      map[string]map[string]string `json:"repos"`
+}
 type PackageYAMLSimple struct {
 	Main          string              `yaml:"main,omitempty"`
 	Package       string              `yaml:"package,omitempty"`
+	Packages      []string            `yaml:"packages,omitempty"`
 	Src           string              `yaml:"src,omitempty"`
 	Version       string              `yaml:"version,omitempty"`
+	Description   string              `yaml:"description,omitempty"`
 	Language      string              `yaml:"language,omitempty"`
 	Env           string              `yaml:"env,omitempty"`
+	Classified    bool                `yaml:"classified,omitempty"`
 	Scripts       map[string]string   `yaml:"scripts,omitempty"`
 	Dependencies  []string            `yaml:"dependencies,omitempty"`
+	Classifiers   map[string]string   `yaml:"classifiers,omitempty"`
 	Repos         []map[string]string `yaml:"repos,omitempty"`
 	Args          map[string]string   `yaml:"args,omitempty"`
+	Excludes      []string            `yaml:"excludes,omitempty"`
 	OtherSections map[string]any      `yaml:",inline,omitempty"`
 }
 
@@ -45,14 +57,19 @@ type PackageYAMLSimple struct {
 type PackageYAML struct {
 	Main          string         `yaml:"main,omitempty"`
 	Package       string         `yaml:"package,omitempty"`
+	Packages      []string       `yaml:"packages,omitempty"`
 	Src           string         `yaml:"src,omitempty"`
 	Version       string         `yaml:"version,omitempty"`
+	Description   string         `yaml:"description,omitempty"`
 	Language      string         `yaml:"language,omitempty"`
 	Env           string         `yaml:"env,omitempty"`
+	Classified    bool           `yaml:"classified,omitempty"`
 	Scripts       *OrderedMap    `yaml:"scripts,omitempty"`
 	Dependencies  []string       `yaml:"dependencies"`
+	Classifiers   *OrderedMap    `yaml:"classifiers,omitempty"`
 	Repos         []*OrderedMap  `yaml:"repos,omitempty"`
 	Args          *OrderedMap    `yaml:"args,omitempty"`
+	Excludes      []string       `yaml:"excludes,omitempty"`
 	OtherSections map[string]any `yaml:",inline,omitempty"`
 }
 
@@ -220,7 +237,7 @@ func VerifyPackageYML() {
 					println("syntax error with: ", k, v)
 					os.Exit(1)
 				}
-				if k != "username" && k != "password" {
+				if k != "username" && k != "password" && k != "type" {
 					alreadyThere = append(alreadyThere, k)
 				}
 			}
@@ -232,6 +249,9 @@ func VerifyPackageYML() {
 	if depSection != nil {
 		set := map[string]bool{}
 		for _, v := range depSection {
+			if strings.HasPrefix(v, "raw ") {
+				continue
+			}
 			s := strings.Split(v, ":")
 			sj := []string{}
 			if len(s) > 1 {
@@ -391,12 +411,22 @@ func GetSection(section string, isFatal bool) any {
 		return ParseENV(packageYML.Language)
 	case "version":
 		return ParseENV(packageYML.Version)
+	case "description":
+		return ParseENV(packageYML.Description)
 	case "env":
 		return packageYML.Env
 	case "package":
 		return ParseENV(packageYML.Package)
+	case "packages":
+		packages := []string{}
+		for _, v := range packageYML.Packages {
+			packages = append(packages, ParseENV(v))
+		}
+		return packages
 	case "src":
 		return ParseENV(packageYML.Src)
+	case "classified":
+		return packageYML.Classified
 	case "scripts":
 		scripts := map[string]string{}
 		for key, v := range packageYML.Scripts {
@@ -409,6 +439,12 @@ func GetSection(section string, isFatal bool) any {
 			deps = append(deps, ParseENV(v))
 		}
 		return deps
+	case "classifiers":
+		classes := map[string]string{}
+		for key, v := range packageYML.Classifiers {
+			classes[key] = ParseENV(v)
+		}
+		return classes
 	case "repos":
 		repos := []any{}
 		for i := range packageYML.Repos {
@@ -426,8 +462,38 @@ func GetSection(section string, isFatal bool) any {
 			args[key] = ParseENV(v)
 		}
 		return args
+	case "excludes":
+		excludes := []string{}
+		for _, v := range packageYML.Excludes {
+			excludes = append(excludes, ParseENV(v))
+		}
+		return excludes
 	default:
-		return nil
+		if val, ok := packageYML.OtherSections[section]; ok {
+			other, ok := val.(string)
+			if !ok {
+				if isFatal {
+					println("Error: section", section, "is not a string")
+					os.Exit(1)
+				}
+				return val
+			}
+			if other == "" {
+				if isFatal {
+					println("Error: section", section, "is empty")
+					os.Exit(1)
+				}
+				return ""
+			}
+			return ParseENV(other)
+		} else {
+			if isFatal {
+				println("Error: section", section, "not found")
+				os.Exit(1)
+			}
+			return nil
+		}
+
 	}
 }
 
@@ -461,10 +527,13 @@ func loadInEnv() {
 			if len(parts) == 2 {
 				key := strings.TrimSpace(parts[0])
 				val := strings.TrimSpace(parts[1])
-				env[key] = val
+				env["env."+key] = val
 			}
 		}
 	}
+	env["jpm.OS"] = runtime.GOOS
+	env["jpm.ARCH"] = runtime.GOARCH
+	env["jpm.OS-ARCH"] = runtime.GOOS + "-" + runtime.GOARCH
 	env["main"] = ParseENV(packageYML.Main)
 	env["package"] = ParseENV(packageYML.Package)
 	env["src"] = ParseENV(packageYML.Src)
@@ -491,12 +560,33 @@ func ParseENV(str string) string {
 		varName := strings.TrimSpace(result[startIdx+2 : endIdx])
 		val, ok := env[varName]
 		if !ok {
-			// If not found, remove the unmatched {{KEY}} to avoid infinite loop
-			result = result[:startIdx] + result[endIdx+2:]
-			continue
+			if val, ok = os.LookupEnv(strings.TrimPrefix(varName, "ENV.")); !ok {
+				found := false
+				if slices.Contains(parsed, varName) {
+					fmt.Println("\nError :", "\033[31m circular reference detected with", str, " : ", parsed, "\033[0m")
+					os.Exit(1)
+					return ""
+				}
+				parsed = append(parsed, varName)
+				for k, v := range packageYML.OtherSections {
+					if k == varName {
+						env[k] = ParseENV(v.(string))
+						val = env[k]
+						found = true
+						break
+					}
+				}
+				if !found {
+					println("\nError :", "\033[31m{{", varName, "}} was not found anywhere\033[0m")
+					// If not found, remove the unmatched {{KEY}} to avoid infinite loop
+					result = result[:startIdx] + result[endIdx+2:]
+					continue
+				}
+			}
 		}
 		result = result[:startIdx] + val + result[endIdx+2:]
 	}
+
 	return result
 }
 func ParseEnvVars(prefix string) string {
@@ -589,14 +679,14 @@ func RunCMD(script string, showStdOut bool) error {
 }
 func RunScript(script string, showStdOut bool) error {
 	if Verbose {
-		println("\033[33m--(verbose command)==> " + script + "\033[0m")
+		println("\033[33m--(verbose)==> " + script + "\033[0m")
 		showStdOut = true
 	}
 	var cmd *exec.Cmd
 	if IsWindows() {
 		cmd = exec.Command("C:\\Program Files\\Git\\bin\\bash.exe", "-c", script)
 	} else {
-		cmd = exec.Command("sh", "-c", script)
+		cmd = exec.Command("bash", "-c", script)
 	}
 	if dir, err := os.Getwd(); err == nil {
 		cmd.Dir = dir
@@ -612,7 +702,6 @@ func RunScript(script string, showStdOut bool) error {
 func HomeDir() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		// Fallback to current directory if home directory can't be determined
 		return "."
 	}
 	appDir := ".jpm"
@@ -620,7 +709,6 @@ func HomeDir() string {
 	dirPath := filepath.Join(homeDir, appDir)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		if err := os.MkdirAll(dirPath, 0755); err != nil {
-			// If we can't create the directory, fall back to current directory
 			return "."
 		}
 	}
@@ -639,7 +727,6 @@ func SrcDir() string {
 		return ""
 	}
 }
-
 func NormalizeSpaces(s string) string {
 	// Split by spaces and filter out empty strings
 	parts := strings.Fields(s)
@@ -669,6 +756,9 @@ func DownloadFile(url string, dirpath string, filename string, override bool, re
 		if override {
 			os.Remove(filePath)
 		} else {
+			if Verbose {
+				println(filename, "already exists, skipping download")
+			}
 			return errors.New("file already exist"), nil
 		}
 	}
@@ -718,7 +808,43 @@ func CapitalizeFirst(s string) string {
 	if s == "" {
 		return ""
 	}
-	runes := []rune(s)
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
+	sS := strings.Split(s, "-")
+	for i, v := range sS {
+		runes := []rune(v)
+		runes[0] = unicode.ToUpper(runes[0])
+		sS[i] = string(runes)
+	}
+	return strings.Join(sS, "")
+}
+
+func CopyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0644)
+}
+
+func CopyToDependencies(lang string) {
+	homeDir := HomeDir()
+	CopyFile(filepath.Join(homeDir, "libs", "junit.jar"), filepath.Join("jpm_dependencies", "tests", "junit.jar"))
+	if strings.Contains(lang, "kotlin") {
+		if err := CopyFile(filepath.Join(homeDir, "kotlinc", "lib", "kotlin-test.jar"), filepath.Join("jpm_dependencies", "tests", "kotlin-test.jar")); err != nil {
+			fmt.Printf("Error copying kotlin-test.jar: %v\n", err)
+		}
+		if err := CopyFile(filepath.Join(homeDir, "kotlinc", "lib", "annotations-13.0.jar"), filepath.Join("jpm_dependencies", "annotations-13.0.jar")); err != nil {
+			fmt.Printf("Error copying kotlin-test.jar: %v\n", err)
+		}
+		if err := CopyFile(filepath.Join(homeDir, "kotlinc", "lib", "kotlin-stdlib.jar"), filepath.Join("jpm_dependencies", "kotlin-stdlib.jar")); err != nil {
+			fmt.Printf("Error copying kotlin-stdlib.jar: %v\n", err)
+		}
+	}
+}
+func Ping(url string) bool {
+	resp, err := http.Get(url)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
 }

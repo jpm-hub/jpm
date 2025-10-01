@@ -1,5 +1,6 @@
 .env
 jpm.exe
+jpm
 out
 jpm_dependencies
 dist

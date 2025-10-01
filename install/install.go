@@ -2,7 +2,6 @@ package install
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	COM "jpm/common"
 	"maps"
@@ -13,19 +12,21 @@ import (
 	"sync"
 )
 
-var jpmRepo string = "http://localhost/"
+var jpmRepoUrl string = COM.JPM_REPO_API + "packages/"
 var tab string = "  "
 var once sync.Once
 
 // var mu sync.Mutex
 
 type Repo struct {
-	Alias          string `json:"alias"`
-	Repo           string `json:"repo"`
-	GroupID        string
-	ArtVer         string
-	ArtefactID     string
-	DependencyType string
+	Alias      string
+	Repo       string
+	Username   string
+	Password   string
+	GroupID    string
+	ArtVer     string
+	ArtefactID string
+	Scope      string
 }
 
 type Repositories struct {
@@ -34,40 +35,44 @@ type Repositories struct {
 
 var scopesAccepted []string = []string{"compile", "runtime", ""}
 var jpmScopes []string = []string{"test", "exec", ""}
-var depsList []string = []string{}
+var depsList map[string][]string = map[string][]string{}
 var importList []string = []string{}
 var currentWorkingRepo string
 var currentOuterScope string
 var cache map[string]pom = map[string]pom{}
-var depMap map[string]string
+var g_lockDeps COM.Dependencies = COM.Dependencies{}
 var downloadInfo map[string][]string = map[string][]string{}
 var failedInstalledList []string = []string{}
 var latests []string = []string{}
+var finishMessages []string = []string{}
+var excludes []string = []string{}
 
 func Install() {
 	println()
+	force := false
 	COM.FindPackageYML(true)
 	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
-	homeDir := COM.HomeDir()
-	if COM.IsWindows() {
-		COM.RunCMD("copy "+filepath.Join(homeDir, "libs", "junit.jar")+" "+filepath.Join("jpm_dependencies", "tests", "junit.jar"), true)
-	} else {
-		COM.RunScript("cp "+filepath.Join(homeDir, "libs", "junit.jar")+" "+filepath.Join("jpm_dependencies", "tests", "junit.jar"), true)
+	COM.CopyToDependencies(COM.GetSection("language", true).(string))
+	if !COM.Ping(jpmRepoUrl) {
+		println("\tCould not reach jpm repo at " + jpmRepoUrl)
+		println("\tPlease check your internet connection or try again later")
+		os.Exit(1)
 	}
-	if slices.Contains(os.Args, "-f") && !slices.Contains(os.Args, "-repo") {
-		for i, arg := range os.Args {
-			if arg == "-f" {
-				os.Args = append(os.Args[:i], os.Args[i+1:]...)
-				os.Remove(filepath.Join("jpm_dependencies", ".lock.json"))
-				break
-			}
+	for i, arg := range os.Args {
+		if arg == "-f" {
+			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+			force = true
+			break
 		}
 	}
+
+	excludes = COM.GetSection("excludes", false).([]string)
 	switch len(os.Args) {
 	case 2:
+		os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
 		deps := COM.GetDependencies(false)
-		aliases := findRepoAlias(deps)
-		installFromYML(aliases, deps)
+		aliases := findExistingAliases()
+		installFromYML(aliases, deps, true)
 	case 4:
 		if os.Args[2] == "-repo" {
 			addNewRepo(os.Args[3])
@@ -75,193 +80,209 @@ func Install() {
 		}
 		fallthrough
 	default:
+		if force {
+			println("\033[31mcannot force install\033[0m")
+		}
 		installFromCLI()
 	}
-	if len(downloadInfo) != 0 {
-		print("      Downloading [")
-		for k, v := range downloadInfo {
-			download(k, v[0], v[1], v[2], listAlreadyInstalledDeps())
-			print("=")
+	execChmod()
+	checkUnexcluded()
+	println()
+	for _, v := range finishMessages {
+		println("\033[38;5;208m"+tab, v, "\033[0m")
+	}
+}
+
+func execChmod() {
+	entries, err := os.ReadDir("jpm_dependencies/execs")
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
 		}
-		println("]")
-		for _, v := range failedInstalledList {
-			println(v)
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".jar") {
+			err := os.Chmod(filepath.Join("jpm_dependencies/execs", name), 0755)
+			if err != nil {
+				println("Error changing permissions for", name+":", err)
+			}
 		}
 	}
-
-	dumpDependencies(depMap)
 }
-func QuickInstall() {
+func QuickInstall(force bool) COM.Dependencies {
+	excludes = COM.GetSection("excludes", false).([]string)
 	COM.FindPackageYML(true)
-	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
-	homeDir := COM.HomeDir()
-	if COM.IsWindows() {
-		COM.RunCMD("copy "+filepath.Join(homeDir, "libs", "junit.jar")+" "+filepath.Join("jpm_dependencies", "tests", "junit.jar"), true)
-	} else {
-		COM.RunScript("cp "+filepath.Join(homeDir, "libs", "junit.jar")+" "+filepath.Join("jpm_dependencies", "tests", "junit.jar"), true)
+	if force {
+		os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
 	}
 	deps := COM.GetDependencies(false)
-	aliases := findRepoAlias(deps)
-	installFromYML(aliases, deps)
-	if len(downloadInfo) != 0 {
-		print("      Downloading [")
-		for k, v := range downloadInfo {
-			download(k, v[0], v[1], v[2], listAlreadyInstalledDeps())
-			print("-")
-		}
-		println("]")
-		for _, v := range failedInstalledList {
-			println(v)
-		}
+	aliases := findExistingAliases()
+	if !COM.Ping(jpmRepoUrl) {
+		println("\tCould not reach jpm repo at " + jpmRepoUrl)
+		println("\tPlease check your internet connection or try again later")
+		os.Exit(1)
 	}
+	installFromYML(aliases, deps, false)
+	for k := range depsList {
+		delete(depsList, k)
+	}
+
+	return g_lockDeps
 }
-func installFromYML(aliases []string, deps []string) {
+func installFromYML(aliases []string, deps []string, clean bool) {
 	// load in the lock.json
-	loadDependencies()
-	// raws first
-	rawDeps := findAllRaws(deps)
-	fromRAW(rawDeps)
-	// jpm second
-	jpmDeps := findAllJPM(deps, aliases)
+	loadLockDependencies()
+
+	// load in locals initially
+	localDeps, noneLocal := findAllLocalDeps(deps)
+	fromLocal(localDeps)
+
+	// jpm first
+	jpmDeps, noneJpmdeps := findAllJPM(noneLocal, aliases)
 	fromJPM(jpmDeps)
-	// others last
+
+	// maven second
 	repoList := getRepoList()
-	repoDeps := findAllRepoDeps(deps, repoList)
+	repoDeps, raws := findAllRepoDeps(noneJpmdeps, repoList)
 	fromRepo(repoDeps)
+	installDependencies()
+	if clean {
+		cleanup()
+	}
+
+	//raws last
+	rawDeps := findAllRaws(raws)
+	fromRAW(rawDeps)
+	dumpDependencies()
 }
 
-func fromJPM(deps []string) {
+func fromLocal(localDeps []string) {
+	for _, dep := range localDeps {
+		println("local dependencies are not supported yet: " + dep)
+		os.Exit(1)
+	}
+}
+
+func findAllLocalDeps(deps []string) (localDeps []string, noneLocal []string) {
+	for _, v := range deps {
+		if strings.HasPrefix(v, "local ") {
+			localDeps = append(localDeps, v)
+		} else {
+			noneLocal = append(noneLocal, v)
+		}
+	}
+	return localDeps, noneLocal
+}
+
+func fromJPM(deps []string) string {
+	depString := ""
 	for _, d := range deps {
-		checkSlice := strings.Split(d, " ")
-		if len(checkSlice) > 2 {
-			println(tab + "JPM Dependency " + d + " Does not exist")
+		jDep, err := disectJPMDepString(d)
+		if err != nil {
 			continue
 		}
-		println("\033[32m  --- JPM: Resolving " + d + "\033[0m")
-		dSlices := strings.Split(d, " ")
-		dependencyType := ""
-		if len(dSlices) > 1 && checkValidScope(dSlices[1]) {
-			dependencyType = dSlices[1]
-		}
-		depAndVersion := strings.Split(dSlices[0], ":")
-		dep := dSlices[0]
-		version := ""
-		if len(depAndVersion) > 1 {
-			if depAndVersion[1] == "latest" {
-				// figure out version for this jpm dependency
+		currentWorkingRepo = jpmRepoUrl
+		currentOuterScope = jDep.Scope
+		depString = saveAllJPMSubDependencies(&jDep)
+	}
+	addJPMSubDependenciesToDownloadList()
+	return depString
+}
+func fromRepo(dependenciesWithRepo map[string][]Repo) {
+	for _, v := range dependenciesWithRepo {
+		for _, dr := range v {
+			if !checkValidScope(dr.Scope) {
+				printNotValidScope(dr.Scope)
+				println("\033[38;5;208m" + tab + "dependency might have a faulty alias, check your package.yml\033[0m")
+				continue
+			} else {
+				currentOuterScope = dr.Scope
 			}
-			version = depAndVersion[1]
-		} else {
-			// figure out version for this jpm dependency
-			// modify the yaml at this point
-			COM.ReplaceDependency(d, fmt.Sprintf("%s:%s %s", dep, version, dependencyType))
+			currentWorkingRepo = dr.Repo
+			saveAllRepoSubDependencies(&dr)
 		}
-		filename := dep + "-" + version + ".jar"
-		url := jpmRepo + dep + "/" + version + "/" + filename
-		downloadInfo[url] = []string{filename, "jpm", dependencyType}
-	}
-}
-func fromRepo(dependenciesWithRepo []Repo) {
-	for _, dr := range dependenciesWithRepo {
-		if !checkValidScope(dr.DependencyType) {
-			currentOuterScope = ""
-		} else {
-			currentOuterScope = dr.DependencyType
-		}
-		currentWorkingRepo = dr.Repo
-		saveAllRepoSubDependencies(&dr)
-	}
-	if len(depsList) > 0 {
-		dr := dependenciesWithRepo[0]
-		addRepoSubDependenciesToDownloadList(dr)
-	}
-}
-func addRepoSubDependenciesToDownloadList(dr Repo) {
-	depMap = resolveDependecy()
-	for k, v := range depMap {
-		gas := strings.Split(k, "|")
-		groupID := gas[0]
-		artefactID := gas[1]
-		version := v
-		scope := ""
-		if len(gas) == 3 && len(gas[2]) > 1 {
-			scope = gas[2]
-		}
-		url := dr.Repo + strings.ReplaceAll(groupID, ".", "/") + "/" + artefactID + "/" + version + "/" + artefactID + "-" + version + ".jar"
-		filename := artefactID + "-" + version + ".jar"
-
-		downloadInfo[url] = []string{filename, dr.Alias, "" + scope + "|"}
 	}
 
-	depsList = []string{}
-}
-func saveAllRepoSubDependencies(dr *Repo) error {
-	version := dr.ArtVer
-	var err error
-	if dr.ArtVer == "" {
-		version, err = figureOutLastest(dr.GroupID, dr.ArtefactID)
-		if err != nil {
-			println("\033[31m  --- " + strings.ToUpper(dr.Alias) + ": Resolving " + dr.ArtefactID + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
-			return errors.New("not nil")
-		}
-		dr.ArtVer = version
-		// modify the yaml at this point
-		COM.ReplaceDependency(fmt.Sprintf("%s %s %s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.DependencyType), fmt.Sprintf("%s %s %s:%s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.DependencyType))
+	for _, v := range getRepoList().Repos {
+		currentWorkingRepo = v.Repo
+		addRepoSubDependenciesToDownloadList(v.Repo)
 	}
-	if dr.ArtVer == "latest" {
-		version, err = figureOutLastest(dr.GroupID, dr.ArtefactID)
-		if err != nil {
-			println("\033[31m  --- " + strings.ToUpper(dr.Alias) + ": Resolving " + dr.ArtefactID + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
-			return errors.New("not nil")
-		}
-		dr.ArtVer = "latest"
-	}
-	println("\033[32m  --- " + strings.ToUpper(dr.Alias) + "\033[0m: Resolving " + dr.ArtefactID + ":" + version)
-	print("      Resolving   [")
-	downloadDepsRepo(dr.Repo, dr.GroupID, dr.ArtefactID, version, false)
-	figureOutAllLatestAndDownload()
-	println("]")
-	return nil
 }
 func fromRAW(deps []string) {
+	if len(deps) == 0 {
+		return
+	}
+	for k := range downloadInfo {
+		delete(downloadInfo, k)
+	}
+
+	print("  --- RAW: Downloading [")
 	for _, d := range deps {
 		checkSlice := strings.Split(d, " ")
-		if len(checkSlice) > 4 || len(checkSlice) < 2 {
-			println(tab + "RAW Dependency " + d + " Does not exist")
+		if len(checkSlice) > 4 || len(checkSlice) < 2 || !strings.Contains(d, "/") {
+			println("\n" + tab + "RAW Dependency " + d + " Does not exist")
 			continue
 		}
-		println("  --- RAW: Resolving " + d)
 		dSlices := strings.Split(d, " ")
-		dependencyType := ""
+		scope := ""
 		url := dSlices[1]
-		if len(dSlices) == 3 && !strings.Contains(d, " -x ") && checkValidScope(dSlices[2]) {
-			dependencyType = dSlices[2]
+		if len(dSlices) == 3 && !strings.Contains(d, " -x ") {
+			if checkValidScope(dSlices[2]) {
+				scope = dSlices[2]
+			} else {
+				printNotValidScope(dSlices[2])
+				continue
+			}
 		} else if len(dSlices) == 3 && strings.Contains(d, " -x ") {
 			url = dSlices[2]
-			dependencyType = "jpm_dependencies x"
-		} else if len(dSlices) == 4 && checkValidScope(dSlices[3]) {
-			url = dSlices[2]
-			dependencyType = dSlices[3] + " x"
+			scope = "extract x"
+		} else if len(dSlices) == 4 {
+			if checkValidScope(dSlices[3]) {
+				url = dSlices[2]
+				scope = dSlices[3] + " x"
+			} else {
+				printNotValidScope(dSlices[3])
+				continue
+			}
 		}
 		urlSlice := strings.Split(url, "/")
 		filename := urlSlice[len(urlSlice)-1]
-		downloadInfo[url] = []string{filename, "raw", dependencyType}
+		downloadInfo[url] = []string{filename, "raw", scope}
+		download(url, filename, scope, listAlreadyInstalledDeps())
+		sname := strings.Split(strings.TrimSuffix(filename, filepath.Ext(filename)), "-")[0]
+		createExecScript(scope, sname, filename)
+		print("=")
+
 	}
+	println("]")
+}
+func findAllRaws(raws []string) []string {
+	deps := []string{}
+	for _, v := range raws {
+		if strings.HasPrefix(COM.NormalizeSpaces(strings.ToLower(v)), "raw") {
+			// Skip if we already have this dependency
+			found := slices.Contains(deps, v)
+			if !found {
+				deps = append(deps, v)
+			}
+		}
+	}
+	return deps
 }
 func checkValidScope(scope string) bool {
-	if !slices.Contains(jpmScopes, scope) {
-		println()
-		println(tab + " scope " + scope + " is unknown scope")
-		println(tab + " Will be considered as normal dependency")
-		println()
-		return false
-	}
-	return true
+	return slices.Contains(jpmScopes, scope)
 }
-func download(url string, filename string, alias string, scope string, depsInstalled map[string][]string) {
+func printNotValidScope(scope string) {
+	println()
+	println("\033[38;5;208m" + tab + "Warning: scope " + scope + " is a unknown scope for \033[0m")
+	println()
+}
+func download(url string, filename string, scope string, depsInstalled map[string][]string) {
 	sc := strings.Split(strings.Trim(scope, "|"), "|")[0]
 	extract := false
-	if len(strings.Split(sc, " ")) == 2 {
+	if sc == "extract x" || strings.HasSuffix(sc, " x") {
 		sc = strings.Split(sc, " ")[0]
 		extract = true
 	}
@@ -274,12 +295,13 @@ func download(url string, filename string, alias string, scope string, depsInsta
 	case "test":
 		v, ok := depsInstalled["test"]
 		if ok && slices.Contains(v, filename) {
+			if COM.Verbose {
+				println(filename, "already exists, skipping download")
+			}
 			return
 		}
 		if err, _ := COM.DownloadFile(url, filepath.Join("jpm_dependencies", "tests"), filename, false, false); err != nil {
-			if err.Error() == "404 Not Found" {
-				return
-			}
+
 			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
 			return
 		}
@@ -290,12 +312,13 @@ func download(url string, filename string, alias string, scope string, depsInsta
 	case "exec":
 		v, ok := depsInstalled["exec"]
 		if ok && slices.Contains(v, filename) {
+			if COM.Verbose {
+				println(filename, "already exists, skipping download")
+			}
 			return
 		}
 		if err, _ := COM.DownloadFile(url, filepath.Join("jpm_dependencies", "execs"), filename, false, false); err != nil {
-			if err.Error() == "404 Not Found" {
-				return
-			}
+
 			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
 			return
 		}
@@ -306,12 +329,13 @@ func download(url string, filename string, alias string, scope string, depsInsta
 	default:
 		v, ok := depsInstalled["jpm_dependencies"]
 		if ok && slices.Contains(v, filename) {
+			if COM.Verbose {
+				println(filename, "already exists, skipping download")
+			}
 			return
 		}
 		if err, _ := COM.DownloadFile(url, "jpm_dependencies", filename, false, false); err != nil {
-			if err.Error() == "404 Not Found" {
-				return
-			}
+
 			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
 			return
 		}
@@ -321,129 +345,6 @@ func download(url string, filename string, alias string, scope string, depsInsta
 		}
 	}
 
-}
-func getRepoList() Repositories {
-	repoSection := COM.GetSection("repos", false)
-	repos := Repositories{
-		Repos: []Repo{},
-	}
-	if repoSection == nil {
-		return repos
-	}
-	repoSectionListMap := repoSection.([]any)
-	for _, r := range repoSectionListMap {
-		repoSectionMap := r.(map[string]string)
-		//for now jpm will be local
-		for k, v := range repoSectionMap {
-			url := v
-			if !strings.HasSuffix(url, "/") {
-				url = url + "/"
-			}
-			repos.Repos = append(repos.Repos, Repo{Alias: strings.ToLower(k), Repo: url})
-		}
-	}
-	return repos
-}
-
-func findRepoAlias(dependencyList []string) []string {
-	aliases := []string{}
-	for _, v := range dependencyList {
-		a := strings.Split(v, " ")[0]
-		if slices.Contains(aliases, a) {
-			continue
-		}
-		aliases = append(aliases, strings.ToLower(a))
-	}
-	return aliases
-}
-func findAllRepoDeps(deps []string, repoList Repositories) []Repo {
-	repos := []Repo{}
-	for _, v := range deps {
-		found := false
-		for _, repoFromYaml := range repoList.Repos {
-			if len(repoFromYaml.Alias) < 1 || COM.NormalizeSpaces(repoFromYaml.Alias) == "" || repoFromYaml.Alias == "" {
-				continue
-			}
-			v = COM.NormalizeSpaces(v)
-			if strings.HasPrefix(v, repoFromYaml.Alias) {
-				found = true
-				found2 := false
-				if !found2 {
-					r, err := disectRepoDepString(v, repoFromYaml.Repo, repoFromYaml.Alias)
-					if err == nil {
-						repos = append(repos, r)
-					}
-				}
-			}
-		}
-		if strings.HasPrefix(COM.NormalizeSpaces(strings.ToLower(v)), "raw ") {
-			continue
-		}
-		if !found {
-			println("\033[31m" + tab + "The repository for this dependency was not found: " + v + "\033[0m\n")
-		}
-
-	}
-
-	return repos
-}
-func disectRepoDepString(depString string, repoURL string, alias string) (Repo, error) {
-	dSlice := strings.Split(depString, " ")
-	if len(dSlice) < 3 {
-		println("\033[31m" + tab + "The dependency : " + depString + " is ambigious\033[0m")
-		return Repo{}, errors.New("The dependency : " + depString + " is ambigious")
-	}
-	artver := strings.Split(dSlice[2], ":")
-	t := ""
-	if len(dSlice) == 3 {
-		t = ""
-	} else if len(dSlice) == 4 {
-		t = dSlice[3]
-	} else {
-		println("\033[31m" + tab + "The dependency : " + depString + " is ambigious\033[0m")
-		return Repo{}, errors.New("The dependency : " + depString + " is ambigious")
-	}
-	version := ""
-	if len(artver) == 2 {
-		version = artver[1]
-	}
-	return Repo{
-		Repo:           repoURL,
-		Alias:          alias,
-		GroupID:        dSlice[1],
-		ArtefactID:     artver[0],
-		ArtVer:         COM.NormalizeSpaces(version),
-		DependencyType: t,
-	}, nil
-}
-func findAllJPM(unfiltterenDeps []string, aliases []string) []string {
-	deps := []string{}
-	for _, v := range unfiltterenDeps {
-		v = COM.NormalizeSpaces(v)
-		if !slices.Contains(aliases, strings.Split(v, " ")[0]) {
-			// Skip if we already have this dependency
-			found := slices.Contains(deps, v)
-			if !found {
-				deps = append(deps, v)
-			}
-
-		}
-
-	}
-	return deps
-}
-func findAllRaws(unfiltterenDeps []string) []string {
-	deps := []string{}
-	for _, v := range unfiltterenDeps {
-		if strings.HasPrefix(COM.NormalizeSpaces(strings.ToLower(v)), "raw") {
-			// Skip if we already have this dependency
-			found := slices.Contains(deps, v)
-			if !found {
-				deps = append(deps, v)
-			}
-		}
-	}
-	return deps
 }
 func listAlreadyInstalledDeps() map[string][]string {
 	dir := "jpm_dependencies"
@@ -494,22 +395,25 @@ func listAlreadyInstalledDeps() map[string][]string {
 	return maped
 }
 func resolveDependecy() map[string]string {
-	depMap := make(map[string]string, len(depsList)/2)
-	for i := 0; i < len(depsList); i += 2 {
-		if depMap[depsList[i]] == "" {
-			depMap[depsList[i]] = depsList[i+1]
-		} else if depsList[i+1] == "" {
+	depMap := make(map[string]string, len(depsList[currentWorkingRepo])/2)
+
+	for i := 0; i < len(depsList[currentWorkingRepo]); i += 2 {
+		if depMap[depsList[currentWorkingRepo][i]] == "" {
+			depMap[depsList[currentWorkingRepo][i]] = depsList[currentWorkingRepo][i+1]
+		} else if depsList[currentWorkingRepo][i+1] == "" {
 			continue
-		} else if depMap[depsList[i]] < depsList[i+1] {
-			depMap[depsList[i]] = depsList[i+1]
+		} else if depMap[depsList[currentWorkingRepo][i]] < depsList[currentWorkingRepo][i+1] {
+			depMap[depsList[currentWorkingRepo][i]] = depsList[currentWorkingRepo][i+1]
 		}
 	}
-	for key, value := range depMap {
-		// try finding it in imports
-		if value == "" {
-			for i, v := range importList {
-				if v == key {
-					depMap[key] = importList[i+1]
+	if currentWorkingRepo != jpmRepoUrl {
+		for key, value := range depMap {
+			// try finding it in imports
+			if value == "" {
+				for i, v := range importList {
+					if v == key {
+						depMap[key] = importList[i+1]
+					}
 				}
 			}
 		}
@@ -522,31 +426,70 @@ func resolveDependecy() map[string]string {
 			}
 		}
 	}
-	maps.DeleteFunc(depMap, func(k string, v string) bool { return v == "" })
+	for k := range depMap {
+		if strings.HasSuffix(k, "|exec") {
+			d := strings.TrimSuffix(k, "exec")
+			if _, ok := depMap[d]; ok {
+				depMap[k] = ""
+			}
+		}
+	}
+	maps.DeleteFunc(depMap, func(k string, v string) bool { return v == "" || k == "" })
+	switch currentWorkingRepo {
+	case jpmRepoUrl:
+		g_lockDeps.JPM = depMap
+	default:
+		maps.DeleteFunc(g_lockDeps.Repos, func(k string, v map[string]string) bool { return k == "" })
+		g_lockDeps.Repos[currentWorkingRepo] = depMap
+	}
 	return depMap
 }
-func loadDependencies() {
-	file, err := os.Open(filepath.Join("jpm_dependencies", ".lock.json"))
+func loadLockDependencies() {
+	file, err := os.Open(filepath.Join("jpm_dependencies", "lock.json"))
+	classified := false
+	if COM.GetSection("classified", false) != nil {
+		classified = COM.GetSection("classified", false).(bool)
+	}
 	if err != nil {
-		// If file does not exist, just return
+		g_lockDeps = COM.Dependencies{
+			Classified: classified,
+			JPM:        map[string]string{},
+			Repos:      map[string]map[string]string{},
+		}
 		return
 	}
 	defer file.Close()
-
 	decoder := json.NewDecoder(file)
-	lockMap := make(map[string]string)
-	if err := decoder.Decode(&lockMap); err != nil {
-		// If decode fails, just return
+	var lockDeps COM.Dependencies
+	if err := decoder.Decode(&lockDeps); err != nil {
 		return
 	}
-
-	for k, v := range lockMap {
-		depsList = append(depsList, k, v)
+	g_lockDeps = lockDeps
+	g_lockDeps.Classified = classified
+	for k, v := range lockDeps.JPM {
+		depsList[jpmRepoUrl] = append(depsList[jpmRepoUrl], k, v)
+	}
+	for k, v := range lockDeps.Repos {
+		for k2, v2 := range v {
+			depsList[k] = append(depsList[k], k2, v2)
+		}
 	}
 }
-
-func dumpDependencies(depMap map[string]string) {
-	lockFilePath := filepath.Join("jpm_dependencies", ".lock.json")
+func installDependencies() {
+	if len(downloadInfo) != 0 {
+		print("      Downloading [")
+		for k, v := range downloadInfo {
+			download(k, v[0], v[1], listAlreadyInstalledDeps())
+			print("=")
+		}
+		println("]")
+		for _, v := range failedInstalledList {
+			println(v)
+		}
+	}
+}
+func dumpDependencies() {
+	lockFilePath := filepath.Join("jpm_dependencies", "lock.json")
 
 	// Remove the file if it already exists to ensure we override it
 	if _, err := os.Stat(lockFilePath); err == nil {
@@ -555,59 +498,153 @@ func dumpDependencies(depMap map[string]string) {
 			return
 		}
 	}
-	jars := []string{}
-	for key, v := range depMap {
-		jar := ""
-		if strings.HasSuffix(key, "|test") {
-			jar = filepath.Join("tests")
-		}
-		value := strings.TrimSuffix(key, "|test")
-		valueS := strings.Split(strings.TrimSuffix(value, "|"), "|")
-		value = valueS[len(valueS)-1]
-		jar = filepath.Join(jar, value+"-"+v+".jar")
-		jars = append(jars, jar)
-		depMap[key] = v
-	}
 
 	file, err := os.Create(lockFilePath)
 	if err != nil {
-		fmt.Println("Error creating .lock.json:", err)
+		fmt.Println("Error creating lock.json:", err)
 		return
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(depMap); err != nil {
-		fmt.Println("Error encoding .lock.json:", err)
+	if err := encoder.Encode(g_lockDeps); err != nil {
+		fmt.Println("Error encoding lock.json:", err)
+	}
+}
+func cleanup() {
+	jars := []string{}
+	execjars := []string{}
+
+	for key, v := range g_lockDeps.JPM {
+		jar := ""
+		if strings.HasSuffix(key, "|test") {
+			jar = filepath.Join("tests")
+		}
+		if strings.HasSuffix(key, "|exec") {
+			jar = filepath.Join("execs")
+		}
+		value := strings.TrimSuffix(key, "|test")
+		value = strings.TrimSuffix(value, "|exec")
+		valueS := strings.Split(strings.TrimSuffix(value, "|"), "|")
+		value = valueS[len(valueS)-1]
+		classifier := ""
+		if len(valueS) == 2 {
+			classifier = "-" + valueS[0]
+		}
+		execjar := filepath.Join(jar, value)
+		jar = filepath.Join(jar, value+"-"+v+classifier+".jar")
+		jars = append(jars, jar)
+		execjars = append(execjars, execjar, jar)
 	}
 
-	//clean up here
-	files, err := os.ReadDir("jpm_dependencies")
-	if err != nil {
-		fmt.Println("Error reading jpm_dependencies directory:", err)
-		return
+	for _, depMap := range g_lockDeps.Repos {
+		for key, v := range depMap {
+			jar := ""
+			if strings.HasSuffix(key, "|test") {
+				jar = filepath.Join("tests")
+			}
+			if strings.HasSuffix(key, "|exec") {
+				jar = filepath.Join("execs")
+			}
+			value := strings.TrimSuffix(key, "|test")
+			value = strings.TrimSuffix(value, "|exec")
+			valueS := strings.Split(strings.TrimSuffix(value, "|"), "|")
+			value = valueS[len(valueS)-1]
+			classifier := ""
+			if len(valueS) == 3 {
+				classifier = "-" + valueS[0]
+			}
+			execjar := filepath.Join(jar, value)
+			jar = filepath.Join(jar, value+"-"+v+classifier+".jar")
+			jars = append(jars, jar)
+			execjars = append(execjars, execjar, jar)
+		}
 	}
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
-			if !slices.Contains(jars, file.Name()) {
-				os.Remove(filepath.Join("jpm_dependencies", file.Name()))
+	//clean up
+	files, err := os.ReadDir("jpm_dependencies")
+	if err == nil {
+		for _, file := range files {
+			if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
+				if !slices.Contains(jars, file.Name()) {
+					if file.Name() == "annotations-13.0.jar" || file.Name() == "kotlin-stdlib.jar" {
+						continue
+					}
+					os.Remove(filepath.Join("jpm_dependencies", file.Name()))
+				}
 			}
 		}
 	}
 	files, err = os.ReadDir(filepath.Join("jpm_dependencies", "tests"))
-	if err != nil {
-		fmt.Println("Error reading jpm_dependencies/tests directory:", err)
-		return
-	}
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
-			if !slices.Contains(jars, filepath.Join("tests", file.Name())) {
-				if file.Name() == "junit.jar" {
-					continue
+	if err == nil {
+		for _, file := range files {
+			if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
+				if !slices.Contains(jars, filepath.Join("tests", file.Name())) {
+					if file.Name() == "junit.jar" || file.Name() == "kotlin-test.jar" {
+						continue
+					}
+					os.Remove(filepath.Join("jpm_dependencies", "tests", file.Name()))
 				}
-				os.Remove(filepath.Join("jpm_dependencies", "tests", file.Name()))
 			}
 		}
 	}
+
+	files, err = os.ReadDir(filepath.Join("jpm_dependencies", "execs"))
+	if err == nil {
+		for _, file := range files {
+			if !slices.Contains(execjars, filepath.Join("execs", file.Name())) {
+				os.Remove(filepath.Join("jpm_dependencies", "execs", file.Name()))
+			}
+		}
+	}
+}
+func removeClassifierAndTests() {
+	// for k, v := range g_lockDeps.JPM {
+	// 	valueS := strings.Split(strings.TrimSuffix(k, "|"), "|")
+	// 	value = valueS[len(valueS)-1]
+	// 	classifier := ""
+	// 	if len(valueS) == 3 {
+	// 		classifier = "-" + valueS[0]
+	// 	}
+	// }
+}
+func addFinishMessage(s string) {
+	finishMessages = append(finishMessages, s)
+}
+func GetDependenciesJson() []byte {
+	loadLockDependencies()
+	removeClassifierAndTests()
+	depsJson, err := json.MarshalIndent(g_lockDeps, "", "  ")
+	if err != nil {
+		return nil
+	}
+	return depsJson
+}
+
+var excluded map[string]bool = map[string]bool{}
+
+func foundExcluded(s string) {
+	excluded[s] = true
+}
+func checkUnexcluded() {
+	for _, v := range excludes {
+		if !excluded[v] {
+			addFinishMessage("\033[33mInfo : was not excluded anywhere " + v + "\033[0m")
+		}
+	}
+}
+
+func createExecScript(scope, scriptName, filename string) {
+	if scope != "exec" || !strings.HasSuffix(filename, ".jar") {
+		return
+	}
+	filename = "jpm_dependencies/execs/" + filename
+	scriptCmd := `
+	mainc=$(unzip -p ` + filename + ` META-INF/MANIFEST.MF | grep Main-Class | awk '/Main-Class:/ {print $2}'|tr -d '\n'| tr -d '\r')
+	if [[ -z "$mainc" ]]; then
+		exit 1
+	fi
+	echo "#!/bin/bash" > jpm_dependencies/execs/` + scriptName + `
+	printf "java -p jpm_dependencies/execs -cp \"jpm_dependencies/execs/*\" %s %s" "$mainc" '$@' >> jpm_dependencies/execs/` + scriptName
+	COM.RunScript(scriptCmd, true)
 }

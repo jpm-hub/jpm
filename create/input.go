@@ -12,10 +12,21 @@ func inputText(s string) string {
 		s = s[:len(s)-len("<input-text>")]
 	}
 	var input string
-	print(s)
+	fmt.Printf("\033[94m ⮕ %s\033[0m", s)
 	// Read input until newline
 	fmt.Scanln(&input)
 	return input
+}
+
+func inputTextSanitized(s string) string {
+	if len(s) >= len("<input-text-sanitized>") && s[len(s)-len("<input-text-sanitized>"):] == "<input-text-sanitized>" {
+		s = s[:len(s)-len("<input-text-sanitized>")]
+	}
+	var input string
+	fmt.Printf("\033[94m ⮕ %s\033[0m", s)
+	// Read input until newline
+	fmt.Scanln(&input)
+	return sanitize(input)
 }
 
 func inputNumber(s string) string {
@@ -25,7 +36,7 @@ func inputNumber(s string) string {
 	var input string
 	var number int
 	for {
-		print(s)
+		fmt.Printf("\033[94m ⮕ %s\033[0m", s)
 		fmt.Scanln(&input)
 		_, err := fmt.Sscanf(input, "%d", &number)
 		if err == nil {
@@ -42,14 +53,14 @@ func inputChoice(key string, s string) map[string]string {
 	}
 	var input string
 	choice := map[string]any{}
-	println(s, "\n")
+	fmt.Println("\033[94m"+s, "\033[0m")
 	for v := range maps.Keys(templateYml) {
 		prefix := "<choice>:" + key + ":"
 		if strings.HasPrefix(v, prefix) {
 			suffix := strings.TrimPrefix(v, prefix)
-
 			if val, ok := templateYml[v].(map[any]any); ok {
-				println("   ", suffix, "-", val["title"].(string))
+				fmt.Printf("   \033[1;34m%s\033[0m", suffix)
+				println(" -", val["title"].(string))
 				choice[suffix] = val
 			} else {
 				fmt.Println(v, "should be a map")
@@ -58,7 +69,7 @@ func inputChoice(key string, s string) map[string]string {
 		}
 	}
 	// Read input until newline
-	print("   choice: ")
+	print(" ⮕ choice : ")
 	fmt.Scanln(&input)
 	for {
 		if val, ok := choice[input].(map[any]any); ok {

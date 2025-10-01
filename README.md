@@ -254,7 +254,8 @@ jpm bundle
 jpm bundle -fat
 
 # Create a executable JAR with scripts
-jpm bundle -exe
+jpm bundle -exec
+```
 
 ### System
 
@@ -280,6 +281,9 @@ jpm setup -junit
 
 # Setup HotSwap Agent
 jpm setup -HotSwapAgent
+
+# Setup verbose
+jpm setup -verbose
 ```
 
 ### Custom Scripts
@@ -290,10 +294,12 @@ You can run custom scripts defined in `package.yml`:
 jpm <script-name>
 ```
 
-For example, if you have a script called `start` in your `package.yml`:
+if you have a script called `run@` in your `package.yml`, it overrides the default `jpm run` to your custom command, it only works if no other args was provided to the command.
+example for `jpm init`
 
 ```bash
-jpm start
+$ jpm init
+Overriding: 'jpm init' for 'jpm init@'
 ```
 
 ## Dependencies

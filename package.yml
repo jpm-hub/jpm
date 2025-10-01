@@ -1,6 +1,13 @@
 package: tst
+classified: true
+packages: ["packageA", "packageB"]
 scripts:
   build: |
     go build
     rm -f /c/Users/deris/go/bin/jpm.exe
     cp jpm.exe /c/Users/deris/go/bin/jpm.exe
+dependencies:
+  - local localdepA
+  - local ../
+  - local ../localdepB
+  - local localdepA/localdepC

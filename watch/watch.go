@@ -32,10 +32,13 @@ func Watch(fromRun bool) {
 
 	// Parse the filter pattern
 	patterns := parseFilterPattern(figureOutFilter(fromRun))
-	println("Watching file changes " + figureOutFilter(fromRun))
+	fmt.Println("\033[33mWatching file changes " + figureOutFilter(fromRun) + "\033[0m")
 	if len(patterns) == 0 {
 		fmt.Println("Invalid filter pattern")
 		return
+	}
+	if fromRun {
+		println("\n\n\033[33m Warning: 'jpm run -hot' is in alpha, hot reloading may not work as expected\033[0m\n")
 	}
 	// Start watching for changes
 	go func(fromRunWatch bool) {
@@ -84,7 +87,7 @@ func figureOutFilter(fromRun bool) string {
 	case false:
 		if len(os.Args) == 2 {
 			return "(" + src + "/**)"
-		} else if len(os.Args) == 3 && os.Args[3] != "_" {
+		} else if len(os.Args) == 3 && os.Args[2] != "_" {
 			return os.Args[2]
 		} else if len(os.Args) == 4 {
 			if os.Args[3] != "_" {
@@ -207,7 +210,6 @@ func getDirectoriesToWatch(patterns []string) []string {
 			}
 		}
 	}
-
 	return dirs
 }
 

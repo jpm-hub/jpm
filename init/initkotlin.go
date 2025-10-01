@@ -3,8 +3,8 @@ package init
 import (
 	"fmt"
 	COM "jpm/common"
-	INSTALL "jpm/install"
 	"os"
+	"strings"
 )
 
 func initKotlin(appMainKotlinFile string, packaging string, className string, src string) {
@@ -14,7 +14,7 @@ func initKotlin(appMainKotlinFile string, packaging string, className string, sr
 		os.Exit(1)
 	}
 	// Write test file
-	if err := os.WriteFile("tests/Test"+className+".kt", []byte(COM.GetKotlinTestTemplate(packaging, className)), 0644); err != nil {
+	if err := os.WriteFile("tests/Test"+className+".kt", []byte(COM.GetKotlinTestTemplate(strings.ReplaceAll(packaging, "-", "_"), className)), 0644); err != nil {
 		fmt.Printf("Error creating test file: %v\n", err)
 		os.Exit(1)
 	}
@@ -26,10 +26,8 @@ func initKotlin(appMainKotlinFile string, packaging string, className string, sr
 	}
 
 	// Write main Java file
-	if err := os.WriteFile(appMainKotlinFile, []byte(COM.GetKotlinAppTemplate(packaging)), 0644); err != nil {
+	if err := os.WriteFile(appMainKotlinFile, []byte(COM.GetKotlinAppTemplate(strings.ReplaceAll(packaging, "-", "_"))), 0644); err != nil {
 		fmt.Printf("Error creating main Java file: %v\n", err)
 		os.Exit(1)
 	}
-
-	INSTALL.QuickInstall()
 }
