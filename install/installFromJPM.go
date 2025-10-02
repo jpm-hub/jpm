@@ -224,9 +224,12 @@ func figureOutJPMInnerClassifier(d string, forRepos bool) (string, bool) {
 	}
 	classifier := COM.GetSection("classifiers", false).(map[string]string)
 	v, ok := classifier[dSlices[i+1]]
+	vg, okg := classifier[dSlices[i]]
 	vs, oks := classifier["*"]
 	if ok {
 		return v + "|", true
+	} else if forRepos && okg {
+		return vg + "|", true
 	} else if oks {
 		return vs + "|", true
 	}
