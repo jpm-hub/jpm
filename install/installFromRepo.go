@@ -343,7 +343,7 @@ func downloadDepsRepo(groupID string, artifactID string, version string, scopeIm
 		optional := figureOutOptional(dep, pom)
 		// if scope == import add to import depsManagement list
 
-		if (optional == "" || strings.ToLower(optional) == "false") && slices.Contains(scopesAccepted, scope) && !strings.HasPrefix(groupID, "org.junit") {
+		if (optional == "" || strings.ToLower(optional) == "false") && slices.Contains(scopesAccepted, scope) && !strings.HasPrefix(artifactID, "kotlin-stdlib") && !strings.HasPrefix(groupID, "org.junit") {
 			groupid := figureOutGroupID(dep, pom)
 			if strings.HasPrefix(groupid, "org.junit") {
 				continue
@@ -369,11 +369,12 @@ func downloadDepsRepo(groupID string, artifactID string, version string, scopeIm
 	return &pom
 }
 func checkRepoExcludes(artifactID string) bool {
-	for _, excluded := range excludes {
-		if strings.Contains(artifactID, excluded) && currentOuterScope != "exec" {
+	for _, ex := range excludes {
+		if strings.Contains(artifactID, ex) && currentOuterScope != "exec" {
 			if COM.Verbose {
 				addFinishMessage("Info : excluded " + artifactID)
 				foundExcluded(artifactID)
+				excluded[artifactID] = true
 			}
 			return true
 		}

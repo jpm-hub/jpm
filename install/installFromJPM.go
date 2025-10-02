@@ -179,6 +179,7 @@ func checkJPMExcludes(dep string) bool {
 		if COM.Verbose {
 			addFinishMessage("Info : excluded " + strings.Split(dep, "|")[1])
 			foundExcluded(strings.Split(dep, "|")[1])
+			excluded[dep] = true
 		}
 		return true
 	}
