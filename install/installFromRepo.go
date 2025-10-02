@@ -377,8 +377,8 @@ func checkRepoExcludes(artifactID string) bool {
 			if COM.Verbose {
 				addFinishMessage("Info : excluded " + artifactID)
 				foundExcluded(artifactID)
-				excluded[artifactID] = true
 			}
+			excluded[artifactID] = true
 			return true
 		}
 	}
