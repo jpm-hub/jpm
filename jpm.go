@@ -99,12 +99,13 @@ func main() {
 		DOC.Doctor(false, true)
 		return
 	case "setup":
-		if len(os.Args) == 3 {
-			sw := []string{"-java", "-kotlin", "-junit", "-HotSwapAgent", "-v", "-jpx"}
-			if slices.Contains(sw, os.Args[2]) {
-				SETUP.Setup(os.Args[2])
-				return
-			}
+		sw := []string{"-java", "-kotlin", "-junit", "-HotSwapAgent", "-v", "-jpx"}
+		if len(os.Args) > 2 && slices.Contains(sw, os.Args[2]) {
+			SETUP.Setup(os.Args[2])
+			return
+		} else {
+			fmt.Println("Available options are:", sw)
+			os.Exit(1)
 		}
 	}
 

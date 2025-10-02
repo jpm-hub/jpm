@@ -83,4 +83,5 @@ func Jpx() {
 	} else {
 		os.WriteFile(execDir+"/jpx", []byte(JPX.SHTemplate()), 0755)
 	}
+	println("\033[32m  --- jpx setup done\033[0m")
 }

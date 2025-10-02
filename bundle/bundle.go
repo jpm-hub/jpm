@@ -143,7 +143,7 @@ func copyFromDependencies(dir string) {
 func extractJarAndZip() {}
 func createScripts(main string) {
 	argsMap := COM.ParseArgs()
-	args, found := argsMap["run"]
+	args, found := argsMap["java"]
 	if !found {
 		args = ""
 	} else {
