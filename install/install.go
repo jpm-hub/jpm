@@ -276,7 +276,7 @@ func checkValidScope(scope string) bool {
 }
 func printNotValidScope(scope string) {
 	println()
-	println("\033[38;5;208m" + tab + "Warning: scope " + scope + " is a unknown scope for \033[0m")
+	println("\033[38;5;208m" + tab + "Warning: scope " + scope + " is a unknown scope\033[0m")
 	println()
 }
 func download(url string, filename string, scope string, depsInstalled map[string][]string) {
@@ -650,5 +650,9 @@ func createExecScript(scope, scriptName, filename string) {
 	fi
 	echo "#!/bin/bash" > jpm_dependencies/execs/` + scriptName + `
 	printf "java -p \"jpm_dependencies` + separator + `jpm_dependencies/execs\ -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$mainc" '$@' >> jpm_dependencies/execs/` + scriptName
-	COM.RunScript(scriptCmd, true)
+	err := COM.RunScript(scriptCmd, true)
+	if err != nil {
+		addFinishMessage("\033[33mCould not find Main-Class in " + filename + "\033[0m")
+		return
+	}
 }

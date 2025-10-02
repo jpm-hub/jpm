@@ -55,12 +55,17 @@ func Init(cliargs []string) {
 				println("new module")
 				continue
 			}
+			if arg == "-add" {
+				println("new sub project")
+				continue
+			}
+
 			if strings.Contains(arg, "\\") {
 				println("use foward slashes instead")
 				os.Exit(1)
 			}
 			diffName = true
-			projectName = arg
+			projectName = strings.Trim(arg, "-")
 			projectNameSlice := strings.Split(projectName, ".")
 			if strings.Contains(projectName, ".") {
 				className := COM.CapitalizeFirst(projectNameSlice[len(projectNameSlice)-1])

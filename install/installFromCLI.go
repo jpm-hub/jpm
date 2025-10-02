@@ -4,7 +4,6 @@ import (
 	"fmt"
 	COM "jpm/common"
 	"os"
-	"slices"
 	"strings"
 )
 
@@ -13,13 +12,12 @@ func installFromCLI() {
 	depString := strings.Join(os.Args[2:], " ")
 	depString = strings.ReplaceAll(depString, "--save-dev", "exec")
 	depString = COM.NormalizeSpaces(depString)
-	aliases = append(aliases, "raw", "local")
-	prefix := strings.Split(depString, " ")[0]
+	aliases = append(aliases, "raw")
+	jpmDeps, noneJpmdeps := findAllJPM([]string{depString}, aliases)
 	var err error
-	if !slices.Contains(aliases, strings.ToLower(prefix)) {
-		// is from jpm
+	if len(jpmDeps) > 0 {
 		depString, err = fromJPMCLI(depString)
-	} else if prefix != "raw" && prefix != "local" {
+	} else if len(noneJpmdeps) > 0 {
 		// is from repo
 		depString, err = fromRepoCLI(depString)
 	} else {
@@ -52,8 +50,14 @@ func fromJPMCLI(depString string) (string, error) {
 func fromRepoCLI(depString string) (string, error) {
 	loadLockDependencies()
 	repoList := getRepoList()
-	alias := strings.ToLower(strings.Split(depString, " ")[0])
+	sdep := strings.SplitN(depString, " ", 2)
+	alias := strings.ToLower(sdep[0])
 	for _, v := range repoList.Repos {
+		if v.Alias == "default" && !strings.Contains(sdep[1], "/") {
+			alias = "default"
+			depString = "default " + depString
+		}
+
 		if v.Alias == alias {
 			dep, err := disectRepoDepString(COM.NormalizeSpaces(depString), v.Repo, alias)
 			if err != nil {
@@ -62,7 +66,12 @@ func fromRepoCLI(depString string) (string, error) {
 			currentOuterScope = dep.Scope
 			currentWorkingRepo = dep.Repo
 			err = saveAllRepoSubDependencies(&dep)
-			depString := fmt.Sprintf("%s %s %s:%s %s", dep.Alias, dep.GroupID, dep.ArtefactID, dep.ArtVer, dep.Scope)
+			depString := ""
+			if alias == "default" {
+				depString = fmt.Sprintf("%s %s:%s %s", dep.GroupID, dep.ArtefactID, dep.ArtVer, dep.Scope)
+			} else {
+				depString = fmt.Sprintf("%s %s %s:%s %s", dep.Alias, dep.GroupID, dep.ArtefactID, dep.ArtVer, dep.Scope)
+			}
 			depString = strings.TrimSpace(depString)
 			if err == nil {
 				addRepoSubDependenciesToDownloadList(dep.Repo)

@@ -35,7 +35,7 @@ scripts:
   clean: rm -rf out/* dist
 dependencies:
 repos:
-  - mvn: https://repo1.maven.org/maven2/
+  - default: https://repo1.maven.org/maven2/
 `
 }
 

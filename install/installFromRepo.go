@@ -182,7 +182,11 @@ func saveAllRepoSubDependencies(dr *Repo) error {
 		}
 		dr.ArtVer = version
 		// modify the yaml at this point
-		COM.ReplaceDependency(fmt.Sprintf("%s %s %s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.Scope), fmt.Sprintf("%s %s %s:%s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.Scope))
+		if dr.Alias != "default" {
+			COM.ReplaceDependency(fmt.Sprintf("%s %s %s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.Scope), fmt.Sprintf("%s %s %s:%s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.Scope))
+		} else {
+			COM.ReplaceDependency(fmt.Sprintf("%s %s %s", dr.GroupID, dr.ArtefactID, dr.Scope), fmt.Sprintf("%s %s:%s %s", dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.Scope))
+		}
 	}
 	if dr.ArtVer == "latest" {
 		version, err = figureOutLastestRepo(dr.GroupID, dr.ArtefactID)
@@ -192,7 +196,11 @@ func saveAllRepoSubDependencies(dr *Repo) error {
 		}
 		dr.ArtVer = "latest"
 	}
-	println("\033[32m  --- " + strings.ToUpper(dr.Alias) + "\033[0m: Resolving " + dr.ArtefactID + ":" + version)
+	al := ">"
+	if dr.Alias != "default" {
+		al = strings.ToUpper(dr.Alias) + ":"
+	}
+	println("\033[32m  --- " + al + " Resolving " + dr.ArtefactID + ":" + version + "\033[0m")
 	print("      Resolving   [")
 	createExecScript(dr.Scope, dr.ArtefactID, dr.ArtefactID+"-"+version+".jar")
 	downloadDepsRepo(dr.GroupID, dr.ArtefactID, version, false)
