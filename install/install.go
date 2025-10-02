@@ -39,6 +39,7 @@ var depsList map[string][]string = map[string][]string{}
 var importList []string = []string{}
 var currentWorkingRepo string
 var currentOuterScope string
+var currentLanguage string = "java"
 var cache map[string]pom = map[string]pom{}
 var g_lockDeps COM.Dependencies = COM.Dependencies{}
 var downloadInfo map[string][]string = map[string][]string{}
@@ -67,6 +68,7 @@ func Install() {
 	}
 
 	excludes = COM.GetSection("excludes", false).([]string)
+	currentLanguage = COM.GetSection("language", false).(string)
 	switch len(os.Args) {
 	case 2:
 		os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
@@ -113,6 +115,7 @@ func execChmod() {
 }
 func QuickInstall(force bool) COM.Dependencies {
 	excludes = COM.GetSection("excludes", false).([]string)
+	currentLanguage = COM.GetSection("language", false).(string)
 	COM.FindPackageYML(true)
 	if force {
 		os.Remove(filepath.Join("jpm_dependencies", "lock.json"))

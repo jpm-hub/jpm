@@ -408,7 +408,11 @@ func GetSection(section string, isFatal bool) any {
 	case "main":
 		return ParseENV(packageYML.Main)
 	case "language":
-		return ParseENV(packageYML.Language)
+		lang := ParseENV(packageYML.Language)
+		if lang == "" {
+			return "java"
+		}
+		return lang
 	case "version":
 		return ParseENV(packageYML.Version)
 	case "description":

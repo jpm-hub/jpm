@@ -343,9 +343,12 @@ func downloadDepsRepo(groupID string, artifactID string, version string, scopeIm
 		optional := figureOutOptional(dep, pom)
 		// if scope == import add to import depsManagement list
 
-		if (optional == "" || strings.ToLower(optional) == "false") && slices.Contains(scopesAccepted, scope) && !strings.HasPrefix(artifactID, "kotlin-stdlib") && !strings.HasPrefix(groupID, "org.junit") {
+		if (optional == "" || strings.ToLower(optional) == "false") && slices.Contains(scopesAccepted, scope) && !strings.HasPrefix(groupID, "org.junit") {
 			groupid := figureOutGroupID(dep, pom)
 			if strings.HasPrefix(groupid, "org.junit") {
+				continue
+			}
+			if strings.Contains(currentLanguage, "kotlin") && strings.HasPrefix(artifactID, "kotlin-stdlib") {
 				continue
 			}
 			dep.GroupID = groupid
