@@ -73,10 +73,11 @@ func main() {
 		fmt.Println("\t\t\"(src/**)\": determines the file that will trigger the command ( _ to ignore)")
 		fmt.Println("\t\t\"<command>\": execute this command before compilation when files change ( _ to ignore)")
 		println()
-		fmt.Println(" \033[33mjpm bundle\033[0m [name] [-fat, -exec] :") // add windows ach, arm ach and linux and darwin and all one day maybe
+		fmt.Println(" \033[33mjpm bundle\033[0m [name] [-fat, -exec, -publish, --keep-classifiers] :") // add windows ach, arm ach and linux and darwin and all one day maybe
 		fmt.Println("\t\tCreates a jar")
 		fmt.Println("\t\t-fat: Creates a fat jar (all inccluded, one file)")
 		fmt.Println("\t\t-exec: Creates an executable jar and scripts")
+		println()
 		fmt.Println(" \033[33mjpm test\033[0m :\tRuns tests with junit under tests/")
 		println()
 		fmt.Println(" \033[33mjpm install\033[0m [-f] :\tInstalls the dependencies from package.yml")

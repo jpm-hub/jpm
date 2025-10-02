@@ -52,8 +52,8 @@ func Verbose(homeDir string) {
 		_ = decoder.Decode(&cfg)
 	}
 	// Toggle verbose
-	currentVerbose, ok := cfg["verbose"].(bool)
-	cfg["verbose"] = !ok || !currentVerbose
+	currentverbose, ok := cfg["verbose"].(bool)
+	cfg["verbose"] = !ok || !currentverbose
 
 	// Write config back
 	f, err := os.Create(configPath)
@@ -68,7 +68,7 @@ func Verbose(homeDir string) {
 		println("Failed to encode config:", err.Error())
 		return
 	}
-	println("Verbose set to", cfg["verbose"].(bool))
+	println("verbose set to", cfg["verbose"].(bool))
 }
 
 func Jpx() {
@@ -78,10 +78,9 @@ func Jpx() {
 		return
 	}
 	execDir = filepath.Dir(execDir)
+	os.WriteFile(execDir+"/jpx", []byte(JPX.SHTemplate()), 0755)
 	if COM.IsWindows() {
-		os.WriteFile(execDir+"\\jpx.cmd", []byte(JPX.SHTemplate()), 0755)
-	} else {
-		os.WriteFile(execDir+"/jpx", []byte(JPX.SHTemplate()), 0755)
+		os.WriteFile(execDir+"\\jpx.cmd", []byte(JPX.CMDTemplate()), 0755)
 	}
 	println("\033[32m  --- jpx setup done\033[0m")
 }

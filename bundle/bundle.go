@@ -227,7 +227,7 @@ func removeClassifiers(dependencies COM.Dependencies, keepClassifiers bool) COM.
 	for k, v := range dependencies.JPM {
 		if strings.Count(k, "|") == 1 {
 			classifier := strings.Split(k, "|")[0]
-			dependencies.JPM[strings.TrimPrefix(k, classifier+"|")] = v
+			dependencies.JPM[strings.TrimPrefix(k, classifier)] = v
 			delete(dependencies.JPM, k)
 		}
 	}
@@ -235,7 +235,7 @@ func removeClassifiers(dependencies COM.Dependencies, keepClassifiers bool) COM.
 		for key, value := range v {
 			if strings.Count(key, "|") == 2 {
 				classifier := strings.Split(key, "|")[0]
-				dependencies.Repos[k][strings.TrimPrefix(key, classifier+"|")] = value
+				dependencies.Repos[k][strings.TrimPrefix(key, classifier)] = value
 				delete(dependencies.Repos[k], key)
 			}
 		}

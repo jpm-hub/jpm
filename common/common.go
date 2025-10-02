@@ -136,7 +136,7 @@ func Init() {
 	homeDir := HomeDir()
 	configPath := filepath.Join(homeDir, "config.json")
 	type configStruct struct {
-		Verbose bool `json:"verbose"`
+		Verbose bool `json:"Verbose"`
 	}
 	var cfg configStruct
 
@@ -641,7 +641,7 @@ func RunCMD(script string, showStdOut bool) error {
 	if tmpFile, err := os.CreateTemp("", "jpm_script_*.cmd"); err == nil {
 		tmpFile.WriteString("@echo off\n" + script)
 		if Verbose {
-			println("\033[33m--(verbose command)==>  " + script + "\033[0m")
+			println("\033[33m--(Verbose command)==>  " + script + "\033[0m")
 			showStdOut = true
 		}
 		tmpFile.Close()
@@ -683,7 +683,7 @@ func RunCMD(script string, showStdOut bool) error {
 }
 func RunScript(script string, showStdOut bool) error {
 	if Verbose {
-		println("\033[33m--(verbose)==> " + script + "\033[0m")
+		println("\033[33m--(Verbose)==> " + script + "\033[0m")
 		showStdOut = true
 	}
 	var cmd *exec.Cmd

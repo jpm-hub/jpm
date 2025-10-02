@@ -4,8 +4,8 @@ packages: ["packageA", "packageB"]
 scripts:
   build: |
     go build
-    rm -f /c/Users/deris/go/bin/jpm.exe
-    cp jpm.exe /c/Users/deris/go/bin/jpm.exe
+    rm -f /c/Users/sderisme/go/bin/jpm.exe
+    cp jpm.exe /c/Users/sderisme/go/bin/jpm.exe
 dependencies:
   - local localdepA
   - local ../
