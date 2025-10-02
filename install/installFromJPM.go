@@ -230,7 +230,7 @@ func figureOutJPMInnerClassifier(d string, forRepos bool) (string, bool) {
 	} else if oks {
 		return vs + "|", true
 	}
-	if len(dSlices) == i+2 {
+	if len(dSlices) == i+2 && dSlices[0] != "" {
 		addFinishMessage("Info : default clasifier -> " + dSlices[0] + " is used for " + dSlices[i+1])
 		return dSlices[0] + "|", true
 	}

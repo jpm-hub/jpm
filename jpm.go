@@ -77,6 +77,8 @@ func main() {
 		fmt.Println("\t\tCreates a jar")
 		fmt.Println("\t\t-fat: Creates a fat jar (all inccluded, one file)")
 		fmt.Println("\t\t-exec: Creates an executable jar and scripts")
+		fmt.Println("\t\t-publish: creates necessary files to publish")
+		fmt.Println("\t\t--keep-classifiers: Keeps the classifiers in the dependencies")
 		println()
 		fmt.Println(" \033[33mjpm test\033[0m :\tRuns tests with junit under tests/")
 		println()

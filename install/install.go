@@ -114,25 +114,16 @@ func execChmod() {
 	}
 }
 func QuickInstall(force bool) COM.Dependencies {
-	excludes = COM.GetSection("excludes", false).([]string)
-	currentLanguage = COM.GetSection("language", false).(string)
-	COM.FindPackageYML(true)
-	if force {
-		os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
-	}
-	deps := COM.GetDependencies(false)
-	aliases := findExistingAliases()
-	if !COM.Ping(jpmRepoUrl) {
-		println("\tCould not reach jpm repo at " + jpmRepoUrl)
-		println("\tPlease check your internet connection or try again later")
+	COM.RunScript("jpm install", true)
+	b, err := os.ReadFile(filepath.Join("jpm_dependencies", "lock.json"))
+	if err != nil {
 		os.Exit(1)
 	}
-	installFromYML(aliases, deps, false)
-	for k := range depsList {
-		delete(depsList, k)
+	var lockDeps COM.Dependencies
+	if err := json.Unmarshal(b, &lockDeps); err != nil {
+		os.Exit(1)
 	}
-
-	return g_lockDeps
+	return lockDeps
 }
 func installFromYML(aliases []string, deps []string, clean bool) {
 	// load in the lock.json
