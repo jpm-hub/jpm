@@ -159,9 +159,6 @@ jobs:
           body: |
             ## JPM - JVM Package Manager
             
-            ### What's New
-            - Automated release for all supported platforms
-            
             ### Supported Platforms
             - **Linux**: AMD64, ARM64
             - **macOS**: Intel (AMD64), Apple Silicon (ARM64)
