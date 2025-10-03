@@ -87,7 +87,9 @@ jobs:
         run: |
           if [[ "${{ matrix.os }}" == "windows" ]]; then
             # Windows: create ZIP file with jpm.exe, jpx.cmd, and jpx
-            zip ${{ matrix.archive_name }} ${{ matrix.binary_name }} jpx/jpx.cmd jpx/jpx
+            cp jpx/jpx.cmd . && cp jpx/jpx .  # Copy files to current dir
+            zip ${{ matrix.archive_name }} ${{ matrix.binary_name }} jpx.cmd jpx
+            rm jpx.cmd jpx
           else
             # Unix-like: create tar.gz
             tar -czf ${{ matrix.archive_name }} ${{ matrix.binary_name }}
