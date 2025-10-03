@@ -12,7 +12,7 @@ func TestScript() error {
 	COM.FindPackageYML(true)
 	argsMap := COM.ParseArgs()
 	os.RemoveAll(filepath.Join("out", "tests"))
-	allTestArgs, found := argsMap["test"]
+	allTestArgs, found := argsMap["junit"]
 	args := ""
 	if found {
 		args = allTestArgs

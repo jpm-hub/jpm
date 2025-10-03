@@ -10,7 +10,7 @@ import (
 
 func SetupDarwinAmd64(setupSwitch string, homeDir string) {
 	switch setupSwitch {
-	case "-HotSwapAgent":
+	case "-hotswap":
 		if COM.JAVAC() == "javac" {
 			println("\n Please setup dcevm first with : 'jpm setup -java'\n")
 			return

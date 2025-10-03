@@ -1,3 +1,4 @@
 package common
 
-const JPM_REPO_API = "http://localhost:8080/" //"https://cdn.jsdelivr.net/gh/jpm-hub/repo/"
+const VERSION = "1.0.0"
+const JPM_REPO_API = "https://cdn.jsdelivr.net/gh/jpm-hub/repo/" //"http://localhost:9090/"

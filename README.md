@@ -5,7 +5,7 @@ Website : [ jpmhub.org ](https://www.jpmhub.org/)
 ![JPM Logo](https://aws-ca-central-1-501301757139-newlambda-pipe.s3.ca-central-1.amazonaws.com/logo2.png)
 
 
-A simple and efficient build tool and package manager for Java and Kotlin projects. JPM provides a streamlined approach to managing dependencies, building, running, and testing Java/Kotlin applications.
+A simple and efficient build tool and package manager for Java and Kotlin projects. JPM provides a better approach to managing dependencies, building, running, and testing Java/Kotlin applications, inspired by npm.
 
 ## Table of Contents
 
@@ -16,35 +16,29 @@ A simple and efficient build tool and package manager for Java and Kotlin projec
 - [Commands](#commands)
 - [Dependencies](#dependencies)
 - [Scripts](#scripts)
-- [Examples](#examples)
-- [Troubleshooting](#troubleshooting)
+- [String Substitution](#string-substitution)
 
 
 ## Setup JPM Environment
 
-After building and adding jpm to your PATH, set up the JPM environment with required tools:
+After adding jpm to your PATH, set up the JPM environment with required tools:
 
 ```bash
-# Setup Java with DCEVM (recommended for hot reloading)
-jpm setup -java
+# look for problems with jpm
+jpm doctor
 
-# Setup Kotlin compiler
-jpm setup -kotlin
-
-# Setup JUnit for testing
-jpm setup -junit
-
-# Setup HotSwap Agent hot class reloading
-jpm setup -HotSwapAgent
+# fix the problems
+jpm doctor -fix
 ```
 
 ## Quick Start
 
 1. **Initialize a new project:**
    ```bash
+   # this will create app/App.java
    jpm init 
-   # or , this will create a src/com/example/App.java and initialize a repo
-   jpm init src/com.example.App -git
+   # or , this will create a src/main/java/com/example/App.java and initialize a git repo
+   jpm init src/main/java/com.example.App -git
    ```
 
 2. **Compile and run:**
@@ -81,37 +75,51 @@ main: com.example.MyApp
 package: example
 version: 1.0.0
 language: java
+src: .
+description: an example project
 env: .env
 scripts:
   start: jpm compile && jpm run
-  dev: jpm start && jpm watch "(src/**)" "jpm start"
+  dev: jpm watch "(src/**)" "jpm start"
   clean: rm -rf out/*
 dependencies:
-  - mvn org.apache.commons commons-lang3:latest
+  - org.apache.commons commons-lang3:latest
+  - org.openjfx javafx-control
 repos:
-  - mvn: https://repo1.maven.org/maven2/
+  - deafult: https://repo1.maven.org/maven2/
+excludes:
+  - commons-lang3
+classifiers:
+  javafx-control: linux
 args:
-  run: -Xmx512m
+  java: -Xmx512m
   javac: -source 17 -target 17
   kotlinc: -no-stdlib
-  test: #some junit5 command-line arg
+  junit: --reports-dir=../reports
   hotswap: autoHotswap=false
 ```
 
 ### Configuration Fields
 
+- **package**: Project package name (required)
+- **description**: Project description
 - **main**: The main class to run (e.g., `com.example.MyApp`)
-- **package**: Project package name (required for publishing a package to jpm)
 - **version**: Project version
-- **language**: Programming language (`java` or/and `kotlin`)
+- **env**: .env file location (you can get the values of keys with `System.getenv("KEY")`)
+- **src**: Project source dir (usually just . or src/main/java)
+- **language**: Programming language (`java` or `kotlin` or `java,kotlin`)
 - **scripts**: Custom commands (see [Scripts](#scripts))
 - **dependencies**: Project dependencies (see [Dependencies](#dependencies))
+- **excludes**: list of excludes package names or artifactIDs
+- **classifiers**: map of classifiers keys can be package name, artifactIDs, groupIDs or "*"
+  - **org.openjfx: win** -> example of classified groupID
 - **repos**: Repository configurations
+  - **mvn: https://repo1.maven.org/maven2/** -> example of repository, preppend all dependencies with `mvn` to install from that specific repository, `default` means no need to preppend anything.
 - **args**: Command-line arguments for different operations
-  - `run` -> executes on the java command
+  - `java` -> executes on the java command
   - `javac` -> executes on the javac command
   - `kotlinc` -> executes on the kotlinc command
-  - `test` -> args are added to junit5 jar
+  - `junit` -> args are added to junit5 jar
   - `hotswap` -> args added to hotswap-agent
 
 ## Commands
@@ -132,7 +140,7 @@ jpm init new-app.App -kt
 jpm init new-app -git
 
 # With Dockerfile
-jpm init src/main/java/com.example.myapp.MyApp -docker
+jpm init src/main/kotlin/com.example.myapp.MyApp -kt -docker
 ```
 
 #### `jpm create <template>`
@@ -142,14 +150,14 @@ Create a project from a template.
 # looks up jpm's repository for simple-spring-app template
 jpm create simple-spring-app
 
-# looks up the working dir for simple-spring-app.yml template
+# looks up the working dir for simple-spring-app.yml template (you can create your own templates)
 jpm create -yml simple-spring-app.yml
 ```
 
 ### Development
 
 #### `jpm compile`
-Compile the Java source code.
+Compile the source code under the package source dir and package dir.
 
 ```bash
 jpm compile
@@ -168,7 +176,7 @@ jpm run appArg1 appArg2
 # With watch mode (hot reloading)
 jpm run -hot
 
-# Omitting the watch args and applying your application args
+# Omitting the -hot args and applying your application args
 jpm run -hot _ _ appArg1 appArg2
 
 # With custom arguments on each file .java or .html change
@@ -207,7 +215,7 @@ Install all dependencies from `package.yml`.
 ```bash
 jpm install
 
-# force a reinstall of all dependencies
+# force a re-resolving of all dependencies (delete jpm_dependencies to re-install)
 jpm install -f
 ```
 
@@ -218,10 +226,10 @@ Install a specific dependency.
 # Install from JPM repository
 jpm install my-library
 
-# Install from Maven repository
-jpm install mvn org.apache.derby derby:10.17.1.0
+# Install from Maven repository if maven is set as default repository
+jpm install org.apache.derby derby:10.17.1.0
 
-# Install from custom repository
+# Install from custom repository if alias was set in package.yml
 jpm install my-repo org.example library:1.0.0
 
 # Install raw JAR file
@@ -232,10 +240,11 @@ jpm install raw -x https://example.com/library.zip
 
 # Install with scope
 jpm install my-library:1.0.0 test
+jpm install concurrently:1.0.0 exec
 ```
 
 #### `jpm install -repo <alias>:<url>`
-Add a new repository.
+Adds a new repository.
 
 ```bash
 jpm install -repo mvn:https://repo1.maven.org/maven2/
@@ -255,22 +264,20 @@ jpm bundle -fat
 
 # Create a executable JAR with scripts
 jpm bundle -exec
-```
 
-### System
+# Create a executable JAR with scripts, creates dependencies.json and a MD file.
+jpm bundle -publish
 
-#### `jpm doctor`
-Check JPM installation and dependencies.
-
-```bash
-jpm doctor
+# Create a executable JAR with scripts, creates dependencies.json and a MD file.
+# keeps the classifiers you've set in you project in dependencies.json
+jpm bundle -publish --keep-classifiers
 ```
 
 #### `jpm setup <component>`
 Setup JPM components.
 
 ```bash
-# Setup Java with DCEVM
+# Setup Java for HotSwap Agent
 jpm setup -java
 
 # Setup Kotlin
@@ -280,10 +287,19 @@ jpm setup -kotlin
 jpm setup -junit
 
 # Setup HotSwap Agent
-jpm setup -HotSwapAgent
+jpm setup -hotswap
 
-# Setup verbose
-jpm setup -verbose
+# toggle verbosity
+jpm setup -v
+
+# install git (especially for windows)
+jpm setup -git
+
+# installs openjdk
+jpm setup -jar
+
+# setup jpx to execute you exec dependencies on the cli
+jpm setup -jar
 ```
 
 ### Custom Scripts
@@ -294,12 +310,21 @@ You can run custom scripts defined in `package.yml`:
 jpm <script-name>
 ```
 
-if you have a script called `run@` in your `package.yml`, it overrides the default `jpm run` to your custom command, it only works if no other args was provided to the command.
+if you have a script called `run@` in your `package.yml`, it overrides the default `jpm run` to your custom command.
 example for `jpm init`
 
 ```bash
 $ jpm init
 Overriding: 'jpm init' for 'jpm init@'
+```
+
+You can append the rest of the command provided to jpm by adding `...args@` to the script
+this way you can still use jpm install with args, but it'll also download `image.png`
+```yaml
+scripts:
+  install@: |
+    wget -O resources/image.png https://openimage.com/images/image.png
+    jpm install ...args@
 ```
 
 ## Dependencies
@@ -310,53 +335,100 @@ JPM supports multiple types of dependencies:
 
 ```yaml
 dependencies:
-  - mvn org.apache.derby derby:latest
-  - mvn org.junit.jupiter junit-jupiter:5.8.2 test
+  # installs derby for the project
+  - org.apache.derby derby:latest
+  # installs springboot's test libraries in a test scope
+  - org.springframework.boot spring-boot-starter-test test
 ```
 
 ### JPM Dependencies
 
 ```yaml
 dependencies:
-  - my-library:1.0.0
-  - another-package
+  # installs my-devDependecny in the exec scope, it makes it executable in scripts 
+  - my-devDependency:1.0.0 exec
+  # installs neutron from jpm's repository
+  - neutron
 ```
 
 ### Raw Dependencies
 
 ```yaml
 dependencies:
-  - raw https://example.com/library.jar
-  - raw -x https://example.com/library.tar.gz # tar.gz support
-  - raw -x https://example.com/library.zip # zip support
+  - raw https://example.com/library.jar exec # custom jar now available for execution
+  - raw -x https://example.com/library.tar.gz # tar.gz extraction support
+  - raw -x https://example.com/library.zip # zip extraction support
 ```
 
 ### Repository Dependencies
 
 ```yaml
 dependencies:
+  # custom POM repository using the alias "my-repo", you have to preppend this alias to use the repository
   - my-repo org.example library:1.0.0
+repos:
+  - my-repo: https://my-custom-repo.com/repository/
 ```
 
 ### Dependency Scopes
 
 - **test**: Available only for testing
-- **exec**: Executable dependencies to run with `jpmx` (not yet available)
+- **exec**: Executable dependencies to run with `jpx` 
 ## Scripts
 
 Define custom scripts in your `package.yml`:
 
 ```yaml
+port: "8090"
 scripts:
-  dev: jpm run -hot
-  start: jpm compile && jpm run
-  clean: |
+  dev: jpm run -hot {{ port }}
+  start: jpm compile && jpm run {{ port }}
+  clean:deep: |
     echo cleaning
     rm -rf out
     rm -rf dist
     rm -rf jpm_dependencies
-  build: cp ressourses/* out/ && jpm compile
+  build: jpm compile && cp ressourses/* out/
 ```
+
+## String substitution
+
+1. **You can substitute an arbitrary string in the package.yml**
+    ```yaml
+    springVerison: 3.5.5
+    dependencies:
+      - org.springframework.boot spring-boot-starter-web:{{ springVerison }}
+    ```
+
+2. **You can substitute an arbitrary key=value in the `.env` file**
+    ```yaml
+    env: .env
+    scripts:
+      start: jpm compile && jpm run --server.port={{ env.PORT }}
+    ```
+
+3. **You can substitute an arbitrary environment variable with `ENV.` :**
+    <br>shell:
+    ```bash
+    $ JFX=mac jpm install
+    ```
+    package.yml:
+    ```yaml
+    classifiers:
+      org.openjfx: "{{ ENV.JFX }}"
+    ```
+4. **You can substitute platform infromation with `jpm.` :**
+    <br>package.yml:
+    ```yaml
+    scripts:
+      print-info: echo {{ jpm.OS }} {{ jpm.ARCH }} {{ jpm.OS-ARCH }}
+    ```
+    shell:
+    ```bash
+    $ jpm print-info
+
+      linux amd64 linux-amd64
+    ```
 
 ## Contributing
 

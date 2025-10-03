@@ -46,10 +46,12 @@ func main() {
 	case "--h":
 		fallthrough
 	case "-help":
+		fallthrough
+	case "--help":
 		COM.PrintArt()
 		fmt.Println("\n\033[33m jpm doctor\033[0m :\tCheck JPM's issues")
 		println()
-		fmt.Println(" \033[33mjpm init\033[0m  <project_name> [-git, -docker] :\n\t\tInitializes a project default: App")
+		fmt.Println(" \033[33mjpm init\033[0m  <project> [-git, -docker] :\n\t\tInitializes a project default: App")
 		fmt.Println("\t\t-git : will iniitalize a git repo")
 		fmt.Println("\t\t-docker : will create a dockerfile and a docker-compose.yml")
 		println()
@@ -82,27 +84,30 @@ func main() {
 		println()
 		fmt.Println(" \033[33mjpm test\033[0m :\tRuns tests with junit under tests/")
 		println()
-		fmt.Println(" \033[33mjpm install\033[0m [-f] :\tInstalls the dependencies from package.yml")
+		fmt.Println(" \033[33mjpm install\033[0m [-f] :")
+		fmt.Println("\t\tInstalls the dependencies from package.yml")
 		fmt.Println("\t\t-f: force re-install ")
 		println()
-		fmt.Println(" \033[33mjpm install -repo\033[0m <alias>:<url> :\tAdds a new repository to package.yml")
+		fmt.Println(" \033[33mjpm install -repo\033[0m <alias>:<url> :")
+		fmt.Println("\t\tAdds a repo to package.yml")
 		fmt.Println("\t\texample -> 'jpm install -repo mvn:https://repo1.maven.org/maven2/'")
 		println()
 		fmt.Println(" \033[33mjpm install <package>:<version> <scope> \033[0m \t\t\tdependency: a package from jpm repository")
-		fmt.Println(" \033[33mjpm install <repo> <GroupID> <ArtifactID>:<version> <scope> \033[0m\tdependency: from a repo in package.yml")
+		fmt.Println(" \033[33mjpm install <alias> <GroupID> <ArtifactID>:<version> <scope> \033[0m\tdependency: from a repo in package.yml")
 		fmt.Println(" \033[33mjpm install raw [-x] <link-to-your-file> <scope> \033[0m\t\tdependency: from url")
-		fmt.Println("\t\t<repo>: An alias defined in pakcage.yml ")
+		fmt.Println("\t\t<alias>: An alias defined in pakcage.yml ")
 		fmt.Println("\t\t<scope>: may be ommited if dependecy is for compilation/runtime")
 		fmt.Println("\t\t<scope>: may be test if dependecy is for tests")
 		fmt.Println("\t\t<scope>: may be exec if dependecy is a utility")
 		fmt.Println("\t\t-x: extract zip or tar.gz files from raw dependencies")
 		return
 	case "doctor":
-		execOverride("doctor")
-		DOC.Doctor(false, true)
+		if !DOC.Doctor(false, true) {
+			os.Exit(1)
+		}
 		return
 	case "setup":
-		sw := []string{"-java", "-kotlin", "-junit", "-HotSwapAgent", "-v", "-jpx"}
+		sw := []string{"-java", "-kotlin", "-junit", "-hotswap", "-v", "-jpx"}
 		if len(os.Args) > 2 && slices.Contains(sw, os.Args[2]) {
 			SETUP.Setup(os.Args[2])
 			return

@@ -133,8 +133,8 @@ services:
 
 func PrintArt() {
 	println(`   ____________  ___
-  |_  | ___ \  \/  |  version      : 0.0.1
-    | | |_/ / .  . |  java version : 24
+  |_  | ___ \  \/  |  version : ` + VERSION + `
+    | | |_/ / .  . |  https://www.jpmhub.org
     | |  __/| |\/| |  The simpler package manager
 /\__/ / |   | |  | |  And build tool
 \____/\_|   \_|  |_/  for your JVM project`)

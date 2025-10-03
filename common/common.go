@@ -546,6 +546,8 @@ func loadInEnv() {
 	for k, v := range packageYML.OtherSections {
 		if str, ok := v.(string); ok {
 			env[k] = ParseENV(str)
+		} else {
+			env[k] = fmt.Sprintf("%v", v)
 		}
 	}
 }
@@ -574,7 +576,7 @@ func ParseENV(str string) string {
 				parsed = append(parsed, varName)
 				for k, v := range packageYML.OtherSections {
 					if k == varName {
-						env[k] = ParseENV(v.(string))
+						env[k] = ParseENV(fmt.Sprintf("%v", v))
 						val = env[k]
 						found = true
 						break
@@ -722,7 +724,7 @@ func HomeDir() string {
 func SrcDir() string {
 	valsrc := GetSection("src", false)
 	if str := valsrc.(string); str != "" {
-		return str
+		return strings.TrimSuffix(str, "/")
 	} else {
 		valpkg := GetSection("package", true)
 		if str = valpkg.(string); str != "" {

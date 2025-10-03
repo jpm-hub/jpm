@@ -76,7 +76,7 @@ func fixhotswap(b bool) {
 	if !b {
 		return
 	}
-	runScript("jpm setup -HotSwapAgent", true)
+	runScript("jpm setup -hotswap", true)
 }
 
 func fixgit(b bool) {
@@ -108,12 +108,12 @@ func fixjava(b bool) {
 
 func Checkverbose() {
 	if COM.Verbose {
-		fmt.Println("\033[33m[ verbose ]\033[0m", COM.Verbose)
+		fmt.Print("\033[33m[ verbose ]\033[0m", COM.Verbose)
 	} else {
-		fmt.Println("\033[32m[ verbose ]\033[0m", COM.Verbose)
+		fmt.Print("\033[32m[ verbose ]\033[0m", COM.Verbose)
 	}
 	if asked {
-		println("\ttoggle: jpm setup -v")
+		println(" -> toggle: 'jpm setup -v'")
 	}
 }
 
@@ -122,7 +122,7 @@ func checkHotSwapAgent(silent bool) bool {
 	if _, err := os.Stat(hotswapFile); err != nil && !silent {
 		println("\n\033[33m( hotswap-agent )\033[0m is not accesible (necessary for 'jpm run -hot')")
 		if asked {
-			println("\tfix: jpm setup -HotSwapAgent\n")
+			println("\tfix: jpm setup -hotswap\n")
 		}
 		return false
 	} else {
