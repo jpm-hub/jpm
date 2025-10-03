@@ -61,6 +61,18 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      - name: Update setup.cmd version
+        run: |
+          # Extract version from consts.go
+          VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
+          if [ -z "$VERSION" ]; then
+            VERSION="0.0.1"
+          fi
+          echo "Updating setup.cmd with version: $VERSION"
+          # Update the version in setup.cmd
+          sed -i "s/set VERSION=.*/set VERSION=$VERSION/" setup.cmd
+          echo "setup.cmd updated successfully"
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
@@ -74,8 +86,8 @@ jobs:
       - name: Create release archive
         run: |
           if [[ "${{ matrix.os }}" == "windows" ]]; then
-            # Windows: create ZIP file
-            zip ${{ matrix.archive_name }} ${{ matrix.binary_name }}
+            # Windows: create ZIP file with jpm.exe, jpx.cmd, and jpx
+            zip ${{ matrix.archive_name }} ${{ matrix.binary_name }} jpx/jpx.cmd jpx/jpx
           else
             # Unix-like: create tar.gz
             tar -czf ${{ matrix.archive_name }} ${{ matrix.binary_name }}
@@ -173,6 +185,7 @@ jobs:
           files: |
             artifacts/*.tar.gz
             artifacts/*.zip
+            setup.cmd
           draft: false
           prerelease: false
         env:

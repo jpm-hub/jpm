@@ -1,4 +1,3 @@
-
 #!/bin/bash
 export PATH="$PATH:$(pwd)/jpm_dependencies/execs"
 if [ $# -eq 0 ]; then

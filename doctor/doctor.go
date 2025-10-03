@@ -114,6 +114,8 @@ func Checkverbose() {
 	}
 	if asked {
 		println(" -> toggle: 'jpm setup -v'")
+	} else {
+		println()
 	}
 }
 

@@ -1,7 +1,7 @@
 package jpx
 
 func SHTemplate() string {
-	return ` #!/bin/bash
+	return `#!/bin/bash
 export PATH="$PATH:$(pwd)/jpm_dependencies/execs"
 if [ $# -eq 0 ]; then
 	jpm
