@@ -119,6 +119,7 @@ jobs:
           echo "Downloaded artifacts:"
           find . -type f -name "*.tar.gz" -o -name "*.zip" | sort
           echo "removing .zip files"
+          cd artifacts
           rm *.zip
           echo "changing dir names to remove .zip and .tar.gz"
           mv jpm-windows-amd64.zip jpm-windows-amd64
