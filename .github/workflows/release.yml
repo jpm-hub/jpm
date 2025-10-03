@@ -120,7 +120,7 @@ jobs:
           find . -type f -name "*.tar.gz" -o -name "*.zip" | sort
           echo "removing .zip files"
           cd artifacts
-          rm *.zip
+          rm -f *.zip
           echo "changing dir names to remove .zip and .tar.gz"
           mv jpm-windows-amd64.zip jpm-windows-amd64
           mv jpm-windows-arm64.zip jpm-windows-arm64
