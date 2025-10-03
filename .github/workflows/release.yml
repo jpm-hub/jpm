@@ -118,6 +118,23 @@ jobs:
         run: |
           echo "Downloaded artifacts:"
           find . -type f -name "*.tar.gz" -o -name "*.zip" | sort
+          echo "removing .zip files"
+          rm *.zip
+          echo "changing dir names to remove .zip and .tar.gz"
+          mv jpm-windows-amd64.zip jpm-windows-amd64
+          mv jpm-windows-arm64.zip jpm-windows-arm64
+          mv jpm-darwin-amd64.tar.gz jpm-darwin-amd64
+          mv jpm-darwin-arm64.tar.gz jpm-darwin-arm64
+          mv jpm-linux-amd64.tar.gz jpm-linux-amd64
+          mv jpm-linux-arm64.tar.gz jpm-linux-arm64
+          echo "moving files out of their directories"
+          mv jpm-windows-amd64/jpm-windows-amd64.zip .
+          mv jpm-windows-arm64/jpm-windows-arm64.zip .
+          mv jpm-darwin-amd64/jpm-darwin-amd64.tar.gz .
+          mv jpm-darwin-arm64/jpm-darwin-arm64.tar.gz .
+          mv jpm-linux-amd64/jpm-linux-amd64.tar.gz .
+          mv jpm-linux-arm64/jpm-linux-arm64.tar.gz .
+          ls -la
 
       # - name: Create Release
       #   uses: softprops/action-gh-release@v1
