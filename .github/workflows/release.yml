@@ -90,7 +90,7 @@ jobs:
             mv jpx jpxsh
             cp jpxsh/jpx.cmd . && cp jpxsh/jpx .  # Copy files to current dir
             zip ${{ matrix.archive_name }} ${{ matrix.binary_name }} jpx.cmd jpx
-            rm jpx.cmd jpx jpxsh
+            rm -rf jpx.cmd jpx jpxsh
           else
             # Unix-like: create tar.gz
             tar -czf ${{ matrix.archive_name }} ${{ matrix.binary_name }}
