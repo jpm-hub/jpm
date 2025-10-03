@@ -1,8 +1,6 @@
 name: Build and Release
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 env:
@@ -103,8 +101,8 @@ jobs:
       - name: Get version from code
         id: version
         run: |
-          # Extract version from templates.go
-          VERSION=$(grep -o 'version: [0-9]\+\.[0-9]\+\.[0-9]\+' common/templates.go | head -1 | cut -d' ' -f2)
+          # Extract version from consts.go
+          VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
           if [ -z "$VERSION" ]; then
             VERSION="0.0.1"
           fi
@@ -119,45 +117,45 @@ jobs:
       - name: List downloaded artifacts
         run: |
           echo "Downloaded artifacts:"
-          find artifacts -type f -name "*.tar.gz" -o -name "*.zip" | sort
+          find . -type f -name "*.tar.gz" -o -name "*.zip" | sort
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: Release v${{ steps.version.outputs.version }}
-          body: |
-            ## JPM - JVM Package Manager
+      # - name: Create Release
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     tag_name: v${{ steps.version.outputs.version }}
+      #     name: Release v${{ steps.version.outputs.version }}
+      #     body: |
+      #       ## JPM - JVM Package Manager
             
-            ### What's New
-            - Automated release for all supported platforms
+      #       ### What's New
+      #       - Automated release for all supported platforms
             
-            ### Supported Platforms
-            - **Linux**: AMD64, ARM64
-            - **macOS**: Intel (AMD64), Apple Silicon (ARM64)
-            - **Windows**: AMD64, ARM64
+      #       ### Supported Platforms
+      #       - **Linux**: AMD64, ARM64
+      #       - **macOS**: Intel (AMD64), Apple Silicon (ARM64)
+      #       - **Windows**: AMD64, ARM64
             
-            ### Downloads
-            - `jpm-linux-amd64.tar.gz` - Linux AMD64
-            - `jpm-linux-arm64.tar.gz` - Linux ARM64
-            - `jpm-darwin-amd64.tar.gz` - macOS Intel
-            - `jpm-darwin-arm64.tar.gz` - macOS Apple Silicon
-            - `jpm-windows-amd64.zip` - Windows AMD64
-            - `jpm-windows-arm64.zip` - Windows ARM64
+      #       ### Downloads
+      #       - `jpm-linux-amd64.tar.gz` - Linux AMD64
+      #       - `jpm-linux-arm64.tar.gz` - Linux ARM64
+      #       - `jpm-darwin-amd64.tar.gz` - macOS Intel
+      #       - `jpm-darwin-arm64.tar.gz` - macOS Apple Silicon
+      #       - `jpm-windows-amd64.zip` - Windows AMD64
+      #       - `jpm-windows-arm64.zip` - Windows ARM64
             
-            ### Installation
-            ```bash
-            # Linux/macOS
-            tar -xzf jpm-<platform>-<arch>.tar.gz
-            sudo mv jpm /usr/local/bin/
+      #       ### Installation
+      #       ```bash
+      #       # Linux/macOS
+      #       tar -xzf jpm-<platform>-<arch>.tar.gz
+      #       sudo mv jpm /usr/local/bin/
             
-            # Windows
-            # Extract the ZIP and add to PATH
-            ```
-          files: |
-            artifacts/*.tar.gz
-            artifacts/*.zip
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #       # Windows
+      #       # Extract the ZIP and add to PATH
+      #       ```
+      #     files: |
+      #       artifacts/*.tar.gz
+      #       artifacts/*.zip
+      #     draft: false
+      #     prerelease: false
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
