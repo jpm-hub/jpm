@@ -1,5 +1,5 @@
 @echo off
-set VERSION=1.0.1
+set VERSION=1.0.2
 setlocal enabledelayedexpansion
 
 :: JPM Windows Setup Script
@@ -134,9 +134,11 @@ echo %CURRENT_PATH% | findstr /i "%JPM_HOME%" >nul
 if %errorLevel% equ 0 (
     echo ✓ %JPM_HOME% is already in PATH
 ) else (
-    setx PATH "%CURRENT_PATH%;%JPM_PATH%"
+    echo Adding JPM directories to user PATH...
+    powershell -command "[Environment]::SetEnvironmentVariable('PATH', '%CURRENT_PATH%;%JPM_PATH%', 'User')"
     if %errorLevel% equ 0 (
         echo ✓ Added JPM directories to user PATH
+        echo ✓ PATH will be updated after restarting Command Prompt
     ) else (
         echo ERROR: Failed to update PATH
         echo You may need to run this script as Administrator

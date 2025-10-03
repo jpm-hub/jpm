@@ -69,8 +69,8 @@ jobs:
             VERSION="0.0.1"
           fi
           echo "Updating setup.cmd with version: $VERSION"
-          # Update the version in setup.cmd
-          sed -i "s/set VERSION=.*/set VERSION=$VERSION/" setup.cmd
+          # Update the version in setup.cmd using awk (more reliable)
+          awk -v ver="$VERSION" '{if (/^set VERSION=/) print "set VERSION=" ver; else print}' setup.cmd > setup.cmd.tmp && mv setup.cmd.tmp setup.cmd
           echo "setup.cmd updated successfully"
 
       - name: Build binary
