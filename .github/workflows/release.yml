@@ -114,16 +114,33 @@ jobs:
           echo "setup.cmd updated successfully $VERSION"
           grep "set VERSION" setup.cmd
 
-      - name: Get version from code
+      - name: Get version from code and check against last tag
         id: version
         run: |
           # Extract version from consts.go
           VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
           if [ -z "$VERSION" ]; then
+            echo "Could not extract version from consts.go"
             exit 1
+          fi
+          # Get the latest tag from git, strip leading 'v' if present
+          LAST_TAG=$(git fetch --tags >/dev/null 2>&1; git tag --sort=-creatordate | head -1)
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous tag found, continuing."
+          else
+            # Remove leading v from both for comparison
+            VERSION_CMP=${VERSION#v}
+            LAST_TAG_CMP=${LAST_TAG#v}
+            if [ "$VERSION_CMP" = "$LAST_TAG_CMP" ]; then
+              echo "Error: Version in code ($VERSION) is the same as the last tag ($LAST_TAG)."
+              exit 1
+            fi
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Found version: $VERSION"
+          if [ -n "$LAST_TAG" ]; then
+            echo "Last tag: $LAST_TAG"
+          fi
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
