@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-set VERSION=1.0.4
+set VERSION=1.0.5
 
 :: JPM Windows Setup Script
 echo ===============================================
@@ -22,7 +22,8 @@ echo.
 echo 1. Create directories:
 echo    - %JPM_HOME%
 echo.
-echo 2. Extract JPM files from the downloaded ZIP archive
+echo 2. Extract JPM files from the downloaded ZIP from github release
+echo    here : https://github.com/jpm-hub/jpm/releases
 echo.
 echo 3. Remove old JPM files (if they exist):
 echo    - %JPM_HOME%\jpm.exe
@@ -41,7 +42,7 @@ pause
 echo Creating JPM directories...
 if not exist "%JPM_HOME%" mkdir "%JPM_HOME%"
 if not exist "%JPM_EXECS%" mkdir "%JPM_EXECS%"
-echo > Directories created successfully
+echo - Directories created successfully
 echo.
 
 :: Detect system architecture
@@ -51,69 +52,64 @@ set ARCH=%ARCH:~0,-1%
 
 if "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
     set ARCH_TYPE=arm64
-    echo > Detected ARM64 architecture
+    echo - Detected ARM64 architecture
 ) else if "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
     set ARCH_TYPE=amd64
-    echo > Detected AMD64 architecture
+    echo - Detected AMD64 architecture
 ) else if "%ARCH%"=="64-bit" (
     set ARCH_TYPE=amd64
-    echo > Detected 64-bit x86 architecture
+    echo - Detected 64-bit x86 architecture
 ) else (
     set ARCH_TYPE=amd64
-    echo ⚠ Could not detect architecture, defaulting to AMD64
+    echo ! Could not detect architecture, defaulting to AMD64
 )
 
 :: Download JPM ZIP file
 echo Downloading JPM from GitHub releases...
 set ZIP_FILE=jpm-windows-%ARCH_TYPE%.zip
 set DOWNLOAD_URL=https://github.com/jpm-hub/jpm/releases/download/v%VERSION%/jpm-windows-%ARCH_TYPE%.zip
-
 :: Remove existing ZIP file if it exists
 if exist "%ZIP_FILE%" del "%ZIP_FILE%"
 
-:: Download using PowerShell
-powershell -command "Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%ZIP_FILE%'"
+:: Download with curl
+curl --location -o %JPM_HOME%\%ZIP_FILE% %DOWNLOAD_URL%
 if %errorLevel% neq 0 (
     echo ERROR: Failed to download JPM ZIP file
     echo Please check your internet connection and try again.
     pause
     exit /b 1
 )
-echo > Downloaded %ZIP_FILE% successfully
+echo - Downloaded %ZIP_FILE% successfully
 
 :: Remove old JPM files
 echo.
 echo Removing old JPM files (if they exist)...
 if exist "%JPM_HOME%\jpm.exe" (
     del "%JPM_HOME%\jpm.exe"
-    echo > Removed old jpm.exe
+    echo - Removed old jpm.exe
 )
 if exist "%JPM_HOME%\jpx.cmd" (
     del "%JPM_HOME%\jpx.cmd"
-    echo > Removed old jpx.cmd
+    echo - Removed old jpx.cmd
 )
 if exist "%JPM_HOME%\jpm" (
     del "%JPM_HOME%\jpm"
-    echo > Removed old jpm
+    echo - Removed old jpm
 )
 echo.
 
 :: Extract ZIP file
 echo Extracting %ZIP_FILE%...
-powershell -command "Expand-Archive -Path '%ZIP_FILE%' -DestinationPath '%JPM_HOME%' -Force"
+cd %JPM_HOME%
+tar -xf %ZIP_FILE%
 if %errorLevel% neq 0 (
     echo ERROR: Failed to extract ZIP file
     pause
     exit /b 1
 )
-echo > Files extracted successfully
+del %ZIP_FILE%
+echo - Files extracted successfully
 echo.
-
-:: Move jpx.cmd to JPM_HOME if it was extracted to a subdirectory
-if exist "%JPM_HOME%\jpm-windows-%ARCH_TYPE%\jpx.cmd" (
-    move "%JPM_HOME%\jpm-windows-%ARCH_TYPE%\jpx.cmd" "%JPM_HOME%\"
-    rmdir "%JPM_HOME%\jpm-windows-%ARCH_TYPE%"
-)
 
 :: Update PATH environment variable
 echo Updating user PATH...
@@ -123,13 +119,13 @@ set JPM_PATH=%JPM_HOME%;%JPM_EXECS%
 :: Check if JPM paths are already in PATH
 echo %CURRENT_PATH% | findstr /i "%JPM_HOME%" >nul
 if %errorLevel% equ 0 (
-    echo > %JPM_HOME% is already in PATH
+    echo - %JPM_HOME% is already in PATH
 ) else (
     echo Adding JPM directories to user PATH...
     powershell -command "[Environment]::SetEnvironmentVariable('PATH', '%CURRENT_PATH%;%JPM_PATH%', 'User')"
     if %errorLevel% equ 0 (
-        echo > Added JPM directories to user PATH
-        echo > PATH will be updated after restarting Command Prompt
+        echo - Added JPM directories to user PATH
+        echo - PATH will be updated after restarting Command Prompt
     )
 )
 
