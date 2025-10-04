@@ -106,7 +106,7 @@ jobs:
           # Extract version from consts.go
           VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
           if [ -z "$VERSION" ]; then
-            VERSION="0.0.1"
+            exit 1
           fi
           echo "Updating setup.cmd with version: $VERSION"
           # Update the version in setup.cmd using awk (more reliable)
@@ -120,7 +120,7 @@ jobs:
           # Extract version from consts.go
           VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
           if [ -z "$VERSION" ]; then
-            VERSION="0.0.1"
+            exit 1
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Found version: $VERSION"
@@ -189,5 +189,6 @@ jobs:
             setup.cmd
           draft: false
           prerelease: false
+          overwrite_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
