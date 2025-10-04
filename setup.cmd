@@ -1,6 +1,6 @@
 @echo off
-set VERSION=0.0.0
 setlocal enabledelayedexpansion
+set VERSION=0.0.0
 
 :: JPM Windows Setup Script
 echo ===============================================

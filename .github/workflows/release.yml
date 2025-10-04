@@ -61,18 +61,6 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Update setup.cmd version
-        run: |
-          # Extract version from consts.go
-          VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
-          if [ -z "$VERSION" ]; then
-            VERSION="0.0.1"
-          fi
-          echo "Updating setup.cmd with version: $VERSION"
-          # Update the version in setup.cmd using awk (more reliable)
-          awk -v ver="$VERSION" '{if (/^set VERSION=/) print "set VERSION=" ver; else print}' setup.cmd > setup.cmd.tmp && mv setup.cmd.tmp setup.cmd
-          echo "setup.cmd updated successfully"
-
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
@@ -112,6 +100,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Update setup.cmd version
+        run: |
+          # Extract version from consts.go
+          VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
+          if [ -z "$VERSION" ]; then
+            VERSION="0.0.1"
+          fi
+          echo "Updating setup.cmd with version: $VERSION"
+          # Update the version in setup.cmd using awk (more reliable)
+          awk -v ver="$VERSION" '{if (/^set VERSION=/) print "set VERSION=" ver; else print}' setup.cmd > setup.cmd.tmp && mv setup.cmd.tmp setup.cmd
+          echo "setup.cmd updated successfully $VERSION"
+          Exit 1
 
       - name: Get version from code
         id: version
