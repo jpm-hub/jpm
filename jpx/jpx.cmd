@@ -6,4 +6,4 @@ if "%*"=="" (
 ) else (
 	call %*
 )
-endlocal`
+endlocal
