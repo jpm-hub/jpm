@@ -113,7 +113,6 @@ jobs:
           awk -v ver="$VERSION" '{if (/^set VERSION=/) print "set VERSION=" ver; else print}' setup.cmd > setup.cmd.tmp && mv setup.cmd.tmp setup.cmd
           echo "setup.cmd updated successfully $VERSION"
           grep "set VERSION" setup.cmd
-          exit 1
 
       - name: Get version from code
         id: version
