@@ -182,7 +182,7 @@ jobs:
       - name: List downloaded artifacts
         run: |
           echo "Downloaded artifacts:"
-          find . -type f -name -o -name "*.zip" | sort
+          find . -type f -name "*.zip" | sort
           cd artifacts
           echo "removing .zip files and ignoring errors"
           echo "changing dir names to remove .zip"
