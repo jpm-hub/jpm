@@ -20,37 +20,31 @@ jobs:
             goos: linux
             goarch: amd64
             binary_name: jpm
-            archive_name: jpm-linux-amd64.zip
           - os: linux
             arch: arm64
             goos: linux
             goarch: arm64
             binary_name: jpm
-            archive_name: jpm-linux-arm64.zip
           - os: darwin
             arch: amd64
             goos: darwin
             goarch: amd64
             binary_name: jpm
-            archive_name: jpm-darwin-amd64.zip
           - os: darwin
             arch: arm64
             goos: darwin
             goarch: arm64
             binary_name: jpm
-            archive_name: jpm-darwin-arm64.zip
           - os: windows
             arch: amd64
             goos: windows
             goarch: amd64
             binary_name: jpm.exe
-            archive_name: jpm-windows-amd64.zip
           - os: windows
             arch: arm64
             goos: windows
             goarch: arm64
             binary_name: jpm.exe
-            archive_name: jpm-windows-arm64.zip
 
     steps:
       - name: Checkout code
@@ -84,7 +78,11 @@ jobs:
             fi
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "name=jpm-$VERSION-${{ matrix.os }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            echo "name=jpm-${{ matrix.os }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          else
+            echo "name=jpm-$VERSION-${{ matrix.os }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          fi
           echo "Found version: $VERSION"
           if [ -n "$LAST_TAG" ]; then
             echo "Last tag: $LAST_TAG"
@@ -110,7 +108,7 @@ jobs:
             # Windows: create ZIP file with jpm.exe, jpx.cmd, and jpx
             mv jpx jpxsh
             cp jpxsh/jpx.cmd . && cp jpxsh/jpx .  # Copy files to current dir
-            zip ${{ matrix.archive_name }} ${{ matrix.binary_name }} jpx.cmd jpx
+            zip ${{ steps.version.outputs.name }}.zip ${{ matrix.binary_name }} jpx.cmd jpx
             rm -rf jpx.cmd jpx jpxsh
           else
             zip ${{ steps.version.outputs.name }}.zip ${{ steps.version.outputs.name }}
@@ -120,8 +118,8 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive_name }}
-          path: ${{ matrix.archive_name }}
+          name: ${{ steps.version.outputs.name }}.zip
+          path: ${{ steps.version.outputs.name }}.zip
 
   release:
     name: Create Release
@@ -137,11 +135,6 @@ jobs:
         run: |
           # Extract version from consts.go
           VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
-          if [ -z "$VERSION" ]; then
-            exit 1
-          fi
-          echo "Updating setup.cmd with version: $VERSION"
-          # Update the version in setup.cmd using awk (more reliable)
           awk -v ver="$VERSION" '{if (/^set VERSION=/) print "set VERSION=" ver; else print}' setup.cmd > setup.cmd.tmp && mv setup.cmd.tmp setup.cmd
           echo "setup.cmd updated successfully $VERSION"
           grep "set VERSION" setup.cmd
@@ -151,28 +144,7 @@ jobs:
         run: |
           # Extract version from consts.go
           VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
-          if [ -z "$VERSION" ]; then
-            echo "Could not extract version from consts.go"
-            exit 1
-          fi
-          # Get the latest tag from git, strip leading 'v' if present
-          LAST_TAG=$(git fetch --tags >/dev/null 2>&1; git tag --sort=-creatordate | head -1)
-          if [ -z "$LAST_TAG" ]; then
-            echo "No previous tag found, continuing."
-          else
-            # Remove leading v from both for comparison
-            VERSION_CMP=${VERSION#v}
-            LAST_TAG_CMP=${LAST_TAG#v}
-            if [ "$VERSION_CMP" = "$LAST_TAG_CMP" ]; then
-              echo "Error: Version in code ($VERSION) is the same as the last tag ($LAST_TAG)."
-              exit 1
-            fi
-          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Found version: $VERSION"
-          if [ -n "$LAST_TAG" ]; then
-            echo "Last tag: $LAST_TAG"
-          fi
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -184,8 +156,6 @@ jobs:
           echo "Downloaded artifacts:"
           find . -type f -name "*.zip" | sort
           cd artifacts
-          echo "removing .zip files and ignoring errors"
-          echo "changing dir names to remove .zip"
           mv jpm-windows-amd64.zip jpm-windows-amd64
           mv jpm-windows-arm64.zip jpm-windows-arm64
           mv jpm-${{ steps.version.outputs.version }}-darwin-amd64.zip jpm-darwin-amd64
