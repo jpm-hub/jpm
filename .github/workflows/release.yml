@@ -185,10 +185,9 @@ jobs:
           find . -type f -name -o -name "*.zip" | sort
           cd artifacts
           echo "removing .zip files and ignoring errors"
-          rm *.zip || true
           echo "changing dir names to remove .zip"
-          mv jpm-${{ steps.version.outputs.version }}-windows-amd64.zip jpm-windows-amd64
-          mv jpm-${{ steps.version.outputs.version }}-windows-arm64.zip jpm-windows-arm64
+          mv jpm-windows-amd64.zip jpm-windows-amd64
+          mv jpm-windows-arm64.zip jpm-windows-arm64
           mv jpm-${{ steps.version.outputs.version }}-darwin-amd64.zip jpm-darwin-amd64
           mv jpm-${{ steps.version.outputs.version }}-darwin-arm64.zip jpm-darwin-arm64
           mv jpm-${{ steps.version.outputs.version }}-linux-amd64.zip jpm-linux-amd64
