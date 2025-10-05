@@ -20,25 +20,25 @@ jobs:
             goos: linux
             goarch: amd64
             binary_name: jpm
-            archive_name: jpm-linux-amd64.tar.gz
+            archive_name: jpm-linux-amd64.zip
           - os: linux
             arch: arm64
             goos: linux
             goarch: arm64
             binary_name: jpm
-            archive_name: jpm-linux-arm64.tar.gz
+            archive_name: jpm-linux-arm64.zip
           - os: darwin
             arch: amd64
             goos: darwin
             goarch: amd64
             binary_name: jpm
-            archive_name: jpm-darwin-amd64.tar.gz
+            archive_name: jpm-darwin-amd64.zip
           - os: darwin
             arch: arm64
             goos: darwin
             goarch: arm64
             binary_name: jpm
-            archive_name: jpm-darwin-arm64.tar.gz
+            archive_name: jpm-darwin-arm64.zip
           - os: windows
             arch: amd64
             goos: windows
@@ -60,6 +60,35 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
+        
+      - name: Get name from code and check against last tag
+        id: version
+        run: |
+          # Extract version from consts.go
+          VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
+          if [ -z "$VERSION" ]; then
+            echo "Could not extract version from consts.go"
+            exit 1
+          fi
+          # Get the latest tag from git, strip leading 'v' if present
+          LAST_TAG=$(git fetch --tags >/dev/null 2>&1; git tag --sort=-creatordate | head -1)
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous tag found, continuing."
+          else
+            # Remove leading v from both for comparison
+            VERSION_CMP=${VERSION#v}
+            LAST_TAG_CMP=${LAST_TAG#v}
+            if [ "$VERSION_CMP" = "$LAST_TAG_CMP" ]; then
+              echo "Error: Version in code ($VERSION) is the same as the last tag ($LAST_TAG)."
+              exit 1
+            fi
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "name=jpm-$VERSION-${{ matrix.os }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          echo "Found version: $VERSION"
+          if [ -n "$LAST_TAG" ]; then
+            echo "Last tag: $LAST_TAG"
+          fi
 
       - name: Build binary
         env:
@@ -68,7 +97,11 @@ jobs:
           CGO_ENABLED: 0
         run: |
           echo "Building for ${{ matrix.os }}-${{ matrix.arch }}"
-          go build -ldflags="-s -w" -o ${{ matrix.binary_name }} jpm.go
+          if [[ "${{ matrix.os }}" != "windows" ]]; then
+            go build -ldflags="-s -w" -o ${{ steps.version.outputs.name }}/bin/jpm jpm.go
+          else
+            go build -ldflags="-s -w" -o ${{ matrix.binary_name }} jpm.go
+          fi
           ls -la
 
       - name: Create release archive
@@ -80,10 +113,9 @@ jobs:
             zip ${{ matrix.archive_name }} ${{ matrix.binary_name }} jpx.cmd jpx
             rm -rf jpx.cmd jpx jpxsh
           else
-            # Unix-like: create tar.gz
-            tar -czf ${{ matrix.archive_name }} ${{ matrix.binary_name }}
+            zip ${{ steps.version.outputs.name }}.zip ${{ steps.version.outputs.name }}
           fi
-          ls -la *.tar.gz *.zip 2>/dev/null || true
+          ls -la *.zip 2>/dev/null || true
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -150,24 +182,24 @@ jobs:
       - name: List downloaded artifacts
         run: |
           echo "Downloaded artifacts:"
-          find . -type f -name "*.tar.gz" -o -name "*.zip" | sort
+          find . -type f -name -o -name "*.zip" | sort
           cd artifacts
           echo "removing .zip files and ignoring errors"
           rm *.zip || true
-          echo "changing dir names to remove .zip and .tar.gz"
-          mv jpm-windows-amd64.zip jpm-windows-amd64
-          mv jpm-windows-arm64.zip jpm-windows-arm64
-          mv jpm-darwin-amd64.tar.gz jpm-darwin-amd64
-          mv jpm-darwin-arm64.tar.gz jpm-darwin-arm64
-          mv jpm-linux-amd64.tar.gz jpm-linux-amd64
-          mv jpm-linux-arm64.tar.gz jpm-linux-arm64
+          echo "changing dir names to remove .zip"
+          mv jpm-${{ steps.version.outputs.version }}-windows-amd64.zip jpm-windows-amd64
+          mv jpm-${{ steps.version.outputs.version }}-windows-arm64.zip jpm-windows-arm64
+          mv jpm-${{ steps.version.outputs.version }}-darwin-amd64.zip jpm-darwin-amd64
+          mv jpm-${{ steps.version.outputs.version }}-darwin-arm64.zip jpm-darwin-arm64
+          mv jpm-${{ steps.version.outputs.version }}-linux-amd64.zip jpm-linux-amd64
+          mv jpm-${{ steps.version.outputs.version }}-linux-arm64.zip jpm-linux-arm64
           echo "moving files out of their directories"
-          mv jpm-windows-amd64/jpm-windows-amd64.zip .
-          mv jpm-windows-arm64/jpm-windows-arm64.zip .
-          mv jpm-darwin-amd64/jpm-darwin-amd64.tar.gz .
-          mv jpm-darwin-arm64/jpm-darwin-arm64.tar.gz .
-          mv jpm-linux-amd64/jpm-linux-amd64.tar.gz .
-          mv jpm-linux-arm64/jpm-linux-arm64.tar.gz .
+          mv jpm-windows-amd64/* .
+          mv jpm-windows-arm64/* .
+          mv jpm-darwin-amd64/* .
+          mv jpm-darwin-arm64/* .
+          mv jpm-linux-amd64/* .
+          mv jpm-linux-arm64/* .
           ls -la
 
       - name: Create Release
@@ -184,24 +216,23 @@ jobs:
             - **Windows**: AMD64, ARM64
             
             ### Downloads
-            - `jpm-linux-amd64.tar.gz` - Linux AMD64
-            - `jpm-linux-arm64.tar.gz` - Linux ARM64
-            - `jpm-darwin-amd64.tar.gz` - macOS Intel
-            - `jpm-darwin-arm64.tar.gz` - macOS Apple Silicon
-            - `jpm-windows-amd64.zip` - Windows AMD64
-            - `jpm-windows-arm64.zip` - Windows ARM64
+            - `jpm-${{ steps.version.outputs.version }}-linux-amd64.zip` - Linux AMD64
+            - `jpm-${{ steps.version.outputs.version }}-linux-arm64.zip` - Linux ARM64
+            - `jpm-${{ steps.version.outputs.version }}-darwin-amd64.zip` - macOS Intel
+            - `jpm-${{ steps.version.outputs.version }}-darwin-arm64.zip` - macOS Apple Silicon
+            - `jpm-${{ steps.version.outputs.version }}-windows-amd64.zip` - Windows AMD64
+            - `jpm-${{ steps.version.outputs.version }}-windows-arm64.zip` - Windows ARM64
             
             ### Installation
             ```bash
             # Linux/macOS
-            tar -xzf jpm-<platform>-<arch>.tar.gz
-            sudo mv jpm /usr/local/bin/
+            tar -xzf jpm-<version>-<platform>-<arch>.zip
+            sudo mv jpm-<version>-<platform>-<arch>/bin/jpm /usr/local/bin/
             
             # Windows
             # Extract the ZIP and add to PATH
             ```
           files: |
-            artifacts/*.tar.gz
             artifacts/*.zip
             setup.cmd
           draft: false
