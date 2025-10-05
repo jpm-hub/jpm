@@ -111,7 +111,7 @@ jobs:
             zip ${{ steps.version.outputs.name }}.zip ${{ matrix.binary_name }} jpx.cmd jpx
             rm -rf jpx.cmd jpx jpxsh
           else
-            zip ${{ steps.version.outputs.name }}.zip ${{ steps.version.outputs.name }}
+            zip ${{ steps.version.outputs.name }}.zip ${{ steps.version.outputs.name }}/bin/jpm
           fi
           ls -la *.zip 2>/dev/null || true
 
