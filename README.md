@@ -390,6 +390,28 @@ scripts:
     rm -rf jpm_dependencies
   build: jpm compile && cp ressourses/* out/
 ```
+You can override jpm scripts by appending @ in front of the jpm script in your custom scripts:
+
+```yaml
+scripts:
+  compile@: jpm compile && cp ressourses/* out/
+```
+
+You can omit the execution of an overriden jpm scripts by appending ! when calling the script:
+
+```yaml
+scripts:
+  compile@: jpm compile && cp ressourses/* out/
+  omit: jpm compile! && cp ressourses/* out/     # this will execute the normal compile, not the overriden one
+```
+
+After overriding a script you can still append the args that was called with the script by adding `...args@`
+
+```yaml
+scripts:
+  # this will replace ...args@ with the actuall args that was called while overriding the script
+  install@: CLASSIFIER=javadoc jpm install ...args@ 
+```
 
 ## String substitution
 

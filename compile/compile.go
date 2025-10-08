@@ -108,7 +108,6 @@ func endCheckLastLineForErrors(r *os.File, w *os.File, originalStdout *os.File) 
 	if len(lines) == 0 {
 		return nil // No lines to check
 	}
-	println(lines[len(lines)-1])
 	if strings.Contains(lines[len(lines)-1], "errors") || strings.HasPrefix(lines[len(lines)-1], "error:") {
 		return errors.New("last line contains 'errors'")
 	}

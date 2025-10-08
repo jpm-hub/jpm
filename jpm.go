@@ -124,6 +124,7 @@ func main() {
 		scriptsS = append(scriptsS, k)
 	}
 
+	scriptName = strings.TrimSuffix(scriptName, "!")
 	switch scriptName {
 	case "init":
 		execOverride("init")
@@ -177,6 +178,10 @@ func main() {
 }
 
 func execOverride(sc string) {
+	if strings.HasSuffix(os.Args[1], "!") {
+		println("\033[33mOmitting Override: "+"'"+"jpm", sc+"'", "\033[0m")
+		return
+	}
 	if os.Getenv("JPM_OVERRIDE") != sc {
 		// Join all the args from os.Args except os.Args[0] into a string
 		argsStr := ""
