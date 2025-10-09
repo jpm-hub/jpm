@@ -54,13 +54,13 @@ func Install() {
 	COM.FindPackageYML(true)
 	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
 	COM.CopyToDependencies(COM.GetSection("language", true).(string))
-	if !COM.Ping(jpmRepoUrl) {
-		println("\tCould not reach jpm repo at " + jpmRepoUrl)
-		println("\tPlease check your internet connection or try again later")
-		os.Exit(1)
-	}
 	for i, arg := range os.Args {
 		if arg == "-f" {
+			if !COM.Ping("https://github.com") {
+				println("\tCould not reach jpm repo at " + jpmRepoUrl)
+				println("\tPlease check your internet connection or try again later")
+				os.Exit(1)
+			}
 			os.Args = append(os.Args[:i], os.Args[i+1:]...)
 			force = true
 			break
