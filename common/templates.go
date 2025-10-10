@@ -109,12 +109,12 @@ class Test` + className + ` {
 }`
 }
 
-func GetDockerFileTempalte() string {
+func GetDockerFileTempalte(packaging string) string {
 	return `FROM eclipse-temurin:25-jdk
 WORKDIR /app
 COPY dist/ ./
-RUN chmod +x run.sh
-CMD ["./run.sh"]
+RUN chmod +x ` + packaging + `.sh
+CMD ["./` + packaging + `.sh"]
 `
 }
 

@@ -136,7 +136,7 @@ func Init(cliargs []string) {
 		COM.RunScript("git init", true)
 	}
 	if docker {
-		if err := os.WriteFile("Dockerfile", []byte(COM.GetDockerFileTempalte()), 0644); err != nil {
+		if err := os.WriteFile("Dockerfile", []byte(COM.GetDockerFileTempalte(packaging)), 0644); err != nil {
 			fmt.Printf("Error creating package.yml: %v\n", err)
 			os.Exit(1)
 		}
@@ -145,9 +145,9 @@ func Init(cliargs []string) {
 			os.Exit(1)
 		}
 	}
-	if len(cliargs) == 2 {
-		COM.PrintArt()
-		println("\n\tyour new project is ready to \033[34mrun\033[0m : jpm start")
-		println("\tyour new project is ready to \033[32mtest\033[0m : jpm test \n")
-	}
+	// if len(cliargs) == 2 {
+	COM.PrintArt()
+	println("\n\tyour new project is ready to \033[34mrun\033[0m : jpm start")
+	println("\tyour new project is ready to \033[32mtest\033[0m : jpm test \n")
+	// }
 }
