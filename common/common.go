@@ -595,7 +595,7 @@ func ParseENV(str string) string {
 
 	return result
 }
-func ParseEnvVars(prefix string) string {
+func ParseEnvVars(prefix string, quotes bool) string {
 	envString := ""
 	if str := GetSection("env", false); str != "" {
 		file, err := os.Open(str.(string))
@@ -614,7 +614,11 @@ func ParseEnvVars(prefix string) string {
 				continue
 			}
 			l := strings.SplitN(line, "=", 2)
-			lines = append(lines, prefix+l[0]+"=\""+l[1]+"\"")
+			if quotes {
+				lines = append(lines, prefix+l[0]+"='"+l[1]+"'")
+			}else{
+				lines = append(lines, prefix+l[0]+"="+l[1])
+			}
 		}
 
 		if err := scanner.Err(); err != nil {
