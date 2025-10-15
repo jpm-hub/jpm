@@ -150,9 +150,9 @@ func createScripts(main string) {
 		args = " " + args
 	}
 	unixArgs := strings.ReplaceAll(args, "../jpm_dependencies", "jar_libraries")
-	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ")+"java%s -p jar_libraries -cp ./*:jar_libraries/* %s $@", unixArgs, main)
+	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ",true)+"java%s -p jar_libraries -cp ./*:jar_libraries/* %s $@", unixArgs, main)
 	winArgs := strings.ReplaceAll(args, "..\\jpm_dependencies", "jar_libraries")
-	windows := fmt.Sprintf(COM.ParseEnvVars("set ")+"java%s -p jar_libraries -cp ./*;jar_libraries/* %s ", winArgs, main)
+	windows := fmt.Sprintf(COM.ParseEnvVars("set ",false)+"java%s -p jar_libraries -cp ./*;jar_libraries/* %s ", winArgs, main)
 	windows = windows + `"%*"`
 	os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)), []byte(unix+"\n"), 0755)
 	os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)+".cmd"), []byte(windows+"\r\n"), 0755)
