@@ -10,6 +10,10 @@ import (
 func Run() error {
 	COM.FindPackageYML(true)
 	mainClass := COM.GetSection("main", true).(string)
+	if mainClass == ""{
+		println("no main set in package.yml")
+		return nil
+	}
 	argsMap := COM.ParseArgs()
 	args, found := argsMap["java"]
 	if !found {
