@@ -17,7 +17,7 @@ func Run() error {
 	}
 	prefix := "export "
 	if COM.IsWindows() {
-		prefix = "$env:"
+		prefix = "set "
 	}
 	if len(os.Args) == 2 {
 		if COM.IsWindows() {
