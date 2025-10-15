@@ -645,7 +645,7 @@ func GetDependencies(isFatal bool) []string {
 func RunCMD(script string, showStdOut bool) error {
 	var cmd *exec.Cmd
 	if tmpFile, err := os.CreateTemp("", "jpm_script_*.cmd"); err == nil {
-		tmpFile.WriteString("@echo off\n" + script)
+		tmpFile.WriteString("@echo off\nchcp 65001\n" + script)
 		if Verbose {
 			println("\033[33m--(Verbose command)==>  " + script + "\033[0m")
 			showStdOut = true
