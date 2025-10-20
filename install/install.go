@@ -71,7 +71,9 @@ func Install() {
 	currentLanguage = COM.GetSection("language", false).(string)
 	switch len(os.Args) {
 	case 2:
-		os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
+		if force {
+			os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
+		}
 		deps := COM.GetDependencies(false)
 		aliases := findExistingAliases()
 		installFromYML(aliases, deps, true)
