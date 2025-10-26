@@ -147,7 +147,6 @@ func Init(cliargs []string) {
 	}
 	// if len(cliargs) == 2 {
 	COM.PrintArt()
-	println("\n\tyour new project is ready to \033[34mrun\033[0m : jpm start")
-	println("\tyour new project is ready to \033[32mtest\033[0m : jpm test \n")
+	println("\n\t" + packaging + " is ready to \033[34mrun\033[0m : jpm start")
 	// }
 }

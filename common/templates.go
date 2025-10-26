@@ -77,7 +77,9 @@ func ifkotlinMain(language string) string {
 
 func GetGitignoreTemplate() string {
 	return `out
-jpm_dependencies
+jpm_dependencies/*
+!jpm_dependencies/lock.json
+dist
 *.log
 .env
 `

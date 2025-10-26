@@ -18,7 +18,14 @@ var version string
 func Bundle() {
 	COM.FindPackageYML(true)
 	packageName = COM.GetSection("package", true).(string)
-	os.RemoveAll(filepath.Join("dist"))
+	// Remove all contents inside "dist" directory, but not the directory itself
+	distDir := filepath.Join("dist")
+	entries, err := os.ReadDir(distDir)
+	if err == nil {
+		for _, entry := range entries {
+			os.RemoveAll(filepath.Join(distDir, entry.Name()))
+		}
+	}
 	os.MkdirAll(filepath.Join("dist", "_dump"), 0755)
 	version = COM.GetSection("version", true).(string)
 	if version == "" {
@@ -72,7 +79,7 @@ func Bundle() {
 	println("\033[32mInstalling \033[0m")
 	makePublish(publishing, keepClassifiers)
 	println("\033[32mCompiling \033[0m")
-	err := COM.RunScript("jpm compile", true)
+	err = COM.RunScript("jpm compile", true)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -150,9 +157,9 @@ func createScripts(main string) {
 		args = " " + args
 	}
 	unixArgs := strings.ReplaceAll(args, "../jpm_dependencies", "jar_libraries")
-	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ",true)+"java%s -p jar_libraries -cp ./*:jar_libraries/* %s $@", unixArgs, main)
+	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ", true)+"java%s -p jar_libraries -cp ./*:jar_libraries/* %s $@", unixArgs, main)
 	winArgs := strings.ReplaceAll(args, "..\\jpm_dependencies", "jar_libraries")
-	windows := fmt.Sprintf(COM.ParseEnvVars("set ",false)+"java%s -p jar_libraries -cp ./*;jar_libraries/* %s ", winArgs, main)
+	windows := fmt.Sprintf(COM.ParseEnvVars("set ", false)+"java%s -p jar_libraries -cp ./*;jar_libraries/* %s ", winArgs, main)
 	windows = windows + `"%*"`
 	os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)), []byte(unix+"\n"), 0755)
 	os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)+".cmd"), []byte(windows+"\r\n"), 0755)
@@ -228,6 +235,10 @@ func removeClassifiers(dependencies COM.Dependencies, keepClassifiers bool) COM.
 		if strings.Count(k, "|") == 1 {
 			classifier := strings.Split(k, "|")[0]
 			dependencies.JPM[strings.TrimPrefix(k, classifier)] = v
+		}
+	}
+	for k := range dependencies.JPM {
+		if strings.Count(k, "|") == 1 && !strings.HasPrefix(k, "|") {
 			delete(dependencies.JPM, k)
 		}
 	}
@@ -236,6 +247,10 @@ func removeClassifiers(dependencies COM.Dependencies, keepClassifiers bool) COM.
 			if strings.Count(key, "|") == 2 {
 				classifier := strings.Split(key, "|")[0]
 				dependencies.Repos[k][strings.TrimPrefix(key, classifier)] = value
+			}
+		}
+		for key := range v {
+			if strings.Count(key, "|") == 2 && !strings.HasPrefix(key, "|") {
 				delete(dependencies.Repos[k], key)
 			}
 		}

@@ -86,8 +86,8 @@ jump:
 	//start message
 	println(removeSpacer(templateYml["<start-message>"].(string)))
 
-	// run <jpm-init>
-	if err := COM.RunScript(parse(templateYml["<jpm-init>"].(string)), true); err != nil {
+	// run <init-script>
+	if err := COM.RunScript(parse(templateYml["<init-script>"].(string)), true); err != nil {
 		println(err)
 		os.Exit(1)
 	}
