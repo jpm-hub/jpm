@@ -9,7 +9,7 @@ echo ===============================================
 echo.
 
 :: Get current user
-for /f "tokens=2 delims==" %%a in ('wmic useraccount where name="%USERNAME%" get SID /value') do set USER_SID=%%a
+for /f "tokens=2 delims==" %%a in ('wmic useraccount where name="%USERNAME%" get SID /value 2^>nul') do set USER_SID=%%a 2>&1
 
 :: Set JPM directories
 set JPM_HOME=C:\Users\%USERNAME%\.jpm

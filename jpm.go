@@ -28,6 +28,8 @@ import (
 // add detection of version downgrade in install
 // add support for inner projects and local dependencies
 // add support for multiple packages compilation and bundling to create classified jars
+// add -with for classiified installs
+// add -no for excluding dependencies
 var scriptsS []string = []string{}
 var scripts map[string]string
 

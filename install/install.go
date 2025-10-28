@@ -55,7 +55,25 @@ func Install() {
 	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
 	COM.CopyToDependencies(COM.GetSection("language", true).(string))
 	for i, arg := range os.Args {
+		if arg == "-no" {
+			if i+1 < len(os.Args) {
+				COM.AddToSection("excludes", os.Args[i+1])
+				excludes = append(excludes, os.Args[i+1])
+				os.Args = append(os.Args[:i], os.Args[i+2:]...)
+				// modify package.yml excludes section
+			}
+		}
+		if arg == "-with" {
+			if i+1 < len(os.Args) {
+				COM.AddToSection("classifiers", determineCLIClassifier(os.Args[i+1]))
+				excludes = append(excludes, os.Args[i+1])
+				os.Args = append(os.Args[:i], os.Args[i+2:]...)
+			}
+		}
 		if arg == "-f" {
+			if force {
+				println(" -f is used too many times!")
+			}
 			if !COM.Ping("https://github.com") {
 				println("\tCould not reach jpm repo at " + jpmRepoUrl)
 				println("\tPlease check your internet connection or try again later")
@@ -95,6 +113,14 @@ func Install() {
 	for _, v := range finishMessages {
 		println("\033[38;5;208m"+tab, v, "\033[0m")
 	}
+}
+
+func determineCLIClassifier(s string) any {
+	if !strings.Contains(s, ":") || strings.Contains(s, "*:") || strings.Contains(s, "'*':") || strings.Contains(s, "\"*\":") {
+		return map[string]string{"*": s}
+	}
+	slices := strings.SplitN(s, ":", 2)
+	return map[string]string{slices[0]: slices[1]}
 }
 
 func execChmod() {

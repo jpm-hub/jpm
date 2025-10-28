@@ -315,7 +315,9 @@ func ReplaceDependency(oldDepString string, newDepString string) {
 		if NormalizeSpaces(depStr) != NormalizeSpaces(oldDepString) && NormalizeSpaces(depStr)+":" != NormalizeSpaces(oldDepString) {
 			continue
 		}
-		pkgYAML.Dependencies[i] = NormalizeSpaces(newDepString)
+		newDepString = NormalizeSpaces(newDepString)
+		pkgYAML.Dependencies[i] = newDepString
+		packageYML.Dependencies[i] = newDepString
 		break
 	}
 	// Write back to file with comment preservation
@@ -341,58 +343,69 @@ func AddToSection(sectionName string, sectionValue any) {
 	case "dependencies":
 		if pkgYAML.Dependencies == nil {
 			pkgYAML.Dependencies = make([]string, 0)
+			packageYML.Dependencies = make([]string, 0)
 		}
 		newDependency := sectionValue.(string)
 		if !slices.Contains(pkgYAML.Dependencies, newDependency) {
 			pkgYAML.Dependencies = append(pkgYAML.Dependencies, newDependency)
+			packageYML.Dependencies = append(packageYML.Dependencies, newDependency)
 		}
 	case "repos":
 		if pkgYAML.Repos == nil {
 			pkgYAML.Repos = []*OrderedMap{}
+			packageYML.Repos = []map[string]string{}
 		}
+
 		if repoMap, ok := sectionValue.(map[string]string); ok {
 			newRepos := &OrderedMap{
 				Values: map[string]any{},
 				Order:  []string{},
 			}
-
+			// we already check if it exists when calling -repo
 			for k, v := range repoMap {
 				fmt.Println("Adding", k+":", v)
 				newRepos.Values[k] = v
 				newRepos.Order = append(newRepos.Order, k)
 			}
 			pkgYAML.Repos = append(pkgYAML.Repos, newRepos)
-			//pkgYAML.Repos = append(pkgYAML.Repos, repoMap)
+			// Convert map[string]any to map[string]string for packageYML.Repos
+			converted := make(map[string]string)
+			for k, v := range newRepos.Values {
+				if strVal, ok := v.(string); ok {
+					converted[k] = strVal
+				}
+			}
+			packageYML.Repos = append(packageYML.Repos, converted)
 		}
-	case "scripts":
-		if pkgYAML.Scripts == nil {
-			pkgYAML.Scripts = &OrderedMap{
+	case "classifiers":
+		if pkgYAML.Classifiers == nil {
+			pkgYAML.Classifiers = &OrderedMap{
 				Values: make(map[string]any),
 				Order:  make([]string, 0),
 			}
+			packageYML.Classifiers = make(map[string]string)
 		}
-		if scriptMap, ok := sectionValue.(map[string]any); ok {
-			for k, v := range scriptMap {
-				pkgYAML.Scripts.Values[k] = v
-				pkgYAML.Scripts.Order = append(pkgYAML.Scripts.Order, k)
+		if classifierMap, ok := sectionValue.(map[string]string); ok {
+			for k, v := range classifierMap {
+				if _, exists := packageYML.Classifiers[k]; exists {
+					continue
+				}
+				pkgYAML.Classifiers.Values[k] = v
+				packageYML.Classifiers[k] = v
+				pkgYAML.Classifiers.Order = append(pkgYAML.Classifiers.Order, k)
 			}
 		}
-	case "args":
-		if pkgYAML.Args == nil {
-			pkgYAML.Args = &OrderedMap{
-				Values: make(map[string]any),
-				Order:  make([]string, 0),
-			}
+	case "excludes":
+		if pkgYAML.Excludes == nil {
+			pkgYAML.Excludes = []string{}
+			packageYML.Excludes = []string{}
 		}
-		if argMap, ok := sectionValue.(map[string]any); ok {
-			for k, v := range argMap {
-				pkgYAML.Args.Values[k] = v
-				pkgYAML.Args.Order = append(pkgYAML.Args.Order, k)
-			}
+		newExclude := sectionValue.(string)
+		if !slices.Contains(pkgYAML.Excludes, newExclude) {
+			pkgYAML.Excludes = append(pkgYAML.Excludes, newExclude)
+			packageYML.Excludes = append(packageYML.Excludes, newExclude)
 		}
 	}
-
-	// Write back to file with comment preservation
 	if err := WriteYAML(g_yamlPath, pkgYAML); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -616,7 +629,7 @@ func ParseEnvVars(prefix string, quotes bool) string {
 			l := strings.SplitN(line, "=", 2)
 			if quotes {
 				lines = append(lines, prefix+l[0]+"='"+l[1]+"'")
-			}else{
+			} else {
 				lines = append(lines, prefix+l[0]+"="+l[1])
 			}
 		}
