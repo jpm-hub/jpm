@@ -21,7 +21,7 @@ func Init(cliargs []string) {
 
 	projectName := "app"
 	diffName := false
-	language := "java"
+	language := ""
 	handled := []string{}
 	git := false
 	docker := false
@@ -43,11 +43,13 @@ func Init(cliargs []string) {
 				continue
 			}
 			if arg == "-kt" {
-				language = "kotlin"
+				os.MkdirAll("out", 0755)
+				language = language + "kotlin,"
 				continue
 			}
 			if arg == "-java" {
-				language = "java"
+				os.MkdirAll("out", 0755)
+				language = language + "java,"
 				continue
 			}
 
@@ -77,7 +79,7 @@ func Init(cliargs []string) {
 			fmt.Println("Initializing project App")
 		}
 	}
-
+	language = strings.Trim(language, ",")
 	appPathSlice := strings.Split(strings.ReplaceAll(projectName, ".", "/"), "/")
 	className := COM.CapitalizeFirst(appPathSlice[len(appPathSlice)-1]) // App
 	appMainJavaFile := className + ".java"                              // App.java
@@ -126,10 +128,10 @@ func Init(cliargs []string) {
 		os.WriteFile(filepath.Join(".vscode", "settings.json"), []byte(COM.GetDotVscodeTemplate(src)), 0644)
 	}
 	switch language {
-	case "java":
-		initJava(appMainJavaFile, packaging, className, src)
 	case "kotlin":
 		initKotlin(appMainKotlinFile, packaging, className, src)
+	default:
+		initJava(appMainJavaFile, packaging, className, src)
 	}
 	COM.CopyToDependencies(language)
 	if git {

@@ -8,7 +8,6 @@ import (
 )
 
 func initKotlin(appMainKotlinFile string, packaging string, className string, src string) {
-	os.MkdirAll("out", 0755)
 	// Write package.yml
 	if err := os.WriteFile("package.yml", []byte(COM.GetPackageTemplate(packaging, className, "kotlin", src)), 0644); err != nil {
 		fmt.Printf("Error creating package.yml: %v\n", err)
