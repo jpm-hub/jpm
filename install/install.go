@@ -430,7 +430,7 @@ func resolveDependecy() map[string]string {
 			}
 		}
 	}
-	maps.DeleteFunc(depMap, func(k string, v string) bool { return v == "" || k == "" })
+	maps.DeleteFunc(depMap, func(k string, v string) bool { return v == "" || k == "" || strings.HasPrefix(k, "|") })
 	switch currentWorkingRepo {
 	case jpmRepoUrl:
 		g_lockDeps.JPM = depMap
@@ -594,22 +594,11 @@ func cleanup() {
 		}
 	}
 }
-func removeClassifierAndTests() {
-	// for k, v := range g_lockDeps.JPM {
-	// 	valueS := strings.Split(strings.TrimSuffix(k, "|"), "|")
-	// 	value = valueS[len(valueS)-1]
-	// 	classifier := ""
-	// 	if len(valueS) == 3 {
-	// 		classifier = "-" + valueS[0]
-	// 	}
-	// }
-}
 func addFinishMessage(s string) {
 	finishMessages = append(finishMessages, s)
 }
 func GetDependenciesJson() []byte {
 	loadLockDependencies()
-	removeClassifierAndTests()
 	depsJson, err := json.MarshalIndent(g_lockDeps, "", "  ")
 	if err != nil {
 		return nil
