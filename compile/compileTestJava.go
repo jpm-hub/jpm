@@ -26,7 +26,7 @@ func compileTestJava() error {
 			if builder.Len() > 0 {
 				builder.WriteString(separator)
 			}
-			builder.WriteString(filepath.Join("jpm_dependencies", "tests") + "/")
+			builder.WriteString("jpm_dependencies/tests/")
 			builder.WriteString(file.Name())
 		}
 	}
@@ -47,9 +47,9 @@ func compileTestJava() error {
 	allJavas := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "*.java"), findAllSrcFile("tests", "*.java")}, " ")
 	var err4 error
 	if COM.IsWindows() {
-		err4 = COM.RunCMD(COM.JAVAC()+" "+args+" -p jpm_dependencies;jpm_dependencies/tests -cp \""+"out;"+jarFilesString+"\" -d out "+allJavas, true)
+		err4 = COM.RunCMD("javac "+args+" -p jpm_dependencies;jpm_dependencies/tests -cp \""+"out;"+jarFilesString+"\" -d out "+allJavas, true)
 	} else {
-		err4 = COM.RunScript(COM.JAVAC()+" "+args+" -p jpm_dependencies:jpm_dependencies/tests -cp \""+"out:"+jarFilesString+"\" -d out "+allJavas, true)
+		err4 = COM.RunScript("javac "+args+" -p jpm_dependencies:jpm_dependencies/tests -cp \""+"out:"+jarFilesString+"\" -d out "+allJavas, true)
 	}
 
 	err5 := endCheckLastLineForErrors(r, w, originalOut)

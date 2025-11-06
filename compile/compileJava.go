@@ -38,9 +38,9 @@ func compileJava() error {
 	allJavas := findAllSrcFile(COM.SrcDir(), "*.java")
 	var err1 error
 	if COM.IsWindows() {
-		err1 = COM.RunCMD(COM.JAVAC()+" "+args+" -p jpm_dependencies -cp \""+jarFilesString+"\" -d out "+allJavas, true)
+		err1 = COM.RunCMD("javac "+args+" -p jpm_dependencies -cp \""+jarFilesString+"\" -d out "+allJavas, true)
 	} else {
-		err1 = COM.RunScript(COM.JAVAC()+" "+args+" -p jpm_dependencies -cp \""+jarFilesString+"\" -d out "+allJavas, true)
+		err1 = COM.RunScript("javac "+args+" -p jpm_dependencies -cp \""+jarFilesString+"\" -d out "+allJavas, true)
 	}
 	err = endCheckLastLineForErrors(r, w, originalOut)
 	if err1 != nil || err != nil {

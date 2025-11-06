@@ -50,7 +50,6 @@ func CompileTest() error {
 	initCompile()
 	languageList := findLanguages()
 	var err error
-	var err2 error = nil
 	for _, v := range languageList {
 		switch v {
 		case "java":
@@ -60,12 +59,8 @@ func CompileTest() error {
 		default:
 			err = compileTestJava()
 		}
-		if err != nil {
-			println(err.Error())
-			err2 = fmt.Errorf("%s", err.Error())
-		}
 	}
-	return err2
+	return err
 }
 
 func findLanguages() []string {

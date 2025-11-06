@@ -2,8 +2,20 @@ package common
 
 import "strings"
 
+func GetJava25AppTemplate() string {
+	return `
+void main() {
+	IO.println("Hello, World");
+}`
+}
+
 func GetJavaAppTemplate(packaging string, className string) string {
-	return `package ` + packaging + `;
+	if packaging == "" {
+		packaging = ""
+	} else {
+		packaging = "package " + packaging + ";"
+	}
+	return packaging + `
 public class ` + className + ` {
 	public static void main(String[] args) {
 		System.out.println("Hello, World");
@@ -14,7 +26,12 @@ public class ` + className + ` {
 }`
 }
 func GetKotlinAppTemplate(packaging string) string {
-	return `package ` + packaging + `;
+	if packaging == "" {
+		packaging = ""
+	} else {
+		packaging = "package " + packaging
+	}
+	return packaging + `
 fun main(args: Array<String>) {
 	println("Hello, World");
 }
@@ -24,8 +41,15 @@ fun run():String {
 }
 
 func GetPackageTemplate(packaging string, className string, language string, src string) string {
-	p := strings.Split(packaging, ".")
-	return `main: ` + strings.ReplaceAll(packaging, "-", "_") + "." + className + ifkotlinMain(language) + `
+	var p []string
+	if packaging == "" {
+		p = []string{"app"}
+		className = "App"
+	} else {
+		p = strings.Split(packaging, ".")
+		className = strings.ReplaceAll(packaging, "-", "_") + "." + className
+	}
+	return `main: ` + className + ifkotlinMain(language) + `
 version: 0.0.0
 language: ` + language + `
 package: ` + p[len(p)-1] + ifSrc(src) + `
@@ -60,13 +84,6 @@ func ifSrc(src string) string {
 		return "\nsrc: " + src
 	}
 }
-func ifkotlinTest(language string) string {
-	if language == "kotlin" {
-		return `
-  - mvn org.jetbrains.kotlin kotlin-test:latest test`
-	}
-	return ""
-}
 
 func ifkotlinMain(language string) string {
 	if language == "kotlin" {
@@ -86,9 +103,12 @@ dist
 }
 
 func GetJavaTestTemplate(packaging string, className string) string {
+	iprt := "\nimport " + packaging + "." + className + ";"
+	if packaging == "" {
+		iprt = ""
+	}
 	return `package tests;
-import org.junit.*;
-import ` + packaging + `.` + className + `;
+import org.junit.*;` + iprt + `
 public class Test` + className + ` {
 	@Test
 	public void test() {
@@ -99,10 +119,13 @@ public class Test` + className + ` {
 }
 
 func GetKotlinTestTemplate(packaging string, className string) string {
+	iprt := "\nimport " + packaging + ".*"
+	if packaging == "" {
+		iprt = ""
+	}
 	return `package tests;
 import org.junit.*
-import kotlin.test.*
-import ` + packaging + `.*;
+import kotlin.test.*` + iprt + `
 class Test` + className + ` {
 	@Test
 	fun test() {

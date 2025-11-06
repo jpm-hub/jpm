@@ -68,7 +68,7 @@ func Verbose(homeDir string) {
 		println("Failed to encode config:", err.Error())
 		return
 	}
-	println("verbose set to", cfg["verbose"].(bool))
+	println("verbose set to", currentverbose)
 }
 
 func Jpx() {

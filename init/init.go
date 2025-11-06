@@ -107,6 +107,11 @@ func Init(cliargs []string) {
 		srcSlice := strings.Split(src, "/")
 		src = strings.Join(srcSlice[:len(srcSlice)-1], "/")
 	}
+	if !diffName {
+		appDir = "src"
+		src = "src"
+		className = "App"
+	}
 	appMainJavaFile = appDir + "/" + appMainJavaFile     // com/app/App.java
 	appMainKotlinFile = appDir + "/" + appMainKotlinFile // com/app/App.kt
 
@@ -115,25 +120,38 @@ func Init(cliargs []string) {
 		fmt.Printf("Error creating %v directory: %v\n", appDir, err)
 		os.Exit(1)
 	}
-	if err := os.MkdirAll("tests", 0755); err != nil {
-		fmt.Printf("Error creating tests directory: %v\n", err)
-		os.Exit(1)
-	}
-	if err := os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755); err != nil {
-		fmt.Printf("Error creating jpm_dependencies/tests directory: %v\n", err)
-		os.Exit(1)
-	}
 
 	if err := os.MkdirAll(filepath.Join(".vscode"), 0755); err == nil {
 		os.WriteFile(filepath.Join(".vscode", "settings.json"), []byte(COM.GetDotVscodeTemplate(src)), 0644)
 	}
-	switch language {
-	case "kotlin":
-		initKotlin(appMainKotlinFile, packaging, className, src)
-	default:
-		initJava(appMainJavaFile, packaging, className, src)
+	if appDir == src {
+		packaging = "" // no package declaration, will be set to "app" in template
+	} else {
+		if err := os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755); err != nil {
+			fmt.Printf("Error creating jpm_dependencies/tests directory: %v\n", err)
+			os.Exit(1)
+		}
+		if err := os.MkdirAll(filepath.Join("tests"), 0755); err != nil {
+			fmt.Printf("Error creating tests directory: %v\n", err)
+			os.Exit(1)
+		}
+		// Write .gitignore
+		if err := os.WriteFile(".gitignore", []byte(COM.GetGitignoreTemplate()), 0644); err != nil {
+			fmt.Printf("Error creating .gitignore: %v\n", err)
+			os.Exit(1)
+		}
+		COM.CopyToDependencies(language)
 	}
-	COM.CopyToDependencies(language)
+	if language == "" {
+		initJava(appMainJavaFile, packaging, className, "java", src)
+	} else {
+		if strings.Contains(language, "kotlin") {
+			initKotlin(appMainKotlinFile, packaging, className, language, src)
+		}
+		if strings.Contains(language, "java") {
+			initJava(appMainJavaFile, packaging, className, language, src)
+		}
+	}
 	if git {
 		COM.RunScript("git init", true)
 	}

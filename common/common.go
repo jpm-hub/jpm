@@ -156,14 +156,6 @@ func Init() {
 }
 
 func JAVAC() string {
-	javac := "javac"
-	if IsWindows() {
-		javac = javac + ".exe"
-	}
-	DCEVM := filepath.Join(HomeDir(), "dcevm", "bin", javac)
-	if _, err := os.Stat(DCEVM); !os.IsNotExist(err) {
-		return DCEVM
-	}
 	return "javac"
 }
 func JAVA() string {
@@ -616,7 +608,7 @@ func ParseEnvVars(prefix string, quotes bool) string {
 			l := strings.SplitN(line, "=", 2)
 			if quotes {
 				lines = append(lines, prefix+l[0]+"='"+l[1]+"'")
-			}else{
+			} else {
 				lines = append(lines, prefix+l[0]+"="+l[1])
 			}
 		}

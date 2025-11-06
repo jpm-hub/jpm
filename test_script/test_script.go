@@ -18,7 +18,9 @@ func TestScript() error {
 		args = allTestArgs
 	}
 	err := COMPILE.CompileTest()
-	var err2 error
+	if err != nil {
+		return err
+	}
 	if COM.IsWindows() {
 		hasDeps := ""
 		jpm_dependenciesFiles, _ := os.ReadDir("jpm_dependencies")
@@ -28,14 +30,12 @@ func TestScript() error {
 				break
 			}
 		}
-		err2 = COM.RunCMD("cd out && "+COM.JAVA()+" -p ../jpm_dependencies;../jpm_dependencies/tests -cp \"./;../jpm_dependencies/"+hasDeps+";../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
+		err = COM.RunCMD("cd out && java -p ../jpm_dependencies;../jpm_dependencies/tests -cp \"./;../jpm_dependencies/"+hasDeps+";../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
 	} else {
-		err2 = COM.RunScript("cd out && "+COM.JAVA()+" -p ../jpm_dependencies:../jpm_dependencies/tests -cp \".:../jpm_dependencies/*:../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
+		err = COM.RunScript("cd out && java -p ../jpm_dependencies:../jpm_dependencies/tests -cp \".:../jpm_dependencies/*:../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
 	}
+
 	if err != nil {
-		return err
-	}
-	if err2 != nil {
 		println("\033[31mAll tests did not succeed\033[0m")
 		return err
 	}

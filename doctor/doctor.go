@@ -17,6 +17,18 @@ func Doctor(silent bool, ask bool) bool {
 	fix := false
 	if len(os.Args) > 2 && os.Args[2] == "-fix" {
 		fix = true
+		if !COM.IsWindows() {
+			err := runScript("which sdk", false)
+			if err != nil {
+				println(" SDKMAN! is very lightweight tool to install versions of jvm languages and more.")
+				err = runScript("read -n 1 -s -p \"Press any key to install sdkman...\n\" echo", true)
+				if err == nil {
+					runScript("curl -s \"https://get.sdkman.io\" | bash", true)
+				} else {
+					os.Exit(1)
+				}
+			}
+		}
 	}
 	Checkverbose()
 	good1 := CheckJava(silent)
@@ -31,8 +43,8 @@ func Doctor(silent bool, ask bool) bool {
 	fixjunit(!good5 && fix)
 	good6 := checkkotlin(silent)
 	fixkotlin(!good6 && fix)
-	good7 := checkJar(silent)
-	fixjar(!good7 && fix)
+	good7 := checkJavac(silent)
+	fixjavac(!good7 && fix)
 	goodFinal := good1 && good2 && good3 && good4 && good5 && good6 && good7
 	if goodFinal && asked {
 		println("\n\033[32mAll good!\033[0m")
@@ -47,7 +59,7 @@ func Doctor(silent bool, ask bool) bool {
 	return goodFinal
 }
 
-func fixjar(b bool) {
+func fixjavac(b bool) {
 	if !b {
 		return
 	}
@@ -108,9 +120,9 @@ func fixjava(b bool) {
 
 func Checkverbose() {
 	if COM.Verbose {
-		fmt.Print("\033[33m[ verbose ]\033[0m", COM.Verbose)
+		fmt.Print("\033[33m[ verbose ] \033[0m", COM.Verbose)
 	} else {
-		fmt.Print("\033[32m[ verbose ]\033[0m", COM.Verbose)
+		fmt.Print("\033[32m[ verbose ] \033[0m", COM.Verbose)
 	}
 	if asked {
 		println(" -> toggle: 'jpm setup -v'")
@@ -165,8 +177,8 @@ func checkkotlin(silent bool) bool {
 }
 func CheckJava(silent bool) bool {
 	javac := COM.JAVAC()
-	if javac == "javac" {
-		if err := runScript("which javac || where javac", false); err != nil && !silent {
+	if javac == "java" {
+		if err := runScript("which java || where java", false); err != nil && !silent {
 			println("\n\033[31m( java )\033[0m is not accesible")
 			if asked {
 				println("\tfix: jpm setup -java   -> uses jetbrains dcevm for 'jpm run -hot'")
@@ -220,19 +232,19 @@ func CheckJPX(silent bool) bool {
 	return true
 }
 
-func checkJar(silent bool) bool {
-	if err := runScript("which jar || where jar", false); err != nil {
+func checkJavac(silent bool) bool {
+	if err := runScript("which javac || where javac", false); err != nil {
 		if !silent {
-			println("\n\033[31m( jar )\033[0m is not accesible, you won't be able to bundle your app")
+			println("\n\033[31m( javac )\033[0m is not accesible, you won't be able to compile your app")
 			if asked {
-				println("\tfix mac    : sdk install openjdk\n")
+				println("\tfix unix   : sdk install openjdk\n")
 				println("\tfix windows: winget install Microsoft.OpenJDK.25\n")
 			}
 		}
 		return false
 	} else {
 		if !silent {
-			println("\033[32m( jar )\033[0m works")
+			println("\033[32m( javac )\033[0m works")
 		}
 	}
 	return true

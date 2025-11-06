@@ -25,9 +25,9 @@ func Run() error {
 	}
 	if len(os.Args) == 2 {
 		if COM.IsWindows() {
-			return COM.RunCMD(COM.ParseEnvVars(prefix, false)+"cd out && "+COM.JAVA()+" "+args+" -p ../jpm_dependencies -cp \".;./*;../jpm_dependencies/*\" "+mainClass, true)
+			return COM.RunCMD(COM.ParseEnvVars(prefix, false)+"cd out && java "+args+" -p ../jpm_dependencies -cp \".;./*;../jpm_dependencies/*\" "+mainClass, true)
 		} else {
-			return COM.RunScript(COM.ParseEnvVars(prefix, true)+"cd out && "+COM.JAVA()+" "+args+" -p ../jpm_dependencies -cp \".:./*:../jpm_dependencies/*\" "+mainClass, true)
+			return COM.RunScript(COM.ParseEnvVars(prefix, true)+"cd out && java "+args+" -p ../jpm_dependencies -cp \".:./*:../jpm_dependencies/*\" "+mainClass, true)
 		}
 	}
 	allRunArgs, found := argsMap["hotswap"]
@@ -64,9 +64,9 @@ func Run() error {
 				runArgs += os.Args[i]
 			}
 			if COM.IsWindows() {
-				return COM.RunCMD(COM.ParseEnvVars(prefix, false)+"cd out && "+COM.JAVA()+" "+args+" -p ../jpm_dependencies -cp \".;./*;../jpm_dependencies/*\" "+mainClass+" "+runArgs, true)
+				return COM.RunCMD(COM.ParseEnvVars(prefix, false)+"cd out && java "+args+" -p ../jpm_dependencies -cp \".;./*;../jpm_dependencies/*\" "+mainClass+" "+runArgs, true)
 			} else {
-				return COM.RunScript(COM.ParseEnvVars(prefix, true)+"cd out && "+COM.JAVA()+" "+args+" -p ../jpm_dependencies -cp \".:./*:../jpm_dependencies/*\" "+mainClass+" "+runArgs, true)
+				return COM.RunScript(COM.ParseEnvVars(prefix, true)+"cd out && java "+args+" -p ../jpm_dependencies -cp \".:./*:../jpm_dependencies/*\" "+mainClass+" "+runArgs, true)
 			}
 		}
 	}

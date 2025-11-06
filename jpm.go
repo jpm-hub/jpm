@@ -106,6 +106,11 @@ func main() {
 			os.Exit(1)
 		}
 		return
+	case "is-windows":
+		if COM.IsWindows() {
+			os.Exit(0)
+		}
+		os.Exit(1)
 	case "setup":
 		sw := []string{"-java", "-kotlin", "-junit", "-hotswap", "-v", "-jpx"}
 		if len(os.Args) > 2 && slices.Contains(sw, os.Args[2]) {
@@ -151,7 +156,7 @@ func main() {
 	case "test":
 		execOverride("test")
 		if err := TEST.TestScript(); err != nil {
-			println("\n" + err.Error())
+			println("\n Tests failed")
 			os.Exit(1)
 		}
 	case "i":
