@@ -131,6 +131,9 @@ func saveJPMExecToDownloadList(scope, dep, version string) {
 }
 
 func downloadDepsJPM(d *jpmRepo) {
+	if checkJPMExcludes(d.Package) {
+		return
+	}
 	firstLetter := strings.ToLower(d.Package[0:1])
 	url := jpmRepoUrl + firstLetter + "/" + d.Package + "/" + d.Version + "/dependencies.json"
 	deps, err := downloadJson(url)
@@ -175,7 +178,11 @@ func downloadDepsJPM(d *jpmRepo) {
 	print("-")
 }
 func checkJPMExcludes(dep string) bool {
-	if slices.Contains(excludes, strings.Split(dep, "|")[1]) && currentOuterScope != "exec" {
+	dep = strings.TrimSuffix(dep, "|test")
+	dep = strings.TrimSuffix(dep, "|")
+	depS := strings.Split(dep, "|")
+	dep = depS[len(depS)-1]
+	if slices.Contains(excludes, dep) && currentOuterScope != "exec" {
 		if COM.Verbose {
 			addFinishMessage("Info : excluded " + strings.Split(dep, "|")[1])
 			foundExcluded(strings.Split(dep, "|")[1])

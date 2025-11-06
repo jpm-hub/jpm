@@ -1,13 +1,24 @@
 package: tst
+packages:
+  - packageA
+  - packageB
 classified: true
-packages: ["packageA", "packageB"]
 scripts:
   build: |
     go build
     rm -f /c/Users/deris/.jpm/jpm.exe
     cp jpm.exe /c/Users/deris/.jpm/jpm.exe
 dependencies:
-  - local localdepA
-  - local ../
-  - local ../localdepB
-  - local localdepA/localdepC
+  - neutron:1.0.1
+  - concurrently:1.0.0
+  - eventer:1.0.0
+  - com.fasterxml.jackson.core jackson-core:2.20.1
+classifiers:
+  org.openjfx: mac
+  '*': '*:mac'
+repos:
+  - default: https://repo1.maven.org/maven2/
+excludes:
+  - jackarta.annotations
+  - eventer
+  - jackson-core

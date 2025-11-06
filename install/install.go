@@ -54,16 +54,38 @@ func Install() {
 	COM.FindPackageYML(true)
 	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
 	COM.CopyToDependencies(COM.GetSection("language", true).(string))
-	for i, arg := range os.Args {
-		if arg == "-f" {
-			if !COM.Ping("https://github.com") {
+	for i := 0; i < len(os.Args); i++ {
+		if os.Args[i] == "-no" {
+			COM.AddToSection("excludes", os.Args[i+1])
+			os.Args = append(os.Args[:i], os.Args[i+2:]...)
+			i--
+			continue
+		}
+		if os.Args[i] == "-with" {
+			COM.AddToSection("classifiers", determineCLIClassifier(os.Args[i+1]))
+			os.Args = append(os.Args[:i], os.Args[i+2:]...)
+			i--
+			continue
+		}
+		if os.Args[i] == "-repo" {
+			addNewRepo(os.Args[i+1])
+			os.Args = append(os.Args[:i], os.Args[i+2:]...)
+			i--
+			continue
+		}
+		if os.Args[i] == "-f" {
+			if force {
+				println(" -f is used too many times!")
+			}
+			if !force && !COM.Ping("https://github.com") {
 				println("\tCould not reach jpm repo at " + jpmRepoUrl)
 				println("\tPlease check your internet connection or try again later")
 				os.Exit(1)
 			}
 			os.Args = append(os.Args[:i], os.Args[i+1:]...)
 			force = true
-			break
+			i--
+			continue
 		}
 	}
 
@@ -77,12 +99,6 @@ func Install() {
 		deps := COM.GetDependencies(false)
 		aliases := findExistingAliases()
 		installFromYML(aliases, deps, true)
-	case 4:
-		if os.Args[2] == "-repo" {
-			addNewRepo(os.Args[3])
-			return
-		}
-		fallthrough
 	default:
 		if force {
 			println("\033[31mcannot force install\033[0m")
@@ -95,6 +111,14 @@ func Install() {
 	for _, v := range finishMessages {
 		println("\033[38;5;208m"+tab, v, "\033[0m")
 	}
+}
+
+func determineCLIClassifier(s string) any {
+	if !strings.Contains(s, ":") || strings.Contains(s, "*:") || strings.Contains(s, "'*':") || strings.Contains(s, "\"*\":") {
+		return map[string]string{"*": s}
+	}
+	slices := strings.SplitN(s, ":", 2)
+	return map[string]string{slices[0]: slices[1]}
 }
 
 func execChmod() {
@@ -431,6 +455,18 @@ func resolveDependecy() map[string]string {
 		}
 	}
 	maps.DeleteFunc(depMap, func(k string, v string) bool { return v == "" || k == "" || strings.HasPrefix(k, "|") })
+	maps.DeleteFunc(depMap, func(k string, v string) bool {
+		for _, ex := range excludes {
+			k = strings.TrimSuffix(k, "|test")
+			k = strings.TrimSuffix(k, "|")
+			ks := strings.Split(k, "|")
+			k = ks[len(ks)-1]
+			if k == ex {
+				return true
+			}
+		}
+		return false
+	})
 	switch currentWorkingRepo {
 	case jpmRepoUrl:
 		g_lockDeps.JPM = depMap

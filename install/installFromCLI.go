@@ -9,25 +9,26 @@ import (
 
 func installFromCLI() {
 	aliases := findExistingAliases()
-	depString := strings.Join(os.Args[2:], " ")
-	depString = strings.ReplaceAll(depString, "--save-dev", "exec")
-	depString = COM.NormalizeSpaces(depString)
-	aliases = append(aliases, "raw")
-	jpmDeps, noneJpmdeps := findAllJPM([]string{depString}, aliases)
-	var err error
-	if len(jpmDeps) > 0 {
-		depString, err = fromJPMCLI(depString)
-	} else if len(noneJpmdeps) > 0 {
-		// is from repo
-		depString, err = fromRepoCLI(depString)
-	} else {
-		// is from raw
-		depString, err = fromRawCLI(depString)
-	}
-	if err == nil {
-		COM.AddToSection("dependencies", depString)
-	} else {
-		os.Exit(1)
+	ds := strings.Join(os.Args[2:], " ")
+	depStrings := strings.Split(ds, ",")
+	for _, depString := range depStrings {
+		depString = strings.ReplaceAll(depString, "--save-dev", "exec")
+		depString = COM.NormalizeSpaces(depString)
+		aliases = append(aliases, "raw")
+		jpmDeps, noneJpmdeps := findAllJPM([]string{depString}, aliases)
+		var err error
+		if len(jpmDeps) > 0 {
+			depString, err = fromJPMCLI(depString)
+		} else if len(noneJpmdeps) > 0 {
+			// is from repo
+			depString, err = fromRepoCLI(depString)
+		} else {
+			// is from raw
+			depString, err = fromRawCLI(depString)
+		}
+		if err == nil {
+			COM.AddToSection("dependencies", depString)
+		}
 	}
 }
 func fromJPMCLI(depString string) (string, error) {
