@@ -34,8 +34,6 @@ echo    - %JPM_EXECS%
 echo.
 echo 5. Update PATH environment variable
 echo.
-echo WARNING: This operation requires administrator privileges to modify
-echo          the system PATH environment variable.
 pause
 
 :: Create JPM directories
