@@ -6,8 +6,8 @@ classified: true
 scripts:
   build: |
     go build
-    rm -f /c/Users/deris/.jpm/jpm.exe
-    cp jpm.exe /c/Users/deris/.jpm/jpm.exe
+    rm -f /c/Users/sderisme/.jpm/jpm.exe
+    cp jpm.exe /c/Users/sderisme/.jpm/jpm.exe
 dependencies:
   - neutron:1.0.1
   - concurrently:1.0.0

@@ -114,7 +114,7 @@ func Install() {
 }
 
 func determineCLIClassifier(s string) any {
-	if !strings.Contains(s, ":") || strings.Contains(s, "*:") || strings.Contains(s, "'*':") || strings.Contains(s, "\"*\":") {
+	if !strings.Contains(s, ":") {
 		return map[string]string{"*": s}
 	}
 	slices := strings.SplitN(s, ":", 2)

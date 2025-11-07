@@ -14,6 +14,9 @@ import (
 
 var packageName string
 var version string
+var publishing = false
+var keepClassifiers = false
+var execing = false
 
 func Bundle() {
 	COM.FindPackageYML(true)
@@ -25,6 +28,7 @@ func Bundle() {
 		for _, entry := range entries {
 			os.RemoveAll(filepath.Join(distDir, entry.Name()))
 		}
+		os.RemoveAll(filepath.Join("out"))
 	}
 	os.MkdirAll(filepath.Join("dist", "_dump"), 0755)
 	version = COM.GetSection("version", true).(string)
@@ -37,11 +41,8 @@ func Bundle() {
 		name = n
 	}
 	println("\033[32mBundleling " + name + ".jar \033[0m")
-	main := ""
 	classes := ""
 	exec := ""
-	publishing := false
-	keepClassifiers := false
 	var builder strings.Builder
 	builder.WriteString("jar cf")
 	handled := []string{}
@@ -60,14 +61,7 @@ func Bundle() {
 		case "-native":
 			println("Bundling to native is not yet supported, yet...")
 		case "-exec":
-			main = COM.GetSection("main", true).(string)
-			if main == "" {
-				println("\tpackage.yml must contain main")
-				os.Exit(1)
-			}
-			println("\t --- Bundleling with", main, "as execution Main-Class")
-			createScripts(main)
-			exec = "e " + name + ".jar " + main
+			execing = true
 		case "-publish":
 			publishing = true
 		case "--keep-classifiers":
@@ -77,6 +71,7 @@ func Bundle() {
 		}
 	}
 	println("\033[32mInstalling \033[0m")
+	exec = makeExec(name)
 	makePublish(publishing, keepClassifiers)
 	println("\033[32mCompiling \033[0m")
 	err = COM.RunScript("jpm compile", true)
@@ -107,6 +102,20 @@ func Bundle() {
 	if !COM.Verbose {
 		os.RemoveAll(filepath.Join("dist", "_dump"))
 	}
+}
+
+func makeExec(name string) string {
+	if !execing {
+		return ""
+	}
+	main := COM.GetSection("main", true).(string)
+	if main == "" {
+		println("\tpackage.yml must contain main")
+		os.Exit(1)
+	}
+	println("\t --- Bundleling with", main, "as execution Main-Class")
+	createScripts(main)
+	return "e " + name + ".jar " + main
 }
 
 func getName() string {
@@ -155,6 +164,19 @@ func createScripts(main string) {
 		args = ""
 	} else {
 		args = " " + args
+	}
+	if publishing {
+		unixArgs := strings.ReplaceAll(args, "../jpm_dependencies", "jpm_dependencies")
+		unix := fmt.Sprintf(`#!/bin/bash
+`+COM.ParseEnvVars("export ", true)+`
+if $(jpm is-windows > /dev/null ); then
+    java%s -p "jpm_dependencies;jpm_dependencies/execs" -cp "jpm_dependencies/*;jpm_dependencies/execs/*" %s $@
+    exit $?; else
+    java%s -p jpm_dependencies:jpm_dependencies/execs -cp "jpm_dependencies/*:jpm_dependencies/execs/*" %s $@
+    exit $?
+fi; echo "unknown OS" && exit 1`, unixArgs, main, unixArgs, main)
+		os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)), []byte(unix+"\n"), 0755)
+		return
 	}
 	unixArgs := strings.ReplaceAll(args, "../jpm_dependencies", "jar_libraries")
 	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ", true)+"java%s -p jar_libraries -cp ./*:jar_libraries/* %s $@", unixArgs, main)

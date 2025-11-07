@@ -24,10 +24,10 @@ func addNewRepo(repoString string) {
 	}
 	for _, v := range repoSection.([]any) {
 		if _, ok := v.(map[string]string)[alias]; ok {
-			println("alias :" + alias + " already existant")
-			os.Exit(1)
+			println("alias :" + alias + " already existant, please override it manually in package.yml")
 			return
 		}
 	}
 	COM.AddToSection("repos", map[string]string{alias: addr})
+	addFinishMessage("\033[33mInfo : added repo " + alias + " : " + addr + " \033[0m")
 }

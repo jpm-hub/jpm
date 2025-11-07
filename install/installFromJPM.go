@@ -71,6 +71,7 @@ func disectJPMDepString(d string) (jpmRepo, error) {
 		if checkValidScope(dSlices[1]) {
 			scope = dSlices[1]
 		} else {
+			println("\033[38;5;208m" + tab + "Did you add a repository url for " + dSlices[1] + " ?\033[0m")
 			printNotValidScope(dSlices[1])
 			return jpmRepo{}, errors.New("wrong scope")
 		}

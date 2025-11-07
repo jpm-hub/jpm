@@ -1,7 +1,30 @@
 #!/bin/bash
-export PATH="$PATH:$(pwd)/jpm_dependencies/execs"
+curdir="$(pwd)"
+max_traverse=10
+traverse_count=0
+found_package_yml=0
+
 if [ $# -eq 0 ]; then
 	jpm
 else
+	while [ $traverse_count -lt $max_traverse ]; do
+		if [ -f "$curdir/package.yml" ]; then
+			cd "$curdir"
+			found_package_yml=1
+			break
+		fi
+		parentdir="$(dirname "$curdir")"
+		if [ "$parentdir" = "$curdir" ]; then
+			break
+		fi
+		curdir="$parentdir"
+		traverse_count=$((traverse_count+1))
+	done
+
+	if [ $found_package_yml -eq 0 ]; then
+		echo "Error: package.yml not found"
+		exit 1
+	fi
+	export PATH="$PATH:$(pwd)/jpm_dependencies/execs"
 	"$@"
 fi

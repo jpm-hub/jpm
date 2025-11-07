@@ -355,7 +355,6 @@ func AddToSection(sectionName string, sectionValue any) {
 			}
 			// we already check if it exists when calling -repo
 			for k, v := range repoMap {
-				fmt.Println("Adding", k+":", v)
 				newRepos.Values[k] = v
 				newRepos.Order = append(newRepos.Order, k)
 			}
@@ -379,9 +378,6 @@ func AddToSection(sectionName string, sectionValue any) {
 		}
 		if classifierMap, ok := sectionValue.(map[string]string); ok {
 			for k, v := range classifierMap {
-				if _, exists := packageYML.Classifiers[k]; exists {
-					continue
-				}
 				pkgYAML.Classifiers.Values[k] = v
 				packageYML.Classifiers[k] = v
 				pkgYAML.Classifiers.Order = append(pkgYAML.Classifiers.Order, k)
