@@ -11,7 +11,6 @@ import (
 )
 
 var asked bool = false
-var sdkOK bool = false
 
 func Doctor(silent bool, ask bool) bool {
 	asked = ask
@@ -22,7 +21,7 @@ func Doctor(silent bool, ask bool) bool {
 			err := runScript(`[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]`, false)
 			if err != nil {
 				println(" SDKMAN! is very a lightweight tool to install JVMs, SDKs, JDKs and more.")
-				err = runScript("read -n 1 -s -p \"Press any key to install sdkman...\n\" echo", true)
+				err = runScript("read ok \"Press enter to install sdkman... (ctrl+c to cancel)\n\" echo", true)
 				if err == nil {
 					runScript("curl -s \"https://get.sdkman.io\" | bash", true)
 				} else {
@@ -166,7 +165,7 @@ func checkJUnit(silent bool) bool {
 	return true
 }
 func checkkotlin(silent bool) bool {
-	if COM.KOTLINC() == "" && !silent {
+	if (COM.IsWindows() && COM.KOTLINC() == "" || which("kotlinc") == false) && !silent {
 		println("\n\033[33m( kotlinc )\033[0m is not accesible")
 		if asked {
 			if !COM.IsWindows() {
@@ -186,7 +185,7 @@ func checkkotlin(silent bool) bool {
 func CheckJava(silent bool) bool {
 	java := COM.JAVA()
 	if java == "java" {
-		if err := runScript("which java || where java", false); err != nil && !silent {
+		if which("java") == false && !silent {
 			println("\n\033[31m( java )\033[0m is not accesible")
 			if asked {
 				println("\tfix: jpm setup -java   -> uses jetbrains dcevm for 'jpm run -hot'")
@@ -210,7 +209,7 @@ func CheckJava(silent bool) bool {
 }
 
 func CheckGit(silent bool) bool {
-	if err := runScript("which git || where git", false); err != nil && !silent {
+	if which("git") == false && !silent {
 		println("\n\033[31m( git )\033[0m is not accesible")
 		if asked {
 			println("\tfix mac    : brew install git")
@@ -227,7 +226,7 @@ func CheckGit(silent bool) bool {
 }
 
 func CheckJPX(silent bool) bool {
-	if err := runScript("which jpx || where jpx", false); err != nil && !silent {
+	if which("jpx") == false && !silent {
 		println("\n\033[31m( jpx )\033[0m is not accesible")
 		if asked {
 			println("\tfix    : jpm setup -jpx")
@@ -242,7 +241,7 @@ func CheckJPX(silent bool) bool {
 }
 
 func checkJavac(silent bool) bool {
-	if err := runScript("which javac || where javac", false); err != nil {
+	if which("javac") == false {
 		if !silent {
 			println("\n\033[31m( javac )\033[0m is not accesible, you won't be able to compile your app")
 			if asked {
@@ -258,7 +257,10 @@ func checkJavac(silent bool) bool {
 	}
 	return true
 }
-
+func which(cmd string) bool {
+	err := runScript("which "+cmd+" || where "+cmd, false)
+	return err == nil
+}
 func runScript(script string, s bool) error {
 	var cmd *exec.Cmd
 	if COM.IsWindows() {
