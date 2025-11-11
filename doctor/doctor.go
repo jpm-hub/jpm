@@ -11,6 +11,7 @@ import (
 )
 
 var asked bool = false
+var sdkOK bool = false
 
 func Doctor(silent bool, ask bool) bool {
 	asked = ask
@@ -18,9 +19,9 @@ func Doctor(silent bool, ask bool) bool {
 	if len(os.Args) > 2 && os.Args[2] == "-fix" {
 		fix = true
 		if !COM.IsWindows() {
-			err := runScript("which sdk", false)
+			err := runScript(`[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]`, false)
 			if err != nil {
-				println(" SDKMAN! is very lightweight tool to install versions of jvm languages and more.")
+				println(" SDKMAN! is very a lightweight tool to install JVMs, SDKs, JDKs and more.")
 				err = runScript("read -n 1 -s -p \"Press any key to install sdkman...\n\" echo", true)
 				if err == nil {
 					runScript("curl -s \"https://get.sdkman.io\" | bash", true)
@@ -53,7 +54,6 @@ func Doctor(silent bool, ask bool) bool {
 	}
 	if fix && asked && !goodFinal {
 		os.Args[2] = ""
-		Doctor(silent, false)
 		println("\n\033[32m You might need to restart your terminal or IDE \033[0m")
 	}
 	return goodFinal
@@ -64,7 +64,7 @@ func fixjavac(b bool) {
 		return
 	}
 	if !COM.IsWindows() {
-		runScript("sdk install openjdk", true)
+		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ]] && source \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install java 25.0.1-tem", true)
 	} else {
 		runScript("winget install Microsoft.OpenJDK.25", true)
 	}
@@ -74,7 +74,11 @@ func fixkotlin(b bool) {
 	if !b {
 		return
 	}
-	runScript("jpm setup -kotlin", true)
+	if !COM.IsWindows() {
+		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ]] && source \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install kotlin", true)
+	} else {
+		runScript("jpm setup -kotlin", true)
+	}
 }
 
 func fixjunit(b bool) {
@@ -100,7 +104,7 @@ func fixgit(b bool) {
 	} else if strings.Contains(runtime.GOOS, "windows") {
 		runScript("winget install Git.Git", true)
 	} else {
-		runScript("apt-get install git || pacman -S git || dnf install git", true)
+		runScript("apt-get install git || pacman -S git || dnf install git || apk add git", true)
 	}
 }
 
@@ -165,7 +169,11 @@ func checkkotlin(silent bool) bool {
 	if COM.KOTLINC() == "" && !silent {
 		println("\n\033[33m( kotlinc )\033[0m is not accesible")
 		if asked {
-			println("\tfix: jpm setup -kotlin\n")
+			if !COM.IsWindows() {
+				println("\tfix : sdk install kotlin\n")
+			} else {
+				println("\tfix : jpm setup -kotlin\n")
+			}
 		}
 		return false
 	} else {
@@ -176,8 +184,8 @@ func checkkotlin(silent bool) bool {
 	return true
 }
 func CheckJava(silent bool) bool {
-	javac := COM.JAVAC()
-	if javac == "java" {
+	java := COM.JAVA()
+	if java == "java" {
 		if err := runScript("which java || where java", false); err != nil && !silent {
 			println("\n\033[31m( java )\033[0m is not accesible")
 			if asked {
@@ -206,6 +214,7 @@ func CheckGit(silent bool) bool {
 		println("\n\033[31m( git )\033[0m is not accesible")
 		if asked {
 			println("\tfix mac    : brew install git")
+			println("\tfix linux  : apt-get install git || pacman -S git || dnf install git || apk add git")
 			println("\tfix windows: winget install Git.Git")
 		}
 		return false
@@ -237,7 +246,7 @@ func checkJavac(silent bool) bool {
 		if !silent {
 			println("\n\033[31m( javac )\033[0m is not accesible, you won't be able to compile your app")
 			if asked {
-				println("\tfix unix   : sdk install openjdk\n")
+				println("\tfix unix   : sdk install java 25.0.1-tem\n")
 				println("\tfix windows: winget install Microsoft.OpenJDK.25\n")
 			}
 		}
@@ -253,10 +262,8 @@ func checkJavac(silent bool) bool {
 func runScript(script string, s bool) error {
 	var cmd *exec.Cmd
 	if COM.IsWindows() {
-		// On Windows, use cmd.exe to create a process group
 		cmd = exec.Command("cmd", "/C", script)
 	} else {
-		// On Unix, use sh -c with exec to ensure proper process group
 		cmd = exec.Command("sh", "-c", script)
 	}
 	if s {

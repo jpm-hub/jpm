@@ -56,10 +56,10 @@ func Bundle() {
 		handled = append(handled, arg)
 		switch arg {
 		case "-fat":
-			println("Bundling to a fat jar is not yet supported")
+			println("Bundling to a fat jar is not yet supported, yet..., help us implement it!")
 			os.Exit(1)
 		case "-native":
-			println("Bundling to native is not yet supported, yet...")
+			println("Bundling to native is not yet supported, yet..., help us implement it!")
 		case "-exec":
 			execing = true
 		case "-publish":
@@ -70,7 +70,6 @@ func Bundle() {
 			println("\t unknown option", arg)
 		}
 	}
-	println("\033[32mInstalling \033[0m")
 	exec = makeExec(name)
 	makePublish(publishing, keepClassifiers)
 	println("\033[32mCompiling \033[0m")
@@ -191,6 +190,7 @@ func makePublish(publishing bool, keepClassifiers bool) {
 	if !publishing {
 		return
 	}
+	println("\033[32mInstalling \033[0m")
 	depsJson := removeClassifiers(removeScopes(INSTALL.QuickInstall(publishing)), keepClassifiers)
 	fp := filepath.Join("dist", "dependencies.json")
 

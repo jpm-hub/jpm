@@ -26,6 +26,9 @@ func Setup(setupSwitch string) {
 	case "-v":
 		osless.Verbose(appHomeDir)
 		return
+	case "-clear":
+		osless.Clear(appHomeDir)
+		return
 	case "-jpx":
 		osless.Jpx()
 		return

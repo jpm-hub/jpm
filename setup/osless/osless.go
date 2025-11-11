@@ -9,8 +9,8 @@ import (
 )
 
 func Kotlinc(homeDir string) {
-	url := "https://github.com/JetBrains/kotlin/releases/download/v2.2.0/kotlin-compiler-2.2.0.zip"
-	filename := "kotlin-compiler-2.2.0.zip"
+	url := "https://github.com/JetBrains/kotlin/releases/download/v2.2.21/kotlin-compiler-2.2.21.zip"
+	filename := "kotlin-compiler-2.2.21.zip"
 	println("  --- Downloading")
 	COM.DownloadFile(url, homeDir, filename, true, false)
 	println("  --- Extracting")
@@ -37,6 +37,16 @@ func HotSwapAgentPlugin(homeDir string) {
 	COM.DownloadFile(url, pluginDir, filename, true, false)
 	os.Rename(filepath.Join(pluginDir, filename), filepath.Join(pluginDir, "hotswap-agent.jar"))
 	println("\033[32m  --- Hotswap-Agent setup done\033[0m")
+}
+
+func Clear(homeDir string) {
+	entries, err := os.ReadDir(homeDir)
+	if err == nil {
+		for _, entry := range entries {
+			os.RemoveAll(filepath.Join(homeDir, entry.Name()))
+		}
+	}
+	println("\033[32m  --- Cleared .jpm dir \033[0m")
 }
 
 func Verbose(homeDir string) {

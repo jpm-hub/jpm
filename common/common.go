@@ -180,7 +180,7 @@ func KOTLINC() string {
 	if _, err := os.Stat(kotlinc); !os.IsNotExist(err) {
 		return kotlinc
 	}
-	return ""
+	return ktc
 }
 
 func CheckDeps(dep string) {

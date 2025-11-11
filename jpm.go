@@ -114,7 +114,7 @@ func main() {
 		}
 		os.Exit(1)
 	case "setup":
-		sw := []string{"-java", "-kotlin", "-junit", "-hotswap", "-v", "-jpx"}
+		sw := []string{"-java", "-kotlin", "-junit", "-hotswap", "-v", "-jpx", "-clear"}
 		if len(os.Args) > 2 && slices.Contains(sw, os.Args[2]) {
 			SETUP.Setup(os.Args[2])
 			return

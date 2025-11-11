@@ -13,7 +13,6 @@ for /f "tokens=2 delims==" %%a in ('wmic useraccount where name="%USERNAME%" get
 
 :: Set JPM directories
 set JPM_HOME=C:\Users\%USERNAME%\.jpm
-set JPM_EXECS=%JPM_HOME%\execs
 
 echo This script will install JPM (JVM Package Manager) on your Windows system.
 echo.
@@ -30,7 +29,6 @@ echo    - %JPM_HOME%\jpm.exe
 echo.
 echo 4. Add the following directories to your user PATH:
 echo    - %JPM_HOME%
-echo    - %JPM_EXECS%
 echo.
 echo 5. Update PATH environment variable
 echo.
@@ -39,7 +37,6 @@ pause
 :: Create JPM directories
 echo Creating JPM directories...
 if not exist "%JPM_HOME%" mkdir "%JPM_HOME%"
-if not exist "%JPM_EXECS%" mkdir "%JPM_EXECS%"
 echo - Directories created successfully
 echo.
 
@@ -112,7 +109,7 @@ echo.
 :: Update PATH environment variable
 echo Updating user PATH...
 set CURRENT_PATH=%PATH%
-set JPM_PATH=%JPM_HOME%;%JPM_EXECS%
+set JPM_PATH=%JPM_HOME%
 
 :: Check if JPM paths are already in PATH
 echo %CURRENT_PATH% | findstr /i "%JPM_HOME%" >nul

@@ -27,8 +27,8 @@ func SetupDarwinArm64(setupSwitch string, homeDir string) {
 
 func dcevmPlugin(homeDir string) {
 	// DCEVM for macOS ARM64 (M1/M2)
-	url := "https://cache-redirector.jetbrains.com/intellij-jbr/jbr_jcef-21.0.7-osx-aarch64-b1020.35.tar.gz"
-	filename := "jbr_jcef-21.0.7-osx-aarch64-b1020.35.tar.gz"
+	url := "https://cache-redirector.jetbrains.com/intellij-jbr/jbr-25-osx-aarch64-b176.4.tar.gz"
+	filename := "jbr-25-osx-aarch64-b176.4.tar.gz"
 	println("  --- Downloading")
 	COM.DownloadFile(url, homeDir, filename, true, false)
 	println("  --- Extracting")

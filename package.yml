@@ -1,4 +1,5 @@
 package: tst
+version: 0.0.0
 packages:
   - packageA
   - packageB
