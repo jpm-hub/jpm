@@ -21,7 +21,7 @@ func Doctor(silent bool, ask bool) bool {
 			err := runScript(`[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]`, false)
 			if err != nil {
 				println(" SDKMAN! is very a lightweight tool to install JVMs, SDKs, JDKs and more.")
-				err = runScript("read ok \"Press enter to install sdkman... (ctrl+c to cancel)\n\" echo", true)
+				err = runScript("read -p \"Press enter to install sdkman... (ctrl+c to cancel)\n\" ok", true)
 				if err == nil {
 					runScript("curl -s \"https://get.sdkman.io\" | bash", true)
 				} else {
