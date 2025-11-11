@@ -26,7 +26,8 @@ func Doctor(silent bool, ask bool) bool {
 					runScript("which curl || echo please install curl on you system", true)
 					runScript("which unzip || echo please install unzip on you system", true)
 					runScript("which zip || echo please install zip on you system", true)
-					err = runScript("which zip && which unzip && which curl", true)
+					runScript("which bash || echo please install bash on you system", true)
+					err = runScript("which bash&& which zip && which unzip && which curl", true)
 					if err != nil {
 						println(" Aborting sdkman installation")
 						os.Exit(1)
@@ -71,7 +72,7 @@ func fixjavac(b bool) {
 		return
 	}
 	if !COM.IsWindows() {
-		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install java 25.0.1-tem", true)
+		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ] && . \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install java 25.0.1-tem", true)
 	} else {
 		runScript("winget install Microsoft.OpenJDK.25", true)
 	}
@@ -82,7 +83,7 @@ func fixkotlin(b bool) {
 		return
 	}
 	if !COM.IsWindows() {
-		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install kotlin", true)
+		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ] && . \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install kotlin", true)
 	} else {
 		runScript("jpm setup -kotlin", true)
 	}
@@ -274,7 +275,13 @@ func runScript(script string, s bool) error {
 	if COM.IsWindows() {
 		cmd = exec.Command("cmd", "/C", script)
 	} else {
-		cmd = exec.Command("sh", "-c", script)
+		err := exec.Command("sh", "-c", "which bash").Run()
+		if err == nil {
+			cmd = exec.Command("bash", "-c", script)
+		} else {
+			println("bash shell is not available !!!")
+			cmd = exec.Command("sh", "-c", script)
+		}
 	}
 	if s {
 		cmd.Stdout = os.Stdout
