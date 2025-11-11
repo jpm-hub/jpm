@@ -155,9 +155,6 @@ func Init() {
 	Verbose = cfg.Verbose
 }
 
-func JAVAC() string {
-	return "javac"
-}
 func JAVA() string {
 	java := "java"
 	if IsWindows() {
@@ -171,16 +168,11 @@ func JAVA() string {
 }
 
 func KOTLINC() string {
-	kotlinc := ""
-	ktc := "kotlinc"
-	if IsWindows() {
-		ktc = ktc + ".bat"
-	}
-	kotlinc = filepath.Join(HomeDir(), "kotlinc", "bin", ktc)
+	kotlinc := filepath.Join(HomeDir(), "kotlinc", "bin", "kotlinc.bat")
 	if _, err := os.Stat(kotlinc); !os.IsNotExist(err) {
 		return kotlinc
 	}
-	return ""
+	return "kotlinc"
 }
 
 func CheckDeps(dep string) {

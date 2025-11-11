@@ -47,7 +47,7 @@ func compileTestKotlin() error {
 		err4 = COM.RunCMD(COM.KOTLINC()+" "+args+" -cp \""+"out;"+jarFilesString+"\" -d out "+allkts, true)
 	} else {
 		allkts := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "*.kt"), findAllSrcFile("tests", "*.kt")}, " ")
-		err4 = COM.RunScript(COM.KOTLINC()+" -cp \""+"out:"+jarFilesString+"\" "+args+" -d out "+allkts, true)
+		err4 = COM.RunScript("kotlinc  -cp \""+"out:"+jarFilesString+"\" "+args+" -d out "+allkts, true)
 	}
 	if err4 != nil {
 		return fmt.Errorf("\033[31m test compilation failed for kotlin\033[0m")

@@ -11,7 +11,7 @@ import (
 func SetupWindowsAmd64(setupSwitch string, homeDir string) {
 	switch setupSwitch {
 	case "-hotswap":
-		if COM.JAVAC() == "javac" {
+		if COM.JAVA() == "java" {
 			println("\n Please setup dcevm first with : 'jpm setup -java'\n")
 			return
 		}

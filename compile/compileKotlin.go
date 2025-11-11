@@ -38,7 +38,7 @@ func compileKotlin() error {
 		err1 = COM.RunCMD(COM.KOTLINC()+" "+args+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
 	} else {
 		allKts := findAllSrcFile(COM.SrcDir(), "*.kt")
-		err1 = COM.RunScript(COM.KOTLINC()+" "+args+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
+		err1 = COM.RunScript("kotlinc "+args+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
 	}
 
 	if err1 != nil {

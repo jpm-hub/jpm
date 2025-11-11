@@ -112,7 +112,7 @@ func fixgit(b bool) {
 	} else if strings.Contains(runtime.GOOS, "windows") {
 		runScript("winget install Git.Git", true)
 	} else {
-		runScript("apt-get install git || pacman -S git || dnf install git || apk add git", true)
+		runScript("apt-get -y install git || pacman -S -noconfirm git || dnf install -y git || apk add git", true)
 	}
 }
 
@@ -174,7 +174,7 @@ func checkJUnit(silent bool) bool {
 	return true
 }
 func checkkotlin(silent bool) bool {
-	if (COM.IsWindows() && COM.KOTLINC() == "" || which("kotlinc") == false) && !silent {
+	if (COM.IsWindows() && COM.KOTLINC() != "kotlinc" || !which("kotlinc")) && !silent {
 		println("\n\033[33m( kotlinc )\033[0m is not accesible")
 		if asked {
 			if !COM.IsWindows() {
@@ -194,17 +194,17 @@ func checkkotlin(silent bool) bool {
 func CheckJava(silent bool) bool {
 	java := COM.JAVA()
 	if java == "java" {
-		if which("java") == false && !silent {
+		if !which("java") && !silent {
 			println("\n\033[31m( java )\033[0m is not accesible")
 			if asked {
-				println("\tfix: jpm setup -java   -> uses jetbrains dcevm for 'jpm run -hot'")
+				println("\tfix: jpm setup -java  -> uses jetbrains dcevm for 'jpm run -hot'")
 			}
 			return false
 		}
 		if !silent {
 			println("\n\033[33m( java )\033[0m works with no dcevm")
 			if asked {
-				println("\tfix: jpm setup -java   -> (recommended) uses jetbrains dcevm for 'jpm run -hot'\n")
+				println("\tfix: jpm setup -java  -> (recommended) uses jetbrains dcevm for 'jpm run -hot'\n")
 			}
 			return false
 		}
@@ -218,7 +218,7 @@ func CheckJava(silent bool) bool {
 }
 
 func CheckGit(silent bool) bool {
-	if which("git") == false && !silent {
+	if !which("git") && !silent {
 		println("\n\033[31m( git )\033[0m is not accesible")
 		if asked {
 			println("\tfix mac    : brew install git")
@@ -235,7 +235,7 @@ func CheckGit(silent bool) bool {
 }
 
 func CheckJPX(silent bool) bool {
-	if which("jpx") == false && !silent {
+	if !which("jpx") && !silent {
 		println("\n\033[31m( jpx )\033[0m is not accesible")
 		if asked {
 			println("\tfix    : jpm setup -jpx")
@@ -250,7 +250,7 @@ func CheckJPX(silent bool) bool {
 }
 
 func checkJavac(silent bool) bool {
-	if which("javac") == false {
+	if !which("javac") {
 		if !silent {
 			println("\n\033[31m( javac )\033[0m is not accesible, you won't be able to compile your app")
 			if asked {
