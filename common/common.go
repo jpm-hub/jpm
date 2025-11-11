@@ -697,7 +697,7 @@ func RunScript(script string, showStdOut bool) error {
 	if IsWindows() {
 		cmd = exec.Command("C:\\Program Files\\Git\\bin\\bash.exe", "-c", script)
 	} else {
-		cmd = exec.Command("bash", "-c", script)
+		cmd = exec.Command("sh", "-c", script)
 	}
 	if dir, err := os.Getwd(); err == nil {
 		cmd.Dir = dir

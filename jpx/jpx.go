@@ -1,7 +1,7 @@
 package jpx
 
 func SHTemplate() string {
-	return `#!/bin/bash
+	return `#!/bin/sh
 curdir="$(pwd)"
 max_traverse=10
 traverse_count=0

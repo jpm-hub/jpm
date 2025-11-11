@@ -666,10 +666,10 @@ func createExecScript(scope, scriptName, filename string) {
 	filename = "jpm_dependencies/execs/" + filename
 	scriptCmd := `
 	mainc=$(unzip -p ` + filename + ` META-INF/MANIFEST.MF | grep Main-Class | awk '/Main-Class:/ {print $2}'|tr -d '\n'| tr -d '\r')
-	if [[ -z "$mainc" ]]; then
+	if [ -z "$mainc" ]; then
 		exit 1
 	fi
-	echo "#!/bin/bash" > jpm_dependencies/execs/` + scriptName + `
+	echo "#!/bin/sh" > jpm_dependencies/execs/` + scriptName + `
 	printf "java -p \"jpm_dependencies` + separator + `jpm_dependencies/execs\ -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$mainc" '$@' >> jpm_dependencies/execs/` + scriptName
 	err := COM.RunScript(scriptCmd, true)
 	if err != nil {

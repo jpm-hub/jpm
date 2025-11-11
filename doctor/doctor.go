@@ -18,11 +18,19 @@ func Doctor(silent bool, ask bool) bool {
 	if len(os.Args) > 2 && os.Args[2] == "-fix" {
 		fix = true
 		if !COM.IsWindows() {
-			err := runScript(`[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]`, false)
+			err := runScript(`[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]`, false)
 			if err != nil {
 				println(" SDKMAN! is very a lightweight tool to install JVMs, SDKs, JDKs and more.")
 				err = runScript("read -p \"Press enter to install sdkman... (ctrl+c to cancel)\n\" ok", true)
 				if err == nil {
+					runScript("which curl || echo please install curl on you system", true)
+					runScript("which unzip || echo please install unzip on you system", true)
+					runScript("which zip || echo please install zip on you system", true)
+					err = runScript("which zip && which unzip && which curl", true)
+					if err != nil {
+						println(" Aborting sdkman installation")
+						os.Exit(1)
+					}
 					runScript("curl -s \"https://get.sdkman.io\" | bash", true)
 				} else {
 					os.Exit(1)
@@ -63,7 +71,7 @@ func fixjavac(b bool) {
 		return
 	}
 	if !COM.IsWindows() {
-		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ]] && source \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install java 25.0.1-tem", true)
+		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install java 25.0.1-tem", true)
 	} else {
 		runScript("winget install Microsoft.OpenJDK.25", true)
 	}
@@ -74,7 +82,7 @@ func fixkotlin(b bool) {
 		return
 	}
 	if !COM.IsWindows() {
-		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ]] && source \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install kotlin", true)
+		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ] && source \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install kotlin", true)
 	} else {
 		runScript("jpm setup -kotlin", true)
 	}
