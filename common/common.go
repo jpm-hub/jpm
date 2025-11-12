@@ -635,7 +635,12 @@ func GetDependencies(isFatal bool) []string {
 	}
 	return deps
 }
+
 func RunCMD(script string, showStdOut bool) error {
+	if !IsWindows() {
+		println("CMD is only available on windows")
+		return fmt.Errorf("CMD is only available on windows")
+	}
 	var cmd *exec.Cmd
 	if tmpFile, err := os.CreateTemp("", "jpm_script_*.cmd"); err == nil {
 		tmpFile.WriteString("@echo off\nchcp 65001 > NUL 2>&1\n" + script)

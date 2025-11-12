@@ -131,13 +131,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Update setup.cmd version
+      - name: Update setup.cmd and setup.sh version
         run: |
           # Extract version from consts.go
           VERSION=$(grep -o 'VERSION = "[0-9]\+\.[0-9]\+\.[0-9]\+"' common/consts.go | head -1 | cut -d'"' -f2)
           awk -v ver="$VERSION" '{if (/^set VERSION=/) print "set VERSION=" ver; else print}' setup.cmd > setup.cmd.tmp && mv setup.cmd.tmp setup.cmd
-          echo "setup.cmd updated successfully $VERSION"
-          grep "set VERSION" setup.cmd
+          awk -v ver="$VERSION" '{if (/^VERSION="/) print "VERSION=\"" ver "\""; else print}' setup.sh > setup.sh.tmp && mv setup.sh.tmp setup.sh
+          echo "setup.cmd and setup.sh updated successfully $VERSION"
 
       - name: Get version from code and check against last tag
         id: version
@@ -204,6 +204,7 @@ jobs:
           files: |
             artifacts/*.zip
             setup.cmd
+            setup.sh
           draft: false
           prerelease: false
           overwrite_files: false
