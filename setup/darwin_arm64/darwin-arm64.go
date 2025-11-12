@@ -21,7 +21,7 @@ func SetupDarwinArm64(setupSwitch string, homeDir string) {
 	case "-junit":
 		osless.JunitPlugin(homeDir)
 	case "-kotlin":
-		osless.Kotlinc(homeDir)
+		osless.Kotlinlib(homeDir)
 	}
 }
 

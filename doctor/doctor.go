@@ -23,11 +23,11 @@ func Doctor(silent bool, ask bool) bool {
 				println(" SDKMAN! is very a lightweight tool to install JVMs, SDKs, JDKs and more.")
 				err = runScript("read -p \"Press enter to install sdkman... (ctrl+c to cancel)\n\" ok", true)
 				if err == nil {
-					runScript("which curl || echo please install curl on you system", true)
-					runScript("which unzip || echo please install unzip on you system", true)
-					runScript("which zip || echo please install zip on you system", true)
-					runScript("which bash || echo please install bash on you system", true)
-					err = runScript("which bash&& which zip && which unzip && which curl", true)
+					runScript("which curl || echo please install curl on you system", false)
+					runScript("which unzip || echo please install unzip on you system", false)
+					runScript("which zip || echo please install zip on you system", false)
+					runScript("which bash || echo please install bash on you system", false)
+					err = runScript("which bash&& which zip && which unzip && which curl", false)
 					if err != nil {
 						println(" Aborting sdkman installation")
 						os.Exit(1)
@@ -52,9 +52,11 @@ func Doctor(silent bool, ask bool) bool {
 	fixjunit(!good5 && fix)
 	good6 := checkkotlin(silent)
 	fixkotlin(!good6 && fix)
-	good7 := checkJavac(silent)
-	fixjavac(!good7 && fix)
-	goodFinal := good1 && good2 && good3 && good4 && good5 && good6 && good7
+	good7 := checkkotlinlib(silent)
+	fixkotlinlib(!good7 && fix)
+	good8 := checkJavac(silent)
+	fixjavac(!good8 && fix)
+	goodFinal := good1 && good2 && good3 && good4 && good5 && good6 && good7 && good8
 	if goodFinal && asked {
 		println("\n\033[32mAll good!\033[0m")
 	} else if asked && !fix {
@@ -79,6 +81,17 @@ func fixjavac(b bool) {
 }
 
 func fixkotlin(b bool) {
+	if !b {
+		return
+	}
+	if !COM.IsWindows() {
+		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ] && . \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install kotlin", true)
+	} else {
+		runScript("jpm setup -kotlin", true)
+	}
+}
+
+func fixkotlinlib(b bool) {
 	if !b {
 		return
 	}
@@ -191,6 +204,26 @@ func checkkotlin(silent bool) bool {
 	}
 	return true
 }
+
+func checkkotlinlib(silent bool) bool {
+	if COM.IsWindows() {
+		return true
+	}
+	ktlib := filepath.Join(COM.HomeDir(), "libs", "kotlin-test.jar")
+	if _, err := os.Stat(ktlib); err != nil && !silent {
+		println("\n\033[33m( kotlin libs )\033[0m is not installed")
+		if asked {
+			println("\tfix : jpm setup -kotlin\n")
+		}
+		return false
+	} else {
+		if !silent {
+			println("\033[32m( kotlin libs )\033[0m works")
+		}
+	}
+	return true
+}
+
 func CheckJava(silent bool) bool {
 	java := COM.JAVA()
 	if java == "java" {
