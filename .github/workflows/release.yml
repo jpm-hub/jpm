@@ -97,10 +97,11 @@ jobs:
           echo "Building for ${{ matrix.os }}-${{ matrix.arch }}"
           if [[ "${{ matrix.os }}" != "windows" ]]; then
             go build -ldflags="-s -w" -o ${{ steps.version.outputs.name }}/bin/jpm jpm.go
+            mv jpx/jpx ${{ steps.version.outputs.name }}/bin/jpx
+            chmod +x ${{ steps.version.outputs.name }}/bin/jpx
           else
             go build -ldflags="-s -w" -o ${{ matrix.binary_name }} jpm.go
           fi
-          ls -la
 
       - name: Create release archive
         run: |
@@ -111,7 +112,7 @@ jobs:
             zip ${{ steps.version.outputs.name }}.zip ${{ matrix.binary_name }} jpx.cmd jpx
             rm -rf jpx.cmd jpx jpxsh
           else
-            zip ${{ steps.version.outputs.name }}.zip ${{ steps.version.outputs.name }}/bin/jpm
+            zip ${{ steps.version.outputs.name }}.zip ${{ steps.version.outputs.name }}/bin/jpm ${{ steps.version.outputs.name }}/bin/jpx
           fi
           ls -la *.zip 2>/dev/null || true
 

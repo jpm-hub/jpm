@@ -120,11 +120,17 @@ if [ -f "jpm" ]; then
     sudo cp jpm /usr/local/bin/jpm
     sudo chmod +x /usr/local/bin/jpm
     echo "- Installed jpm to /usr/local/bin"
+else
+    echo "ERROR: jpm binary not found after extraction"
+    exit 1
 fi
 if [ -f "jpx" ]; then
     sudo cp jpx /usr/local/bin/jpx
     sudo chmod +x /usr/local/bin/jpx
     echo "- Installed jpx to /usr/local/bin"
+else
+    echo "ERROR: jpx binary not found after extraction"
+    exit 1
 fi
 
 # Clean up temporary directory
