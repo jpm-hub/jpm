@@ -118,16 +118,16 @@ echo ""
 echo "Installing JPM binaries to /usr/local/bin..."
 cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
 if [ -f "jpm" ]; then
-    sudo cp jpm /usr/local/bin/jpm
-    sudo chmod +x /usr/local/bin/jpm
+    cp jpm /usr/local/bin/jpm || sudo cp jpm /usr/local/bin/jpm
+    chmod +x /usr/local/bin/jpm || sudo chmod +x /usr/local/bin/jpm
     echo "- Installed jpm to /usr/local/bin"
 else
     echo "ERROR: jpm binary not found after extraction"
     exit 1
 fi
 if [ -f "jpx" ]; then
-    sudo cp jpx /usr/local/bin/jpx
-    sudo chmod +x /usr/local/bin/jpx
+    cp jpx /usr/local/bin/jpx || sudo cp jpx /usr/local/bin/jpx
+    chmod +x /usr/local/bin/jpx || sudo chmod +x /usr/local/bin/jpx
     echo "- Installed jpx to /usr/local/bin"
 else
     echo "ERROR: jpx binary not found after extraction"
