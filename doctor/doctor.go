@@ -23,10 +23,10 @@ func Doctor(silent bool, ask bool) bool {
 				println(" SDKMAN! is very a lightweight tool to install JVMs, SDKs, JDKs and more.")
 				err = runScript("read -p \"Press enter to install sdkman... (ctrl+c to cancel)\n\" ok", true)
 				if err == nil {
-					runScript("which curl || echo please install curl on you system", false)
-					runScript("which unzip || echo please install unzip on you system", false)
-					runScript("which zip || echo please install zip on you system", false)
-					runScript("which bash || echo please install bash on you system", false)
+					runScript("which curl > /dev/null || echo please install curl on you system", true)
+					runScript("which unzip > /dev/null || echo please install unzip on you system", true)
+					runScript("which zip > /dev/null || echo please install zip on you system", true)
+					runScript("which bash > /dev/null || echo please install bash on you system", true)
 					err = runScript("which bash&& which zip && which unzip && which curl", false)
 					if err != nil {
 						println(" Aborting sdkman installation")
@@ -96,9 +96,9 @@ func fixkotlinlib(b bool) {
 		return
 	}
 	if !COM.IsWindows() {
-		runScript("export SDKMAN_DIR=\"$HOME/.sdkman\";[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ] && . \"$HOME/.sdkman/bin/sdkman-init.sh\";sdk install kotlin", true)
-	} else {
 		runScript("jpm setup -kotlin", true)
+	} else {
+		runScript("echo you should not need kotlin libs on Windows", true)
 	}
 }
 
