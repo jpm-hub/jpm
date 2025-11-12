@@ -116,6 +116,7 @@ echo ""
 
 # Install JPM binaries to /usr/local/bin
 echo "Installing JPM binaries to /usr/local/bin..."
+cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
 if [ -f "jpm" ]; then
     sudo cp jpm /usr/local/bin/jpm
     sudo chmod +x /usr/local/bin/jpm
