@@ -193,14 +193,8 @@ jobs:
             - `jpm-${{ steps.version.outputs.version }}-windows-arm64.zip` - Windows ARM64
             
             ### Installation
-            ```bash
-            # Linux/macOS
-            tar -xzf jpm-<version>-<platform>-<arch>.zip
-            sudo mv jpm-<version>-<platform>-<arch>/bin/jpm /usr/local/bin/
-            
-            # Windows
-            # Extract the ZIP and add to PATH
-            ```
+            run setup.cmd (Windows) to install JPM on your system.
+            run setup.sh (linux/macOS) to install JPM on your system.
           files: |
             artifacts/*.zip
             setup.cmd

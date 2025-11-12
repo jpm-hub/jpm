@@ -72,7 +72,7 @@ echo "- Detected architecture: $ARCH_TYPE"
 # Download JPM archive file
 echo "Downloading JPM from GitHub releases..."
 ARCHIVE_FILE="jpm-$OS-$ARCH_TYPE.zip"
-DOWNLOAD_URL="https://github.com/jpm-hub/jpm/releases/download/v$VERSION/jpm-$OS-$ARCH_TYPE.zip"
+DOWNLOAD_URL="https://github.com/jpm-hub/jpm/releases/download/v$VERSION/jpm-$VERSION-$OS-$ARCH_TYPE.zip"
 
 # Remove existing archive file if it exists
 [ -f "$TEMP_DIR/$ARCHIVE_FILE" ] && rm "$TEMP_DIR/$ARCHIVE_FILE"
