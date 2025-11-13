@@ -4,7 +4,7 @@ set VERSION=1.0.19
 
 :: JPM Windows Setup Script
 echo ===============================================
-echo           JPM Installation Script
+echo      JPM Installation Script (v%VERSION%)
 echo ===============================================
 echo.
 
@@ -14,7 +14,7 @@ for /f "tokens=2 delims==" %%a in ('wmic useraccount where name="%USERNAME%" get
 :: Set JPM directories
 set JPM_HOME=C:\Users\%USERNAME%\.jpm
 
-echo This script will install JPM (JVM Package Manager) on your Windows system.
+echo This script will install JPM %VERSION% 
 echo.
 echo The following actions will be performed:
 echo.

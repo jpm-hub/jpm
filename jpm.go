@@ -44,6 +44,15 @@ func main() {
 	}
 	scriptName := os.Args[1]
 	switch scriptName {
+	case "-v":
+		fallthrough
+	case "--v":
+		fallthrough
+	case "-version":
+		fallthrough
+	case "--version":
+		println("version :", COM.VERSION)
+		return
 	case "-h":
 		fallthrough
 	case "--h":

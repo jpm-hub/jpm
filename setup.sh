@@ -5,7 +5,7 @@ VERSION="1.0.19"
 
 # JPM Unix Setup Script
 echo "==============================================="
-echo "           JPM Installation Script"
+echo "      JPM Installation Script (v$VERSION)      "
 echo "==============================================="
 echo ""
 
@@ -37,7 +37,7 @@ detect_os_arch() {
 # Set temporary directory for download
 TEMP_DIR="/tmp/jpm-install-$$"
 
-echo "This script will install JPM (JVM Package Manager) on your system."
+echo "This script will install JPM $VERSION "
 echo ""
 echo "The following actions will be performed:"
 echo ""
