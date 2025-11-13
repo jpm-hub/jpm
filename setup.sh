@@ -120,7 +120,7 @@ cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
 if [ -f "jpm" ]; then
     cd /usr/local/bin/
     rm -f jpm.old >/dev/null 2>&1 || sudo rm -f jpm.old >/dev/null 2>&1
-    mv jpm jpm.old >/dev/null 2>&1 || sudo mv jpm jpm.old
+    mv jpm jpm.old >/dev/null 2>&1 || sudo mv jpm jpm.old >/dev/null 2>&1 || true
     cd -
     cp jpm /usr/local/bin/jpm >/dev/null 2>&1 || sudo cp jpm /usr/local/bin/jpm 
     chmod +x /usr/local/bin/jpm >/dev/null 2>&1 || sudo chmod +x /usr/local/bin/jpm
@@ -132,7 +132,7 @@ fi
 if [ -f "jpx" ]; then
     cd /usr/local/bin/
     rm -f jpx.old >/dev/null 2>&1 || sudo rm -f jpx.old >/dev/null 2>&1
-    mv jpx jpx.old >/dev/null 2>&1 || sudo mv jpx jpx.old
+    mv jpx jpx.old >/dev/null 2>&1 || sudo mv jpx jpx.old >/dev/null 2>&1 || true
     cd -
     cp jpx /usr/local/bin/jpx >/dev/null 2>&1 || sudo cp jpx /usr/local/bin/jpx
     chmod +x /usr/local/bin/jpx >/dev/null 2>&1 || sudo chmod +x /usr/local/bin/jpx
