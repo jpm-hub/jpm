@@ -115,26 +115,31 @@ echo "- Files extracted successfully"
 echo ""
 
 # Install JPM binaries to /usr/local/bin
-echo "Installing JPM binaries to /usr/local/bin..."
+echo "Installing JPM binaries to /usr/local/bin... (this might require elevated privileges)"
 cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
 if [ -f "jpm" ]; then
-    cp jpm /usr/local/bin/jpm || echo "please enter your password to copy jpm to /usr/local/bin" && sudo cp jpm /usr/local/bin/jpm
-    chmod +x /usr/local/bin/jpm || sudo chmod +x /usr/local/bin/jpm
+    rm -f jpm.old >/dev/null 2>&1 || sudo rm -f jpm.old >/dev/null 2>&1
+    mv jpm jpm.old >/dev/null 2>&1 || sudo mv jpm jpm.old
+    cp jpm /usr/local/bin/jpm >/dev/null 2>&1 || sudo cp jpm /usr/local/bin/jpm 
+    chmod +x /usr/local/bin/jpm >/dev/null 2>&1 || sudo chmod +x /usr/local/bin/jpm
     echo "- Installed jpm to /usr/local/bin"
 else
     echo "ERROR: jpm binary not found after extraction"
     exit 1
 fi
 if [ -f "jpx" ]; then
-    cp jpx /usr/local/bin/jpx || sudo cp jpx /usr/local/bin/jpx
-    chmod +x /usr/local/bin/jpx || sudo chmod +x /usr/local/bin/jpx
+    rm -f jpx.old >/dev/null 2>&1 || sudo rm -f jpx.old >/dev/null 2>&1
+    mv jpx jpx.old >/dev/null 2>&1 || sudo mv jpx jpx.old
+    cp jpx /usr/local/bin/jpx >/dev/null 2>&1 || sudo cp jpx /usr/local/bin/jpx
+    chmod +x /usr/local/bin/jpx >/dev/null 2>&1 || sudo chmod +x /usr/local/bin/jpx
     echo "- Installed jpx to /usr/local/bin"
 else
     echo "ERROR: jpx binary not found after extraction"
     exit 1
 fi
 
-# Clean up temporary directory
+
+# Clean up
 echo "Cleaning up..."
 rm -rf "$TEMP_DIR"
 echo "- Temporary files removed"
