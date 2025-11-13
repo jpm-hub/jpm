@@ -118,7 +118,7 @@ echo ""
 echo "Installing JPM binaries to /usr/local/bin..."
 cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
 if [ -f "jpm" ]; then
-    cp jpm /usr/local/bin/jpm || sudo cp jpm /usr/local/bin/jpm
+    cp jpm /usr/local/bin/jpm || echo "please enter your password to copy jpm to /usr/local/bin" && sudo cp jpm /usr/local/bin/jpm
     chmod +x /usr/local/bin/jpm || sudo chmod +x /usr/local/bin/jpm
     echo "- Installed jpm to /usr/local/bin"
 else
