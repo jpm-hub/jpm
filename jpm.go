@@ -63,6 +63,8 @@ func main() {
 		COM.PrintArt()
 		fmt.Println("\n\033[33m jpm doctor\033[0m :\tCheck JPM's issues")
 		println()
+		fmt.Println("\n\033[33m jpm upgrade\033[0m :\tupgrades JPM to the latest version")
+		println()
 		fmt.Println(" \033[33mjpm init\033[0m  <project> [-git, -docker] :\n\t\tInitializes a project default: App")
 		fmt.Println("\t\t-git : will iniitalize a git repo")
 		fmt.Println("\t\t-docker : will create a dockerfile and a docker-compose.yml")
@@ -179,6 +181,10 @@ func main() {
 	case "install":
 		execOverride("install")
 		INSTALL.Install()
+	case "ci":
+		execOverride("ci")
+		COM.RunScript("rm -rf ./jpm_dependencies/*", false)
+		COM.RunScript("jpm install!", true)
 	default:
 		argsStr := ""
 		if len(os.Args) > 1 {
@@ -199,7 +205,9 @@ func main() {
 
 func execOverride(sc string) {
 	if strings.HasSuffix(os.Args[1], "!") {
-		println("\033[33mOmitting Override: "+"'"+"jpm", sc+"'", "\033[0m")
+		if COM.Verbose {
+			println("\033[33mOmitting Override: "+"'"+"jpm", sc+"'", "\033[0m")
+		}
 		return
 	}
 	if os.Getenv("JPM_OVERRIDE") != sc {
@@ -209,7 +217,9 @@ func execOverride(sc string) {
 			argsStr = strings.TrimSpace(strings.Join(os.Args[2:], " "))
 		}
 		if slices.Contains(scriptsS, sc+"@") {
-			println("\033[33mOverriding: "+"'"+"jpm", sc+"'", "for "+"'"+"jpm", sc+"@"+"'", "\033[0m")
+			if COM.Verbose {
+				println("\033[33mOverriding: "+"'"+"jpm", sc+"'", "for "+"'"+"jpm", sc+"@"+"'", "\033[0m")
+			}
 			cmd := "export JPM_OVERRIDE=" + sc + "\nexport PATH=\"$PATH:$(pwd)/jpm_dependencies/execs\"\n" + strings.ReplaceAll(scripts[sc+"@"], "...args@", argsStr)
 			if err := COM.RunScript(cmd, true); err != nil {
 				fmt.Printf("Error running script '%s': %v \n", sc, err)

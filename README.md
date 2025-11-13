@@ -124,6 +124,15 @@ args:
 
 ## Commands
 
+### Upgrading
+
+#### `jpm upgrade`
+execute the upgrade script to get latest version
+
+```bash
+jpm upgrade
+```
+
 ### Project Management
 
 #### `jpm init [project_name] [options]`
@@ -374,6 +383,7 @@ repos:
 
 - **test**: Available only for testing
 - **exec**: Executable dependencies to run with `jpx` 
+
 ## Scripts
 
 Define custom scripts in your `package.yml`:
