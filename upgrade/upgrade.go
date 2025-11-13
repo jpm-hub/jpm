@@ -13,7 +13,6 @@ func Upgrade() {
 			return
 		}
 		tempFile.Close()
-		println(tempFile.Name())
 		COM.RunCMD(fmt.Sprintf(`curl -L -o "%s" https://cmd.jpmhub.org && start "upgrade" "C:\WINDOWS\system32\cmd.exe" /param="/c ""%s"""`, tempFile.Name(), tempFile.Name()), true)
 	} else {
 		// Simple background upgrade for Unix
