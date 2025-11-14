@@ -187,7 +187,8 @@ func checkJUnit(silent bool) bool {
 	return true
 }
 func checkkotlin(silent bool) bool {
-	if (COM.IsWindows() && COM.KOTLINC() != "kotlinc" || !which("kotlinc")) && !silent {
+	kotlinIsFoundInHomeDir := COM.KOTLINC() != "kotlinc"
+	if (COM.IsWindows() && !kotlinIsFoundInHomeDir || !COM.IsWindows() && !which("kotlinc")) && !silent {
 		println("\n\033[33m( kotlinc )\033[0m is not accesible")
 		if asked {
 			if !COM.IsWindows() {

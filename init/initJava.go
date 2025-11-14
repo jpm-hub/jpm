@@ -30,5 +30,4 @@ func initJava(appMainJavaFile string, packaging string, className string, lang s
 			os.Exit(1)
 		}
 	}
-
 }

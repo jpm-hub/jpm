@@ -21,7 +21,9 @@ func TestScript() error {
 	if err != nil {
 		return err
 	}
+	prefix := "export "
 	if COM.IsWindows() {
+		prefix = "set "
 		hasDeps := ""
 		jpm_dependenciesFiles, _ := os.ReadDir("jpm_dependencies")
 		for _, v := range jpm_dependenciesFiles {
@@ -30,9 +32,9 @@ func TestScript() error {
 				break
 			}
 		}
-		err = COM.RunCMD("cd out && java -p ../jpm_dependencies;../jpm_dependencies/tests -cp \"./;../jpm_dependencies/"+hasDeps+";../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
+		err = COM.RunCMD(COM.ParseEnvVars(prefix, false)+"cd out && java -p ../jpm_dependencies;../jpm_dependencies/tests -cp \"./;../jpm_dependencies/"+hasDeps+";../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
 	} else {
-		err = COM.RunScript("cd out && java -p ../jpm_dependencies:../jpm_dependencies/tests -cp \".:../jpm_dependencies/*:../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
+		err = COM.RunScript(COM.ParseEnvVars(prefix, true)+"cd out && java -p ../jpm_dependencies:../jpm_dependencies/tests -cp \".:../jpm_dependencies/*:../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
 	}
 
 	if err != nil {

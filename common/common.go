@@ -411,7 +411,7 @@ func GetSection(section string, isFatal bool) any {
 	case "description":
 		return ParseENV(packageYML.Description)
 	case "env":
-		return packageYML.Env
+		return ParseENV(packageYML.Env)
 	case "package":
 		return ParseENV(packageYML.Package)
 	case "packages":
@@ -624,16 +624,29 @@ func ParseEnvVars(prefix string, quotes bool) string {
 
 func GetDependencies(isFatal bool) []string {
 	depListRawNil := GetSection("dependencies", isFatal)
-	if depListRawNil == nil {
+	if depListRawNil == nil || len(depListRawNil.([]string)) == 0 {
 		return []string{}
 	}
+	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
 	depListRaw := depListRawNil.([]string)
 	var deps []string = []string{}
 	for _, item := range depListRaw {
 		deps = append(deps, strings.TrimSpace(item))
 
 	}
-	return deps
+	return NormalizeDependencies(deps)
+}
+
+func NormalizeDependencies(dep []string) []string {
+	for i, v := range dep {
+		if strings.HasPrefix(v, "raw ") || strings.HasPrefix(v, "local ") {
+			continue
+		}
+		if strings.Count(v, ":") > 1 {
+			dep[i] = strings.Replace(dep[i], ":", " ", 1)
+		}
+	}
+	return dep
 }
 
 func RunCMD(script string, showStdOut bool) error {
@@ -645,7 +658,7 @@ func RunCMD(script string, showStdOut bool) error {
 	if tmpFile, err := os.CreateTemp("", "jpm_script_*.cmd"); err == nil {
 		tmpFile.WriteString("@echo off\nchcp 65001 > NUL 2>&1\n" + script)
 		if Verbose {
-			println("\033[33m-(Verbose command)=>  " + script + "\033[0m")
+			println("\033[33m-(Verbose)=>  " + script + "\033[0m")
 			showStdOut = true
 		}
 		tmpFile.Close()
@@ -825,6 +838,22 @@ func CapitalizeFirst(s string) string {
 	return strings.Join(sS, "")
 }
 
+func Sanitize(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == '-' || r == '_' {
+			b.WriteRune(r)
+		} else {
+			println("contains invalid character in :", s)
+			os.Exit(1)
+		}
+	}
+	return b.String()
+}
+
 func CopyFile(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {
@@ -835,6 +864,7 @@ func CopyFile(src, dst string) error {
 
 func CopyToDependencies(lang string) {
 	homeDir := HomeDir()
+	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
 	CopyFile(filepath.Join(homeDir, "libs", "junit.jar"), filepath.Join("jpm_dependencies", "tests", "junit.jar"))
 	if IsWindows() {
 		homeDir = filepath.Join(homeDir, "kotlinc", "lib")

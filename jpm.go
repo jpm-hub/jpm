@@ -165,7 +165,9 @@ func main() {
 		}
 	case "run":
 		execOverride("run")
-		if RUN.Run() != nil {
+		err := RUN.Run()
+		if err != nil {
+			fmt.Println(err.Error())
 			os.Exit(1)
 		}
 	case "watch":

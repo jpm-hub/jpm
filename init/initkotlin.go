@@ -21,9 +21,9 @@ func initKotlin(appMainKotlinFile string, packaging string, className string, la
 		}
 	}
 
-	// Write main Java file
+	// Write main Kotlin file
 	if err := os.WriteFile(appMainKotlinFile, []byte(COM.GetKotlinAppTemplate(strings.ReplaceAll(packaging, "-", "_"))), 0644); err != nil {
-		fmt.Printf("Error creating main Java file: %v\n", err)
+		fmt.Printf("Error creating main Kotlin file: %v\n", err)
 		os.Exit(1)
 	}
 }

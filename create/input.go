@@ -2,6 +2,7 @@ package create
 
 import (
 	"fmt"
+	COM "jpm/common"
 	"maps"
 	"os"
 	"strings"
@@ -26,7 +27,7 @@ func inputTextSanitized(s string) string {
 	fmt.Printf("\033[94m ⮕ %s\033[0m", s)
 	// Read input until newline
 	fmt.Scanln(&input)
-	return sanitize(input)
+	return COM.Sanitize(input)
 }
 
 func inputNumber(s string) string {

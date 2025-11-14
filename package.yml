@@ -11,7 +11,6 @@ scripts:
     rm -f /c/Users/sderisme/.jpm/jpm.exe
     cp jpm.exe /c/Users/sderisme/.jpm/jpm.exe
 dependencies:
-  - google com.android.tools.lint lint:31.13.1 
 repos:
   - default: https://repo1.maven.org/maven2/
   - google: https://maven.google.com/

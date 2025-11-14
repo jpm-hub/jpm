@@ -220,22 +220,6 @@ func verifyIfConditionnal(varName string) (bool, string) {
 	return false, ""
 }
 
-func sanitize(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		if (r >= 'a' && r <= 'z') ||
-			(r >= 'A' && r <= 'Z') ||
-			(r >= '0' && r <= '9') ||
-			r == '-' || r == '_' {
-			b.WriteRune(r)
-		} else {
-			println("invalide input :", s)
-			os.Exit(1)
-		}
-	}
-	return b.String()
-}
-
 func build(fileList []any) error {
 	for _, v := range fileList {
 		if val, ok := v.(map[any]any); ok {

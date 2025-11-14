@@ -342,7 +342,18 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		if checkRepoExcludes(artifactID) {
 			return &pom
 		}
+		classifier, classified := figureOutRepoClassifier(dependency{
+			GroupID:    groupID,
+			ArtifactID: artifactID,
+			Version:    version,
+			Scope:      currentOuterScope,
+			Classifier: "",
+			Type:       "",
+		})
 		depsList[repo] = append(depsList[repo], dep, version)
+		if classified {
+			depsList[repo] = append(depsList[repo], classifier+dep, version)
+		}
 	}
 
 	for _, dep := range pom.Dependencies {
@@ -363,25 +374,30 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 			if strings.Contains(currentLanguage, "kotlin") && strings.HasPrefix(groupID, "org.jetbrains.kotlin") && strings.HasPrefix(artifactid, "kotlin-test") {
 				backOutFromKotlinTest = true
 			}
-			classifier := ""
 			if slices.Contains(scopesAccepted, scope) {
 				dep.GroupID = groupid
 				dep.ArtifactID = artifactid
 				version := figureOutVersion(repo, dep, pom)
 				dep.Version = version
-				classifier = figureOutRepoClassifier(dep)
+				classifier, classified := figureOutRepoClassifier(dep)
 				dep.Classifier = classifier
 				if checkRepoExcludes(artifactid) {
 					continue
 				}
 				p := downloadDepsRepo(repo, groupid, artifactid, version, false)
 				if p != nil {
-					depsList[p.Url] = append(depsList[p.Url], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
+					depsList[p.Url] = append(depsList[p.Url], groupid+"|"+artifactid+"|"+currentOuterScope, version)
+					if classified {
+						depsList[p.Url] = append(depsList[p.Url], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
+					}
 					resolvedAlready[groupID+"|"+artifactID] += 1
 					continue
 				}
 				if otherP := checkOtherRepositories(dep); otherP != nil {
-					depsList[otherP.Url] = append(depsList[otherP.Url], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
+					depsList[otherP.Url] = append(depsList[otherP.Url], groupid+"|"+artifactid+"|"+currentOuterScope, version)
+					if classified {
+						depsList[otherP.Url] = append(depsList[otherP.Url], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
+					}
 					resolvedAlready[groupID+"|"+artifactID] += 1
 					continue
 				}
@@ -698,30 +714,30 @@ func figureOutArtifactID(repo string, depwithartifactid dependency, pom pom) str
 	return depwithartifactid.ArtifactID
 }
 
-func figureOutRepoClassifier(dep dependency) string {
-	if dep.Classifier == "" {
-		return ""
-	}
+func figureOutRepoClassifier(dep dependency) (string, bool) {
 	classDep := COM.GetSection("classifiers", false).(map[string]string)
 	vals, oks := classDep["*"]
 	valA, okA := classDep[dep.ArtifactID]
 	valG, okG := classDep[dep.GroupID]
 	if okA {
-		return valA + "|"
+		return valA + "|", true
 	} else if okG {
-		return valG + "|"
+		return valG + "|", true
 	} else if oks {
-		return vals + "|"
+		return vals + "|", true
+	}
+	if dep.Classifier == "" {
+		return "", false
 	}
 	if !strings.HasPrefix(dep.Classifier, "${") {
-		addFinishMessage("Info : default clasifier -> " + dep.Classifier + " is used for " + dep.ArtifactID)
-		return dep.Classifier + "|"
+		addFinishMessage("Info : default classifier -> " + dep.Classifier + " is used for " + dep.ArtifactID)
+		return dep.Classifier + "|", true
 	}
 	c := strings.TrimSuffix(strings.TrimPrefix(dep.Classifier, "${"), "}")
 	if _, ok := resolvedAlready[dep.GroupID+"|"+dep.ArtifactID]; !ok {
-		addFinishMessage("Warning : clasifier -> " + c + " needs to be specified for " + dep.ArtifactID)
+		addFinishMessage("Warning : classifier -> " + c + " needs to be specified for " + dep.ArtifactID)
 	}
-	return ""
+	return "", true
 }
 
 func figureOutAllLatestAndDownload(repo string) {

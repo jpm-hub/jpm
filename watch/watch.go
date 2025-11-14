@@ -43,6 +43,12 @@ func Watch(fromRun bool) {
 	// Start watching for changes
 	go func(fromRunWatch bool) {
 		for {
+			// flush channel
+			select {
+			case <-watcher.Events:
+			default:
+			}
+			// listen for events
 			event, ok := <-watcher.Events
 			if !ok {
 				break
@@ -50,7 +56,9 @@ func Watch(fromRun bool) {
 			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
 				if matchesPattern(event.Name, patterns) {
 					refresh(fromRunWatch)
-					time.Sleep(time.Second)
+					if COM.IsWindows() {
+						time.Sleep(time.Second)
+					}
 				}
 			}
 		}

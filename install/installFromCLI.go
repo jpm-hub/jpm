@@ -10,7 +10,7 @@ import (
 func installFromCLI() {
 	aliases := findExistingAliases()
 	ds := strings.Join(os.Args[2:], " ")
-	depStrings := strings.Split(ds, ",")
+	depStrings := COM.NormalizeDependencies(strings.Split(ds, ","))
 	for _, depString := range depStrings {
 		depString = strings.ReplaceAll(depString, "--save-dev", "exec")
 		depString = COM.NormalizeSpaces(depString)

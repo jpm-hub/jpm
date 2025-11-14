@@ -15,10 +15,14 @@ func compileTestKotlin() error {
 		args = COM.NormalizeSpaces(allBuildArgs)
 	}
 	os.MkdirAll(filepath.Join("out", "tests"), 0755)
+	_, errS := os.Stat("jpm_dependencies")
+	if errS != nil {
+		return fmt.Errorf("failed to read ./jpm_dependencies/tests, please run 'jpm install!'")
+	}
 	jpm_dependenciesFiles, err := os.ReadDir("jpm_dependencies")
 	jpm_dependenciesFiles2, err2 := os.ReadDir(filepath.Join("jpm_dependencies", "tests"))
 	if err != nil || err2 != nil {
-		return fmt.Errorf("failed to read ./jpm_dependencies/tests")
+		return fmt.Errorf("failed to read ./jpm_dependencies/tests, please run 'jpm install!'")
 	}
 	var builder strings.Builder
 	for _, file := range jpm_dependenciesFiles2 {

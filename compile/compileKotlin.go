@@ -13,9 +13,14 @@ func compileKotlin() error {
 	if allBuildArgs, found := argsMap["kotlinc"]; found {
 		args = COM.NormalizeSpaces(allBuildArgs)
 	}
-	jpm_dependenciesFiles, err := os.ReadDir("jpm_dependencies")
-	if err != nil {
-		return fmt.Errorf("failed to read jpm_dependencies directory: %s", err.Error())
+	jpm_dependenciesFiles := []os.DirEntry{}
+	_, errS := os.Stat("jpm_dependencies")
+	if errS == nil {
+		var err error
+		jpm_dependenciesFiles, err = os.ReadDir("jpm_dependencies")
+		if err != nil {
+			jpm_dependenciesFiles = []os.DirEntry{}
+		}
 	}
 	var builder strings.Builder
 	for _, file := range jpm_dependenciesFiles {
@@ -29,12 +34,12 @@ func compileKotlin() error {
 	}
 	jarFilesString := builder.String()
 	if jarFilesString == "" {
-		jarFilesString = " "
+		jarFilesString = "."
 	}
 
 	var err1 error
 	if COM.IsWindows() {
-		allKts := findAllSrcFile(COM.SrcDir(), ".")
+		allKts := findListofAllSrcFile(COM.SrcDir(), "*.kt")
 		err1 = COM.RunCMD(COM.KOTLINC()+" "+args+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
 	} else {
 		allKts := findAllSrcFile(COM.SrcDir(), "*.kt")

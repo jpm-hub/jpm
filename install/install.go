@@ -54,7 +54,6 @@ func Install() {
 	println()
 	force := false
 	COM.FindPackageYML(true)
-	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
 	COM.CopyToDependencies(COM.GetSection("language", true).(string))
 	for i := 0; i < len(os.Args); i++ {
 		if os.Args[i] == "-no" {
@@ -99,6 +98,7 @@ func Install() {
 			os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
 		}
 		deps := COM.GetDependencies(false)
+
 		aliases := findExistingAliases()
 		installFromYML(aliases, deps, true)
 	default:
@@ -570,6 +570,7 @@ func cleanup() {
 		jar = filepath.Join(jar, value+"-"+v+classifier+".jar")
 		jars = append(jars, jar)
 		execjars = append(execjars, execjar, jar)
+		testjars = append(testjars, testjar, jar)
 	}
 
 	for _, depMap := range g_lockDeps.Repos {
@@ -591,10 +592,19 @@ func cleanup() {
 			}
 			execjar := filepath.Join(jar, value)
 			jar = filepath.Join(jar, value+"-"+v+classifier+".jar")
-			jars = append(jars, jar)
-			execjars = append(execjars, execjar, jar)
+			println(jar)
+			switch jar {
+			case "tests":
+
+				testjars = append(testjars, testjar, jar)
+			case "execs":
+				execjars = append(execjars, execjar, jar)
+			default:
+				jars = append(jars, jar)
+			}
 		}
 	}
+	fmt.Println(jars)
 	//clean up
 	files, err := os.ReadDir("jpm_dependencies")
 	if err == nil {
@@ -604,6 +614,7 @@ func cleanup() {
 					if !backOutFromKotlinStdlib && (file.Name() == "annotations-13.0.jar" || file.Name() == "kotlin-stdlib.jar" || file.Name() == "kotlin-reflect.jar") {
 						continue
 					}
+					println("remove", file.Name())
 					os.Remove(filepath.Join("jpm_dependencies", file.Name()))
 				}
 			}
@@ -617,6 +628,7 @@ func cleanup() {
 					if file.Name() == "junit.jar" || (!backOutFromKotlinTest && (file.Name() == "kotlin-test.jar")) {
 						continue
 					}
+					println("test remove", file.Name())
 					os.Remove(filepath.Join("jpm_dependencies", "tests", file.Name()))
 				}
 			}

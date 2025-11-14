@@ -25,9 +25,14 @@ func Init(cliargs []string) {
 	handled := []string{}
 	git := false
 	docker := false
+	bare := false
 	if len(cliargs) >= 2 {
 		for i, arg := range cliargs {
 			if i < 2 {
+				continue
+			}
+			if arg == "-bare" {
+				bare = true
 				continue
 			}
 			if slices.Contains(handled, arg) {
@@ -43,12 +48,11 @@ func Init(cliargs []string) {
 				continue
 			}
 			if arg == "-kt" {
-				os.MkdirAll("out", 0755)
 				language = language + "kotlin,"
 				continue
 			}
 			if arg == "-java" {
-				os.MkdirAll("out", 0755)
+
 				language = language + "java,"
 				continue
 			}
@@ -75,11 +79,19 @@ func Init(cliargs []string) {
 				projectName = strings.Trim(projectName, ".")
 			}
 		}
+
 		if !diffName {
 			fmt.Println("Initializing project App")
 		}
 	}
 	language = strings.Trim(language, ",")
+	if language == "" {
+		language = "java"
+	}
+	if bare {
+		Bare(language)
+		return
+	}
 	appPathSlice := strings.Split(strings.ReplaceAll(projectName, ".", "/"), "/")
 	className := COM.CapitalizeFirst(appPathSlice[len(appPathSlice)-1]) // App
 	appMainJavaFile := className + ".java"                              // App.java

@@ -13,9 +13,14 @@ func compileJava() error {
 	if allBuildArgs, found := argsMap["javac"]; found {
 		args = allBuildArgs
 	}
-	jpm_dependenciesFiles, err := os.ReadDir("jpm_dependencies")
-	if err != nil {
-		return fmt.Errorf("failed to read jpm_dependencies directory: %s", err.Error())
+	jpm_dependenciesFiles := []os.DirEntry{}
+	_, errS := os.Stat("jpm_dependencies")
+	if errS == nil {
+		var err error
+		jpm_dependenciesFiles, err = os.ReadDir("jpm_dependencies")
+		if err != nil {
+			jpm_dependenciesFiles = []os.DirEntry{}
+		}
 	}
 	var builder strings.Builder
 	for _, file := range jpm_dependenciesFiles {

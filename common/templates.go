@@ -40,6 +40,15 @@ fun run():String {
 }`
 }
 
+func GetPackageTemplateSimple(language string) string {
+	return `main: App` + ifkotlinMain(language) + `
+language: ` + language + `
+package: App
+src: .
+repos: [{default: https://repo1.maven.org/maven2/}]
+`
+}
+
 func GetPackageTemplate(packaging string, className string, language string, src string) string {
 	var p []string
 	if packaging == "" {

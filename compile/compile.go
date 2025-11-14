@@ -18,7 +18,6 @@ var argsMap map[string]string
 func initCompile() {
 	COM.FindPackageYML(true)
 	os.MkdirAll("out", 0755)
-	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
 	if COM.IsWindows() {
 		separator = ";"
 	}
@@ -128,6 +127,28 @@ func findAllSrcFile(dir string, fileWildcard string) string {
 			matches, _ := filepath.Glob(filepath.Join(path, fileWildcard))
 			if len(matches) > 0 {
 				str.WriteString(filepath.Join(path, fileWildcard))
+				str.WriteString(" ")
+			}
+		}
+		return nil
+	})
+	return str.String()
+}
+
+func findListofAllSrcFile(dir string, fileWildcard string) string {
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		println(" The package name should be a dir in the root directory :", dir)
+		os.Exit(1)
+		return ""
+	}
+	// Recursively find all files that match the wildcard pattern
+	str := strings.Builder{}
+	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if !d.IsDir() {
+			matched, _ := filepath.Match(fileWildcard, d.Name())
+			if matched {
+				str.WriteString(path)
 				str.WriteString(" ")
 			}
 		}

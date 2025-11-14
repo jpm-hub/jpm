@@ -207,9 +207,6 @@ func downloadJson(url string) (COM.Dependencies, error) {
 	return doc, nil
 }
 func figureOutJPMClassifier(d COM.Dependencies, info jpmRepo) (string, bool) {
-	if !d.Classified {
-		return "", false
-	}
 	classifier := COM.GetSection("classifiers", false).(map[string]string)
 	v, ok := classifier[info.Package]
 	vs, oks := classifier["*"]
@@ -217,6 +214,9 @@ func figureOutJPMClassifier(d COM.Dependencies, info jpmRepo) (string, bool) {
 		return v + "|", true
 	} else if oks {
 		return vs + "|", true
+	}
+	if !d.Classified {
+		return "", false
 	}
 	addFinishMessage("Warning : a classifier needs to be specified for " + info.Package)
 	return "", true
@@ -226,9 +226,6 @@ func figureOutJPMInnerClassifier(d string, forRepos bool) (string, bool) {
 	i := 0
 	if forRepos {
 		i = 1
-	}
-	if len(dSlices) < i+2 {
-		return "", false
 	}
 	classifier := COM.GetSection("classifiers", false).(map[string]string)
 	v, ok := classifier[dSlices[i+1]]
@@ -240,6 +237,9 @@ func figureOutJPMInnerClassifier(d string, forRepos bool) (string, bool) {
 		return vg + "|", true
 	} else if oks {
 		return vs + "|", true
+	}
+	if len(dSlices) < i+2 {
+		return "", false
 	}
 	if len(dSlices) == i+2 && dSlices[0] != "" {
 		addFinishMessage("Info : default clasifier -> " + dSlices[0] + " is used for " + dSlices[i+1])
