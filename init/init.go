@@ -140,8 +140,8 @@ func Init(cliargs []string) {
 			fmt.Printf("Error creating .gitignore: %v\n", err)
 			os.Exit(1)
 		}
-		COM.CopyToDependencies(language)
 	}
+	COM.CopyToDependencies(language)
 	if language == "" {
 		initJava(appMainJavaFile, packaging, className, "java", src)
 	} else {

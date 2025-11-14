@@ -47,6 +47,8 @@ var failedInstalledList []string = []string{}
 var latests []string = []string{}
 var finishMessages []string = []string{}
 var excludes []string = []string{}
+var backOutFromKotlinStdlib bool = false
+var backOutFromKotlinTest bool = false
 
 func Install() {
 	println()
@@ -599,7 +601,7 @@ func cleanup() {
 		for _, file := range files {
 			if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
 				if !slices.Contains(jars, file.Name()) {
-					if file.Name() == "annotations-13.0.jar" || file.Name() == "kotlin-stdlib.jar" {
+					if !backOutFromKotlinStdlib && (file.Name() == "annotations-13.0.jar" || file.Name() == "kotlin-stdlib.jar" || file.Name() == "kotlin-reflect.jar") {
 						continue
 					}
 					os.Remove(filepath.Join("jpm_dependencies", file.Name()))
@@ -612,7 +614,7 @@ func cleanup() {
 		for _, file := range files {
 			if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
 				if !slices.Contains(jars, filepath.Join("tests", file.Name())) {
-					if file.Name() == "junit.jar" || file.Name() == "kotlin-test.jar" {
+					if file.Name() == "junit.jar" || (!backOutFromKotlinTest && (file.Name() == "kotlin-test.jar")) {
 						continue
 					}
 					os.Remove(filepath.Join("jpm_dependencies", "tests", file.Name()))

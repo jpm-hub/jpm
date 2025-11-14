@@ -19,10 +19,11 @@ func Kotlinlib(homeDir string) {
 	defer COM.CleanupExtract(homeDir, filename)
 	pluginDir := filepath.Join(homeDir, "libs")
 	os.MkdirAll(pluginDir, 0755)
-	COM.RunScript(fmt.Sprintf("mv %s %s && mv %s %s && mv %s %s",
+	COM.RunScript(fmt.Sprintf("mv %s %s && mv %s %s && mv %s %s && mv %s %s",
 		filepath.Join(homeDir, "kotlinc", "lib", "kotlin-stdlib.jar"), filepath.Join(pluginDir, "kotlin-stdlib.jar"),
 		filepath.Join(homeDir, "kotlinc", "lib", "annotations-13.0.jar"), filepath.Join(pluginDir, "annotations-13.0.jar"),
 		filepath.Join(homeDir, "kotlinc", "lib", "kotlin-test.jar"), filepath.Join(pluginDir, "kotlin-test.jar"),
+		filepath.Join(homeDir, "kotlinc", "lib", "kotlin-reflect.jar"), filepath.Join(pluginDir, "kotlin-reflect.jar"),
 	), false)
 	os.RemoveAll(filepath.Join(homeDir, "kotlinc"))
 	println("\033[32m  --- Kotlin lib setup done\033[0m")

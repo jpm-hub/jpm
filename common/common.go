@@ -836,27 +836,23 @@ func CopyFile(src, dst string) error {
 func CopyToDependencies(lang string) {
 	homeDir := HomeDir()
 	CopyFile(filepath.Join(homeDir, "libs", "junit.jar"), filepath.Join("jpm_dependencies", "tests", "junit.jar"))
+	if IsWindows() {
+		homeDir = filepath.Join(homeDir, "kotlinc", "lib")
+	} else {
+		homeDir = filepath.Join(homeDir, "libs")
+	}
 	if strings.Contains(lang, "kotlin") {
-		if IsWindows() {
-			if err := CopyFile(filepath.Join(homeDir, "kotlinc", "lib", "kotlin-test.jar"), filepath.Join("jpm_dependencies", "tests", "kotlin-test.jar")); err != nil {
-				fmt.Printf("Error copying kotlin-test.jar: %v\n", err)
-			}
-			if err := CopyFile(filepath.Join(homeDir, "kotlinc", "lib", "annotations-13.0.jar"), filepath.Join("jpm_dependencies", "annotations-13.0.jar")); err != nil {
-				fmt.Printf("Error copying annotations-13.0.jar: %v\n", err)
-			}
-			if err := CopyFile(filepath.Join(homeDir, "kotlinc", "lib", "kotlin-stdlib.jar"), filepath.Join("jpm_dependencies", "kotlin-stdlib.jar")); err != nil {
-				fmt.Printf("Error copying kotlin-stdlib.jar: %v\n", err)
-			}
-		} else {
-			if err := CopyFile(filepath.Join(homeDir, "libs", "kotlin-test.jar"), filepath.Join("jpm_dependencies", "tests", "kotlin-test.jar")); err != nil {
-				fmt.Printf("Error copying kotlin-test.jar: %v\n", err)
-			}
-			if err := CopyFile(filepath.Join(homeDir, "libs", "annotations-13.0.jar"), filepath.Join("jpm_dependencies", "annotations-13.0.jar")); err != nil {
-				fmt.Printf("Error copying annotations-13.0.jar: %v\n", err)
-			}
-			if err := CopyFile(filepath.Join(homeDir, "libs", "kotlin-stdlib.jar"), filepath.Join("jpm_dependencies", "kotlin-stdlib.jar")); err != nil {
-				fmt.Printf("Error copying kotlin-stdlib.jar: %v\n", err)
-			}
+		if err := CopyFile(filepath.Join(homeDir, "kotlin-test.jar"), filepath.Join("jpm_dependencies", "tests", "kotlin-test.jar")); err != nil {
+			fmt.Printf("Error copying kotlin-test.jar: %v\n", err)
+		}
+		if err := CopyFile(filepath.Join(homeDir, "annotations-13.0.jar"), filepath.Join("jpm_dependencies", "annotations-13.0.jar")); err != nil {
+			fmt.Printf("Error copying annotations-13.0.jar: %v\n", err)
+		}
+		if err := CopyFile(filepath.Join(homeDir, "kotlin-stdlib.jar"), filepath.Join("jpm_dependencies", "kotlin-stdlib.jar")); err != nil {
+			fmt.Printf("Error copying kotlin-stdlib.jar: %v\n", err)
+		}
+		if err := CopyFile(filepath.Join(homeDir, "kotlin-reflect.jar"), filepath.Join("jpm_dependencies", "kotlin-reflect.jar")); err != nil {
+			fmt.Printf("Error copying kotlin-reflect.jar: %v\n", err)
 		}
 	}
 }

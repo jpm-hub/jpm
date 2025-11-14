@@ -4,22 +4,14 @@ packages:
   - packageA
   - packageB
 classified: true
+language: kotlin
 scripts:
   build: |
     go build
     rm -f /c/Users/sderisme/.jpm/jpm.exe
     cp jpm.exe /c/Users/sderisme/.jpm/jpm.exe
 dependencies:
-  - neutron:1.0.1
-  - concurrently:1.0.0
-  - eventer:1.0.0
-  - com.fasterxml.jackson.core jackson-core:2.20.1
-classifiers:
-  org.openjfx: mac
-  '*': '*:mac'
+  - google com.android.tools.lint lint:31.13.1 
 repos:
   - default: https://repo1.maven.org/maven2/
-excludes:
-  - jackarta.annotations
-  - eventer
-  - jackson-core
+  - google: https://maven.google.com/
