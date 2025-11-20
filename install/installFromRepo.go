@@ -120,7 +120,7 @@ func findExistingAliases() []string {
 	repos := getRepoList()
 	aliases := []string{}
 	for _, v := range repos.Repos {
-		aliases = append(aliases, v.Alias)
+		aliases = append(aliases, strings.ToLower(v.Alias))
 	}
 	return aliases
 }
@@ -196,7 +196,7 @@ func saveAllRepoSubDependencies(dr *Repo) error {
 			println("\033[31m  --- " + strings.ToUpper(dr.Alias) + ": Resolving " + dr.ArtefactID + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
 			return errors.New("not nil")
 		}
-		dr.ArtVer = "latest"
+		dr.ArtVer = version
 	}
 	al := ">"
 	if dr.Alias != "default" {
@@ -204,10 +204,11 @@ func saveAllRepoSubDependencies(dr *Repo) error {
 	}
 	println("\033[32m  --- " + al + " Resolving " + dr.ArtefactID + ":" + version + "\033[0m")
 	print("      Resolving   [")
-	createExecScript(dr.Scope, dr.ArtefactID, dr.ArtefactID+"-"+version+".jar")
-	downloadDepsRepo(currentWorkingRepo, dr.GroupID, dr.ArtefactID, version, false)
+	p := downloadDepsRepo(currentWorkingRepo, dr.GroupID, dr.ArtefactID, version, false)
+	if p == nil {
+		print("\033[31m-\033[0m")
+	}
 	figureOutAllLatestAndDownload(currentWorkingRepo)
-
 	println("]")
 	return nil
 }
@@ -223,10 +224,7 @@ func addRepoSubDependenciesToDownloadList(url string) {
 			artefactID = gas[2]
 		}
 		version := v
-		scope := ""
-		if len(gas) == 3 && len(gas[2]) > 1 {
-			scope = gas[2]
-		}
+		scope := gas[len(gas)-1]
 		url := url + strings.ReplaceAll(groupID, ".", "/") + "/" + artefactID + "/" + version + "/" + artefactID + "-" + version + classifier + ".jar"
 		filename := artefactID + "-" + version + classifier + ".jar"
 		downloadInfo[url] = []string{filename, "" + scope + "|"}
@@ -304,24 +302,26 @@ func parsePOM(pomContent string) pom {
 
 	return result
 }
-
+func generateRepoDepUrl(repo, gid, aid, ver, filename string) string {
+	gidPath := strings.ReplaceAll(gid, ".", "/")
+	return repo + gidPath + "/" + aid + "/" + ver + "/" + filename
+}
 func downloadDepsRepo(repo string, groupID string, artifactID string, version string, scopeImport bool) *pom {
+	checkIfBackout(groupID, artifactID)
 	if version == "" {
 		return nil
 	}
 	// Download and parse POM file
-	pomURL := fmt.Sprintf("%s/%s/%s/%s-%s", strings.ReplaceAll(groupID, ".", "/"), artifactID, version, artifactID, version)
-	pomURL = repo + strings.ReplaceAll(pomURL, "//", "/")
+	pomURL := generateRepoDepUrl(repo, groupID, artifactID, version, artifactID+"-"+version+".pom")
 	dep := groupID + "|" + artifactID + "|" + currentOuterScope
 	pomContent := ""
-
-	if _, ok := cache[pomURL]; !ok {
+	_, ok := cache[pomURL]
+	if !ok {
 		var err error
-		pomContent, err = downloadPOM(pomURL + ".pom")
+		pomContent, err = downloadPOM(pomURL)
 		if err != nil {
 			if COM.Verbose {
-				println("\n  --- Unable to download " + err.Error())
-				println(pomURL + ".pom")
+				println("\n  --- " + artifactID + " " + err.Error())
 			}
 			return nil
 		}
@@ -331,7 +331,8 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		cache[pomURL] = p
 	}
 	pom := cache[pomURL]
-	if resolvedAlready[groupID+"|"+artifactID] > 3 {
+	already := resolvedAlready[groupID+"|"+artifactID] > 3
+	if already {
 		return &pom
 	}
 	if scopeImport {
@@ -355,7 +356,6 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 			depsList[repo] = append(depsList[repo], classifier+dep, version)
 		}
 	}
-
 	for _, dep := range pom.Dependencies {
 		scope := figureOutScope(repo, dep, pom)
 		dep.Scope = scope
@@ -364,16 +364,10 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 
 		if (optional == "" || strings.ToLower(optional) == "false") && !strings.HasPrefix(groupID, "org.junit") {
 			groupid := figureOutGroupID(repo, dep, pom)
-			artifactid := figureOutArtifactID(repo, dep, pom)
-			if strings.HasPrefix(groupid, "org.junit") {
+			if strings.HasPrefix(groupID, "org.junit") {
 				continue
 			}
-			if strings.Contains(currentLanguage, "kotlin") && strings.HasPrefix(groupID, "org.jetbrains.kotlin") && strings.HasPrefix(artifactid, "kotlin-stdlib") {
-				backOutFromKotlinStdlib = true
-			}
-			if strings.Contains(currentLanguage, "kotlin") && strings.HasPrefix(groupID, "org.jetbrains.kotlin") && strings.HasPrefix(artifactid, "kotlin-test") {
-				backOutFromKotlinTest = true
-			}
+			artifactid := figureOutArtifactID(repo, dep, pom)
 			if slices.Contains(scopesAccepted, scope) {
 				dep.GroupID = groupid
 				dep.ArtifactID = artifactid
@@ -384,13 +378,14 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 				if checkRepoExcludes(artifactid) {
 					continue
 				}
+				resolvedAlready[groupID+"|"+artifactID] += 1
+				// parallel download maybe??
 				p := downloadDepsRepo(repo, groupid, artifactid, version, false)
 				if p != nil {
 					depsList[p.Url] = append(depsList[p.Url], groupid+"|"+artifactid+"|"+currentOuterScope, version)
 					if classified {
 						depsList[p.Url] = append(depsList[p.Url], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
 					}
-					resolvedAlready[groupID+"|"+artifactID] += 1
 					continue
 				}
 				if otherP := checkOtherRepositories(dep); otherP != nil {
@@ -398,16 +393,23 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 					if classified {
 						depsList[otherP.Url] = append(depsList[otherP.Url], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
 					}
-					resolvedAlready[groupID+"|"+artifactID] += 1
 					continue
 				}
-				print("\033[31m-\033[0m")
 				latests = append(latests, groupid+"|"+artifactid)
 			}
 		}
 
 	}
 	return &pom
+}
+
+func checkIfBackout(groupID, artifactID string) {
+	if strings.Contains(currentLanguage, "kotlin") && strings.HasPrefix(groupID, "org.jetbrains.kotlin") && strings.HasPrefix(artifactID, "kotlin-stdlib") {
+		backOutFromKotlinStdlib = true
+	}
+	if strings.Contains(currentLanguage, "kotlin") && strings.HasPrefix(groupID, "org.jetbrains.kotlin") && strings.HasPrefix(artifactID, "kotlin-test") {
+		backOutFromKotlinTest = true
+	}
 }
 
 func checkOtherRepositories(dep dependency) *pom {
@@ -427,7 +429,7 @@ func checkOtherRepositories(dep dependency) *pom {
 
 func checkRepoExcludes(artifactID string) bool {
 	for _, ex := range excludes {
-		if strings.Contains(artifactID, ex) && currentOuterScope != "exec" {
+		if strings.Contains(artifactID, ex) {
 			if COM.Verbose {
 				addFinishMessage("Info : excluded " + artifactID)
 				foundExcluded(artifactID)
@@ -761,10 +763,12 @@ func figureOutAllLatestAndDownload(repo string) {
 func figureOutLatestAndDownload(repo string, groupID string, artifactID string) error {
 	version, err := figureOutLastestRepo(groupID, artifactID)
 	if err != nil {
+		print("\033[31m-\033[0m")
 		return err
 	}
 	p := downloadDepsRepo(repo, groupID, artifactID, version, false)
 	if p == nil {
+		print("\033[31m-\033[0m")
 		return errors.New(tab + " failed to resolve :" + groupID + " " + artifactID + " " + version)
 	}
 	return nil

@@ -269,8 +269,9 @@ func CheckGit(silent bool) bool {
 }
 
 func CheckJPX(silent bool) bool {
-	if !which("jpx") && !silent {
-		println("\n\033[31m( jpx )\033[0m is not accesible")
+	_, err := os.Stat(filepath.Join(COM.HomeDir(), "libs", "find-main.jar"))
+	if (!which("jpx") || err != nil) && !silent {
+		println("\n\033[31m( jpx )\033[0m is not working well")
 		if asked {
 			println("\tfix    : jpm setup -jpx")
 		}

@@ -27,7 +27,7 @@ func findAllJPM(unfiltteredDeps []string, aliases []string) (jpmDeps []string, n
 		v = COM.NormalizeSpaces(v)
 		spaces := strings.Count(v, " ")
 		splits := strings.SplitN(v, " ", 2)
-		isInAliases := slices.Contains(append(aliases, "raw"), splits[0])
+		isInAliases := slices.Contains(append(aliases, "raw"), strings.ToLower(splits[0]))
 		switch spaces {
 		case 0:
 			// inevitably a jpm dependency
@@ -130,13 +130,15 @@ func saveJPMExecToDownloadList(scope, dep, version string) {
 		downloadInfo[url] = []string{filename, scope + "|"}
 	}
 }
-
+func generateJpmDepUrl(repo, pack, ver, filename string) string {
+	firstLetter := strings.ToLower(pack[0:1])
+	return repo + firstLetter + "/" + pack + "/" + ver + "/" + filename
+}
 func downloadDepsJPM(d *jpmRepo) {
 	if checkJPMExcludes(d.Package) {
 		return
 	}
-	firstLetter := strings.ToLower(d.Package[0:1])
-	url := jpmRepoUrl + firstLetter + "/" + d.Package + "/" + d.Version + "/dependencies.json"
+	url := generateJpmDepUrl(currentWorkingRepo, d.Package, d.Version, "dependencies.json")
 	deps, err := downloadJson(url)
 	if err != nil {
 		addFinishMessage("\033[31m ! Unable to download " + url + " \033[0m\n")
@@ -227,6 +229,9 @@ func figureOutJPMInnerClassifier(d string, forRepos bool) (string, bool) {
 	if forRepos {
 		i = 1
 	}
+	if len(dSlices) < i+2 {
+		return "", false
+	}
 	classifier := COM.GetSection("classifiers", false).(map[string]string)
 	v, ok := classifier[dSlices[i+1]]
 	vg, okg := classifier[dSlices[i]]
@@ -237,9 +242,6 @@ func figureOutJPMInnerClassifier(d string, forRepos bool) (string, bool) {
 		return vg + "|", true
 	} else if oks {
 		return vs + "|", true
-	}
-	if len(dSlices) < i+2 {
-		return "", false
 	}
 	if len(dSlices) == i+2 && dSlices[0] != "" {
 		addFinishMessage("Info : default clasifier -> " + dSlices[0] + " is used for " + dSlices[i+1])

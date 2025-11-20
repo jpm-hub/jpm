@@ -102,9 +102,10 @@ func main() {
 		println()
 		fmt.Println(" \033[33mjpm test\033[0m :\tRuns tests with junit under tests/")
 		println()
-		fmt.Println(" \033[33mjpm install \033[0m [-f, -with <classifier>, -no <package>, -repo <alias>:<url>] <dependency>,... :")
+		fmt.Println(" \033[33mjpm install \033[0m [-f, -update, -with <classifier>, -no <package>, -repo <alias>:<url>] <dependency>,... :")
 		fmt.Println("\t\tInstalls the dependencies from package.yml, dependency list seperated by commas")
 		fmt.Println("\t\t-f: force re-install ")
+		fmt.Println("\t\t-update: updates all dependencies to latest versions")
 		fmt.Println("\t\t-with <classifier>: adds a classifier to all dependencies")
 		fmt.Println("\t\t-with <groupID>:<classifier> : adds a classifier to all dependencies with the given groupID")
 		fmt.Println("\t\t-with <package>:<classifier> : adds a classifier to the given dependency")
@@ -182,15 +183,15 @@ func main() {
 			println("\n Tests failed")
 			os.Exit(1)
 		}
+	case "ci":
+		execOverride("ci")
+		COM.RunScript("rm -rf ./jpm_dependencies/*", false)
+		fallthrough
 	case "i":
 		fallthrough
 	case "install":
 		execOverride("install")
 		INSTALL.Install()
-	case "ci":
-		execOverride("ci")
-		COM.RunScript("rm -rf ./jpm_dependencies/*", false)
-		COM.RunScript("jpm install!", true)
 	default:
 		argsStr := ""
 		if len(os.Args) > 1 {

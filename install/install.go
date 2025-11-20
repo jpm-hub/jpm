@@ -49,13 +49,27 @@ var finishMessages []string = []string{}
 var excludes []string = []string{}
 var backOutFromKotlinStdlib bool = false
 var backOutFromKotlinTest bool = false
+var backOutFromjunit bool = false
 
 func Install() {
 	println()
 	force := false
 	COM.FindPackageYML(true)
-	COM.CopyToDependencies(COM.GetSection("language", true).(string))
 	for i := 0; i < len(os.Args); i++ {
+		if i == 0 || i == 1 {
+			continue
+		}
+
+		if os.Args[i] == "-update" {
+			os.Args = []string{os.Args[0], "install", "-update"}
+			break
+		}
+		if os.Args[i] == "-v" {
+			COM.Verbose = true
+			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+			i--
+			continue
+		}
 		if os.Args[i] == "-no" {
 			COM.AddToSection("excludes", os.Args[i+1])
 			os.Args = append(os.Args[:i], os.Args[i+2:]...)
@@ -97,15 +111,51 @@ func Install() {
 		if force {
 			os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
 		}
-		deps := COM.GetDependencies(false)
-
+		// load in the lock.json
+		lockDeps := loadLockDependencies()
+		yamlDeps := COM.GetDependencies(false)
+		deps := []string{}
+		for _, dep := range yamlDeps {
+			if !slices.Contains(lockDeps, dep) {
+				deps = append(deps, dep)
+			}
+		}
 		aliases := findExistingAliases()
 		installFromYML(aliases, deps, true)
+	case 3:
+		if os.Args[2] == "-update" {
+			os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
+			deps := COM.GetDependencies(false)
+			deps = COM.StripVersionInfo(deps...)
+			aliases := findExistingAliases()
+			installFromYML(aliases, deps, true)
+			break
+		}
+		fallthrough
 	default:
 		if force {
 			println("\033[31mcannot force install\033[0m")
 		}
-		installFromCLI()
+		aliases := findExistingAliases()
+		// load in the lock.json
+		lockDeps := loadLockDependencies()
+		yamlDeps := COM.GetDependencies(false)
+		deps := []string{}
+		for _, dep := range yamlDeps {
+			if !slices.Contains(lockDeps, dep) {
+				deps = append(deps, dep)
+			}
+		}
+		ds := strings.Split(strings.TrimPrefix(strings.TrimSuffix(strings.Join(os.Args[2:], " "), ","), ","), ",")
+		for _, d := range ds {
+			if !slices.Contains(yamlDeps, d) {
+				COM.AddToSection("dependencies", COM.NormalizeSpaces(d))
+			}
+		}
+		ds = append(deps, ds...)
+		//ds = strings.ReplaceAll(ds, "--save-dev", "exec")
+		depStrings := COM.NormalizeDependencies(ds)
+		installFromYML(aliases, depStrings, true)
 	}
 	execChmod()
 	checkUnexcluded()
@@ -117,9 +167,14 @@ func Install() {
 
 func determineCLIClassifier(s string) any {
 	if !strings.Contains(s, ":") {
-		return map[string]string{"*": s}
+		s = "*:" + s
 	}
 	slices := strings.SplitN(s, ":", 2)
+	classifiers := COM.GetSection("classifiers", false).(map[string]string)
+	if _, ok := classifiers[slices[0]]; ok {
+		addFinishMessage("\033[38;5;208mWarning: Classifier for " + slices[0] + " already exists\033[0m")
+		return nil
+	}
 	return map[string]string{slices[0]: slices[1]}
 }
 
@@ -133,6 +188,7 @@ func execChmod() {
 			continue
 		}
 		name := entry.Name()
+		// TODO: turn this to Has shbang check
 		if !strings.HasSuffix(name, ".jar") {
 			err := os.Chmod(filepath.Join("jpm_dependencies/execs", name), 0755)
 			if err != nil {
@@ -154,9 +210,6 @@ func QuickInstall(force bool) COM.Dependencies {
 	return lockDeps
 }
 func installFromYML(aliases []string, deps []string, clean bool) {
-	// load in the lock.json
-	loadLockDependencies()
-
 	// load in locals initially
 	localDeps, noneLocal := findAllLocalDeps(deps)
 	fromLocal(localDeps)
@@ -170,6 +223,7 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 	repoDeps, raws := findAllRepoDeps(noneJpmdeps, repoList)
 	fromRepo(repoDeps)
 	installDependencies()
+	COM.CopyToDependencies(COM.GetSection("language", true).(string))
 	if clean {
 		cleanup()
 	}
@@ -177,7 +231,10 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 	//raws last
 	rawDeps := findAllRaws(raws)
 	fromRAW(rawDeps)
+	installScripts()
+	g_lockDeps.Dependencies = COM.GetDependencies(false)
 	dumpDependencies()
+
 }
 
 func fromLocal(localDeps []string) {
@@ -208,6 +265,11 @@ func fromJPM(deps []string) string {
 		currentWorkingRepo = jpmRepoUrl
 		currentOuterScope = jDep.Scope
 		depString = saveAllJPMSubDependencies(&jDep)
+		if currentOuterScope == "exec" {
+			jarfilename := jDep.Package + "-" + jDep.Version + ".jar"
+			url := generateJpmDepUrl(currentWorkingRepo, jDep.Package, jDep.Version, jarfilename)
+			g_lockDeps.Scripts[jDep.Package] = jarfilename + "|" + url
+		}
 	}
 	addJPMSubDependenciesToDownloadList()
 	return depString
@@ -224,6 +286,11 @@ func fromRepo(dependenciesWithRepo map[string][]Repo) {
 			}
 			currentWorkingRepo = dr.Repo
 			saveAllRepoSubDependencies(&dr)
+			if currentOuterScope == "exec" {
+				jarfilename := dr.ArtefactID + "-" + dr.ArtVer + ".jar"
+				url := generateRepoDepUrl(currentWorkingRepo, dr.GroupID, dr.ArtefactID, dr.ArtVer, jarfilename)
+				g_lockDeps.Scripts[dr.ArtefactID] = jarfilename + "|" + url
+			}
 		}
 	}
 
@@ -232,6 +299,7 @@ func fromRepo(dependenciesWithRepo map[string][]Repo) {
 		addRepoSubDependenciesToDownloadList(v.Repo)
 	}
 }
+
 func fromRAW(deps []string) {
 	if len(deps) == 0 {
 		return
@@ -240,11 +308,12 @@ func fromRAW(deps []string) {
 		delete(downloadInfo, k)
 	}
 
-	print("  --- RAW: Downloading [")
+	print("\033[32m  --- RAW: Downloading \033[0m[")
 	for _, d := range deps {
 		checkSlice := strings.Split(d, " ")
 		if len(checkSlice) > 4 || len(checkSlice) < 2 || !strings.Contains(d, "/") {
-			println("\n" + tab + "RAW Dependency " + d + " Does not exist")
+			print("\033[31m=\033[0m")
+			addFinishMessage(tab + "RAW Dependency " + d + " Does not exist")
 			continue
 		}
 		dSlices := strings.Split(d, " ")
@@ -255,6 +324,7 @@ func fromRAW(deps []string) {
 				scope = dSlices[2]
 			} else {
 				printNotValidScope(dSlices[2])
+				print("\033[31m=\033[0m")
 				continue
 			}
 		} else if len(dSlices) == 3 && strings.Contains(d, " -x ") {
@@ -266,25 +336,26 @@ func fromRAW(deps []string) {
 				scope = dSlices[3] + " x"
 			} else {
 				printNotValidScope(dSlices[3])
+				print("\033[31m=\033[0m")
 				continue
 			}
 		}
+		COM.AddToSection("dependencies", d)
 		urlSlice := strings.Split(url, "/")
 		filename := urlSlice[len(urlSlice)-1]
 		downloadInfo[url] = []string{filename, "raw", scope}
 		download(url, filename, scope, listAlreadyInstalledDeps())
 		sname := strings.Split(strings.TrimSuffix(filename, filepath.Ext(filename)), "-")[0]
-		createExecScript(scope, sname, filename)
-		print("=")
-
+		if scope == "exec" {
+			g_lockDeps.Scripts[sname] = filename + "|" + url
+		}
 	}
 	println("]")
 }
 func findAllRaws(raws []string) []string {
 	deps := []string{}
 	for _, v := range raws {
-		if strings.HasPrefix(COM.NormalizeSpaces(strings.ToLower(v)), "raw") {
-			// Skip if we already have this dependency
+		if strings.HasPrefix(COM.NormalizeSpaces(strings.ToLower(v)), "raw ") {
 			found := slices.Contains(deps, v)
 			if !found {
 				deps = append(deps, v)
@@ -297,10 +368,9 @@ func checkValidScope(scope string) bool {
 	return slices.Contains(jpmScopes, scope)
 }
 func printNotValidScope(scope string) {
-	println()
-	println("\033[38;5;208m" + tab + "Warning: scope " + scope + " is a unknown scope\033[0m")
-	println()
+	addFinishMessage(tab + "Warning: scope " + scope + " is a unknown scope")
 }
+
 func download(url string, filename string, scope string, depsInstalled map[string][]string) {
 	sc := strings.Split(strings.Trim(scope, "|"), "|")[0]
 	extract := false
@@ -323,10 +393,11 @@ func download(url string, filename string, scope string, depsInstalled map[strin
 			return
 		}
 		if err, _ := COM.DownloadFile(url, filepath.Join("jpm_dependencies", "tests"), filename, false, false); err != nil {
-
 			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
+			print("\033[31m=\033[0m")
 			return
 		}
+		print("=")
 		if extract {
 			COM.Extract(filepath.Join("jpm_dependencies", "tests"), filename)
 			COM.CleanupExtract(filepath.Join("jpm_dependencies", "tests"), filename)
@@ -340,10 +411,11 @@ func download(url string, filename string, scope string, depsInstalled map[strin
 			return
 		}
 		if err, _ := COM.DownloadFile(url, filepath.Join("jpm_dependencies", "execs"), filename, false, false); err != nil {
-
 			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
+			print("\033[31m=\033[0m")
 			return
 		}
+		print("=")
 		if extract {
 			COM.Extract(filepath.Join("jpm_dependencies", "execs"), filename)
 			COM.CleanupExtract(filepath.Join("jpm_dependencies", "execs"), filename)
@@ -357,10 +429,11 @@ func download(url string, filename string, scope string, depsInstalled map[strin
 			return
 		}
 		if err, _ := COM.DownloadFile(url, "jpm_dependencies", filename, false, false); err != nil {
-
 			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
+			print("\033[31m=\033[0m")
 			return
 		}
+		print("=")
 		if extract {
 			COM.Extract("jpm_dependencies", filename)
 			COM.CleanupExtract("jpm_dependencies", filename)
@@ -368,6 +441,7 @@ func download(url string, filename string, scope string, depsInstalled map[strin
 	}
 
 }
+
 func listAlreadyInstalledDeps() map[string][]string {
 	dir := "jpm_dependencies"
 	entries, err := os.ReadDir(dir)
@@ -386,7 +460,7 @@ func listAlreadyInstalledDeps() map[string][]string {
 	maped := make(map[string][]string, 3)
 	maped["jpm_dependencies"] = list
 	testList := []string{}
-	dir = "jpm_dependencies/tests"
+	dir = filepath.Join("jpm_dependencies", "tests")
 	entries, err = os.ReadDir(dir)
 	if err != nil {
 		println("Could not fetch list of already installed test jars")
@@ -401,7 +475,7 @@ func listAlreadyInstalledDeps() map[string][]string {
 	}
 	maped["test"] = testList
 	execList := []string{}
-	dir = "jpm_dependencies/execs"
+	dir = filepath.Join("jpm_dependencies", "execs")
 	entries, err = os.ReadDir(dir)
 	if err != nil {
 		return maped
@@ -444,6 +518,9 @@ func resolveDependecy() map[string]string {
 		if strings.HasSuffix(k, "|test") {
 			d := strings.TrimSuffix(k, "test")
 			if _, ok := depMap[d]; ok {
+				if depMap[d] <= depMap[k] {
+					depMap[d] = depMap[k]
+				}
 				depMap[k] = ""
 			}
 		}
@@ -452,6 +529,9 @@ func resolveDependecy() map[string]string {
 		if strings.HasSuffix(k, "|exec") {
 			d := strings.TrimSuffix(k, "exec")
 			if _, ok := depMap[d]; ok {
+				if depMap[d] <= depMap[k] {
+					depMap[d] = depMap[k]
+				}
 				depMap[k] = ""
 			}
 		}
@@ -478,7 +558,7 @@ func resolveDependecy() map[string]string {
 	}
 	return depMap
 }
-func loadLockDependencies() {
+func loadLockDependencies() []string {
 	file, err := os.Open(filepath.Join("jpm_dependencies", "lock.json"))
 	classified := false
 	if COM.GetSection("classified", false) != nil {
@@ -486,20 +566,24 @@ func loadLockDependencies() {
 	}
 	if err != nil {
 		g_lockDeps = COM.Dependencies{
-			Classified: classified,
-			JPM:        map[string]string{},
-			Repos:      map[string]map[string]string{},
+			Classified:   classified,
+			Dependencies: COM.GetDependencies(false),
+			JPM:          map[string]string{},
+			Repos:        map[string]map[string]string{},
+			Scripts:      map[string]string{},
 		}
-		return
+		return []string{}
 	}
 	defer file.Close()
 	decoder := json.NewDecoder(file)
 	var lockDeps COM.Dependencies
 	if err := decoder.Decode(&lockDeps); err != nil {
-		return
+		println("Error decoding lock.json:", err)
+		os.Exit(1)
 	}
 	g_lockDeps = lockDeps
 	g_lockDeps.Classified = classified
+	g_lockDeps.Scripts = lockDeps.Scripts
 	for k, v := range lockDeps.JPM {
 		depsList[jpmRepoUrl] = append(depsList[jpmRepoUrl], k, v)
 	}
@@ -508,18 +592,56 @@ func loadLockDependencies() {
 			depsList[k] = append(depsList[k], k2, v2)
 		}
 	}
+	for i, d := range lockDeps.Dependencies {
+		g_lockDeps.Dependencies[i] = COM.NormalizeSpaces(d)
+	}
+	return g_lockDeps.Dependencies
 }
 func installDependencies() {
+	already := listAlreadyInstalledDeps()
 	if len(downloadInfo) != 0 {
 		print("      Downloading [")
+		var wg sync.WaitGroup
 		for k, v := range downloadInfo {
-			download(k, v[0], v[1], listAlreadyInstalledDeps())
-			print("=")
+			wg.Add(1)
+			go func(url, filename, scope string) {
+				defer wg.Done()
+				download(url, filename, scope, already)
+			}(k, v[0], v[1])
+		}
+		wg.Wait()
+		println("]")
+	}
+}
+func installScripts() {
+	already := listAlreadyInstalledDeps()
+	if len(g_lockDeps.Scripts) != 0 {
+		print("      Downloading Scripts [")
+		var wg sync.WaitGroup
+		for k, v := range g_lockDeps.Scripts {
+			wg.Add(1)
+			go func(ky, value string) {
+				defer wg.Done()
+				parts := strings.Split(value, "|")
+				download(parts[1], parts[0], "exec", already)
+			}(k, v)
+		}
+		wg.Wait()
+		for k, v := range g_lockDeps.Scripts {
+			parts := strings.Split(v, "|")
+			createExecScript(k, parts[0])
 		}
 		println("]")
+	}
+	if len(failedInstalledList) > 0 {
 		for _, v := range failedInstalledList {
-			println(v)
+			if COM.Verbose {
+				println(v)
+			}
 		}
+	}
+	if !COM.Verbose {
+		println("\n\033[38;5;208m Use 'jpm install -v' for more details.\033[0m")
 	}
 }
 func dumpDependencies() {
@@ -549,14 +671,15 @@ func dumpDependencies() {
 func cleanup() {
 	jars := []string{}
 	execjars := []string{}
+	testjars := []string{}
 
 	for key, v := range g_lockDeps.JPM {
 		jar := ""
 		if strings.HasSuffix(key, "|test") {
-			jar = filepath.Join("tests")
+			jar = "tests"
 		}
 		if strings.HasSuffix(key, "|exec") {
-			jar = filepath.Join("execs")
+			jar = "execs"
 		}
 		value := strings.TrimSuffix(key, "|test")
 		value = strings.TrimSuffix(value, "|exec")
@@ -566,21 +689,24 @@ func cleanup() {
 		if len(valueS) == 2 {
 			classifier = "-" + valueS[0]
 		}
-		execjar := filepath.Join(jar, value)
-		jar = filepath.Join(jar, value+"-"+v+classifier+".jar")
-		jars = append(jars, jar)
-		execjars = append(execjars, execjar, jar)
-		testjars = append(testjars, testjar, jar)
+		switch jar {
+		case "tests":
+			testjars = append(testjars, value+"-"+v+classifier+".jar")
+		case "execs":
+			execjars = append(execjars, value+"-"+v+classifier+".jar", value)
+		default:
+			jars = append(jars, value+"-"+v+classifier+".jar")
+		}
 	}
 
 	for _, depMap := range g_lockDeps.Repos {
 		for key, v := range depMap {
 			jar := ""
 			if strings.HasSuffix(key, "|test") {
-				jar = filepath.Join("tests")
+				jar = "tests"
 			}
 			if strings.HasSuffix(key, "|exec") {
-				jar = filepath.Join("execs")
+				jar = "execs"
 			}
 			value := strings.TrimSuffix(key, "|test")
 			value = strings.TrimSuffix(value, "|exec")
@@ -590,21 +716,20 @@ func cleanup() {
 			if len(valueS) == 3 {
 				classifier = "-" + valueS[0]
 			}
-			execjar := filepath.Join(jar, value)
-			jar = filepath.Join(jar, value+"-"+v+classifier+".jar")
-			println(jar)
 			switch jar {
 			case "tests":
-
-				testjars = append(testjars, testjar, jar)
+				jar = value + "-" + v + classifier + ".jar"
+				testjars = append(testjars, jar)
 			case "execs":
-				execjars = append(execjars, execjar, jar)
+				jar = value + "-" + v + classifier + ".jar"
+				execjars = append(execjars, jar, value)
 			default:
+				jar = value + "-" + v + classifier + ".jar"
 				jars = append(jars, jar)
 			}
 		}
 	}
-	fmt.Println(jars)
+
 	//clean up
 	files, err := os.ReadDir("jpm_dependencies")
 	if err == nil {
@@ -614,7 +739,6 @@ func cleanup() {
 					if !backOutFromKotlinStdlib && (file.Name() == "annotations-13.0.jar" || file.Name() == "kotlin-stdlib.jar" || file.Name() == "kotlin-reflect.jar") {
 						continue
 					}
-					println("remove", file.Name())
 					os.Remove(filepath.Join("jpm_dependencies", file.Name()))
 				}
 			}
@@ -624,11 +748,10 @@ func cleanup() {
 	if err == nil {
 		for _, file := range files {
 			if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
-				if !slices.Contains(jars, filepath.Join("tests", file.Name())) {
-					if file.Name() == "junit.jar" || (!backOutFromKotlinTest && (file.Name() == "kotlin-test.jar")) {
+				if !slices.Contains(testjars, file.Name()) {
+					if (!backOutFromjunit && file.Name() == "junit.jar") || (!backOutFromKotlinTest && file.Name() == "kotlin-test.jar") {
 						continue
 					}
-					println("test remove", file.Name())
 					os.Remove(filepath.Join("jpm_dependencies", "tests", file.Name()))
 				}
 			}
@@ -638,7 +761,7 @@ func cleanup() {
 	files, err = os.ReadDir(filepath.Join("jpm_dependencies", "execs"))
 	if err == nil {
 		for _, file := range files {
-			if !slices.Contains(execjars, filepath.Join("execs", file.Name())) {
+			if !slices.Contains(execjars, file.Name()) {
 				os.Remove(filepath.Join("jpm_dependencies", "execs", file.Name()))
 			}
 		}
@@ -664,30 +787,66 @@ func foundExcluded(s string) {
 func checkUnexcluded() {
 	for _, v := range excludes {
 		if !excluded[v] {
-			addFinishMessage("\033[33mInfo : was not excluded anywhere " + v + "\033[0m")
+			addFinishMessage("\033[33mInfo : was not excluded anywhere " + v + " in this install process\033[0m")
 		}
 	}
 }
 
-func createExecScript(scope, scriptName, filename string) {
-	if scope != "exec" || !strings.HasSuffix(filename, ".jar") {
+func createExecScript(scriptName, filename string) {
+	// this does not account for classified jars.... if someone
+	// is trying to execute a classified jar... maybe it should be handled here?
+	// but that person can always change the name of the Main-Class in the script anyway.
+	if !strings.HasSuffix(filename, ".jar") {
+		print("\033[31m=\033[0m")
 		return
 	}
-	separator := ":"
-	if COM.IsWindows() {
-		separator = ";"
-	}
-	filename = "jpm_dependencies/execs/" + filename
-	scriptCmd := `
+	if _, err := os.Stat(filepath.Join("jpm_dependencies", "execs", filename)); err == nil {
+		if _, err := os.Stat(filepath.Join("jpm_dependencies", "execs", scriptName)); err == nil {
+			if COM.Verbose {
+				println(scriptName, "already exists, skipping script creation")
+			}
+			return
+		}
+		separator := ":"
+		if COM.IsWindows() {
+			separator = ";"
+		}
+		filename = "jpm_dependencies/execs/" + filename
+		scriptCmd := `
 	mainc=$(unzip -p ` + filename + ` META-INF/MANIFEST.MF | grep Main-Class | awk '/Main-Class:/ {print $2}'|tr -d '\n'| tr -d '\r')
 	if [ -z "$mainc" ]; then
+		jpmdir=` + COM.HomeDirUnix() + `
+		classes=$(java -jar ${jpmdir}/libs/find-main.jar ` + filename + `)
+		if [ $(echo $classes | wc -w) -gt 1 ]; then
+			for main in $classes; do
+				mainc=$main
+				scriptname=` + scriptName + `-$(echo $main | awk -F. '{print $NF}')
+				echo "#!/bin/sh" > jpm_dependencies/execs/$scriptname
+				echo "# use -p <module_path> to add modules paths" >> jpm_dependencies/execs/$scriptname
+				printf "java -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$mainc" '$@' >> jpm_dependencies/execs/$scriptname
+			done
+			exit 0
+		elif [ $(echo $classes | wc -w) -eq 1 ]; then
+			echo "#!/bin/sh" > jpm_dependencies/execs/` + scriptName + `
+			echo "# use -p <module_path> to add modules paths" >> jpm_dependencies/execs/` + scriptName + `
+			printf "java -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$classes" '$@' >> jpm_dependencies/execs/` + scriptName + `
+			exit 0
+		fi
 		exit 1
-	fi
-	echo "#!/bin/sh" > jpm_dependencies/execs/` + scriptName + `
-	printf "java -p \"jpm_dependencies` + separator + `jpm_dependencies/execs\ -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$mainc" '$@' >> jpm_dependencies/execs/` + scriptName
-	err := COM.RunScript(scriptCmd, true)
-	if err != nil {
-		addFinishMessage("\033[33mCould not find Main-Class in " + filename + "\033[0m")
-		return
+	else
+		echo "#!/bin/sh" > jpm_dependencies/execs/` + scriptName + `
+		echo "# use -p <module_path> to add modules paths" >> jpm_dependencies/execs/` + scriptName + `
+		printf "java -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$mainc" '$@' >> jpm_dependencies/execs/` + scriptName + `
+	fi`
+		err := COM.RunScript(scriptCmd, true)
+		if err != nil {
+			print("\033[33m=\033[0m")
+			delete(g_lockDeps.Scripts, scriptName)
+			if COM.Verbose {
+				addFinishMessage("\033[33mNo Main-Class in " + filename + "\033[0m")
+			}
+			return
+		}
+		print("=")
 	}
 }

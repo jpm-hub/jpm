@@ -30,9 +30,11 @@ var packageYML PackageYAMLSimple
 var parsed []string = []string{}
 
 type Dependencies struct {
-	Classified bool                         `json:"classified"`
-	JPM        map[string]string            `json:"JPM"`
-	Repos      map[string]map[string]string `json:"repos"`
+	Classified   bool                         `json:"classified"`
+	Dependencies []string                     `json:"dependencies"`
+	JPM          map[string]string            `json:"JPM"`
+	Repos        map[string]map[string]string `json:"repos"`
+	Scripts      map[string]string            `json:"scripts,omitempty"`
 }
 type PackageYAMLSimple struct {
 	Main          string              `yaml:"main,omitempty"`
@@ -44,6 +46,7 @@ type PackageYAMLSimple struct {
 	Language      string              `yaml:"language,omitempty"`
 	Env           string              `yaml:"env,omitempty"`
 	Classified    bool                `yaml:"classified,omitempty"`
+	Modular       bool                `yaml:"modular,omitempty"`
 	Scripts       map[string]string   `yaml:"scripts,omitempty"`
 	Dependencies  []string            `yaml:"dependencies,omitempty"`
 	Classifiers   map[string]string   `yaml:"classifiers,omitempty"`
@@ -64,6 +67,7 @@ type PackageYAML struct {
 	Language      string         `yaml:"language,omitempty"`
 	Env           string         `yaml:"env,omitempty"`
 	Classified    bool           `yaml:"classified,omitempty"`
+	Modular       bool           `yaml:"modular,omitempty"`
 	Scripts       *OrderedMap    `yaml:"scripts,omitempty"`
 	Dependencies  []string       `yaml:"dependencies"`
 	Classifiers   *OrderedMap    `yaml:"classifiers,omitempty"`
@@ -217,6 +221,7 @@ func VerifyPackageYML() {
 		for _, r := range repoSectionListMap {
 			repoSectionMap := r.(map[string]string)
 			for k, v := range repoSectionMap {
+				k = strings.ToLower(k)
 				if strings.HasPrefix(k, "-") || slices.Contains(alreadyThere, k) || k == "local" || k == "raw" || k == "jpm" || v == "" || k == "_" {
 					println("syntax error with: ", k, v)
 					os.Exit(1)
@@ -282,7 +287,29 @@ func FindPackageYML(fatal bool) (string, string) {
 	}
 	return "", ""
 }
-
+func StripVersionInfo(deps ...string) []string {
+	result := []string{}
+	for _, dep := range deps {
+		if strings.Count(dep, ":") > 1 {
+			dep = strings.Replace(dep, ":", " ", 1)
+		}
+		indexOflastcolon := strings.Index(dep, ":")
+		if indexOflastcolon == -1 {
+			result = append(result, strings.TrimSpace(dep))
+			continue
+		}
+		indexOfSpaceAfterColon := strings.Index(dep[indexOflastcolon:], " ")
+		if indexOfSpaceAfterColon != -1 {
+			// string removing content between last colon and space after it
+			dep = dep[:indexOflastcolon] + dep[indexOflastcolon+indexOfSpaceAfterColon:]
+		} else {
+			// string removing content after last colon
+			dep = dep[:indexOflastcolon]
+		}
+		result = append(result, strings.TrimSpace(dep))
+	}
+	return result
+}
 func ReplaceDependency(oldDepString string, newDepString string) {
 	data, err := os.ReadFile(g_yamlPath)
 	if err != nil {
@@ -295,14 +322,25 @@ func ReplaceDependency(oldDepString string, newDepString string) {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	replaced := false
 	for i, depStr := range pkgYAML.Dependencies {
-		if NormalizeSpaces(depStr) != NormalizeSpaces(oldDepString) && NormalizeSpaces(depStr)+":" != NormalizeSpaces(oldDepString) {
+		if strings.Count(depStr, ":") > 1 {
+			depStr = strings.Replace(depStr, ":", " ", 1)
+		}
+		depStr = StripVersionInfo(NormalizeSpaces(depStr))[0]
+		oldDepString = StripVersionInfo(NormalizeSpaces(oldDepString))[0]
+		if depStr != oldDepString {
 			continue
 		}
+		replaced = true
 		newDepString = NormalizeSpaces(newDepString)
 		pkgYAML.Dependencies[i] = newDepString
 		packageYML.Dependencies[i] = newDepString
 		break
+	}
+	if !replaced {
+		AddToSection("dependencies", newDepString)
+		return
 	}
 	// Write back to file with comment preservation
 	if err := WriteYAML(g_yamlPath, pkgYAML); err != nil {
@@ -316,6 +354,10 @@ func AddToSection(sectionName string, sectionValue any) {
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+
+	if sectionValue == nil {
+		return
 	}
 
 	var pkgYAML PackageYAML
@@ -459,6 +501,8 @@ func GetSection(section string, isFatal bool) any {
 			args[key] = ParseENV(v)
 		}
 		return args
+	case "modular":
+		return packageYML.Modular
 	case "excludes":
 		excludes := []string{}
 		for _, v := range packageYML.Excludes {
@@ -645,6 +689,7 @@ func NormalizeDependencies(dep []string) []string {
 		if strings.Count(v, ":") > 1 {
 			dep[i] = strings.Replace(dep[i], ":", " ", 1)
 		}
+		dep[i] = NormalizeSpaces(dep[i])
 	}
 	return dep
 }
@@ -736,6 +781,25 @@ func HomeDir() string {
 	return dirPath
 }
 
+func HomeDirUnix() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "."
+	}
+	appDir := ".jpm"
+	// Create the directory if it doesn't exist
+	dirPath := filepath.Join(homeDir, appDir)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		if err := os.MkdirAll(dirPath, 0755); err != nil {
+			println("failed to create home directory:", err.Error())
+			os.Exit(1)
+		}
+	}
+	dirPath = strings.ReplaceAll(dirPath, ":", "")
+	prts := strings.Split(dirPath, "\\")
+	return "/" + strings.ToLower(prts[0]) + "/" + strings.Join(prts[1:], "/")
+}
+
 func SrcDir() string {
 	valsrc := GetSection("src", false)
 	if str := valsrc.(string); str != "" {
@@ -762,13 +826,13 @@ func CleanupExtract(dirname string, filename string) {
 	os.Remove(filepath.Join(dirname, filename))
 }
 func DownloadFile(url string, dirpath string, filename string, override bool, returnContent bool) (error, []byte) {
-	if Verbose {
-		println(url)
-	}
 	filePath := filepath.Join(dirpath, filename)
 	// Get the data first to check response
 	resp, err := http.Get(url)
 	if err != nil {
+		if Verbose {
+			println("\033[31m" + url + "\033[0m")
+		}
 		return err, nil
 	}
 	defer resp.Body.Close()
@@ -785,13 +849,19 @@ func DownloadFile(url string, dirpath string, filename string, override bool, re
 	}
 
 	// Check server response before creating file
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode <= http.StatusOK && resp.StatusCode >= 300 {
+		if Verbose {
+			println("\033[31m" + url + "\033[0m")
+		}
 		return fmt.Errorf("%s", resp.Status), nil
 	}
 
 	if returnContent {
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
+			if Verbose {
+				println("\033[31m" + url + "\033[0m")
+			}
 			return err, nil
 		}
 		return nil, bodyBytes
@@ -799,6 +869,9 @@ func DownloadFile(url string, dirpath string, filename string, override bool, re
 		// Create the file only after successful HTTP response
 		out, err := os.Create(filePath)
 		if err != nil {
+			if Verbose {
+				println("\033[31m" + url + "\033[0m")
+			}
 			return err, nil
 		}
 		defer out.Close()

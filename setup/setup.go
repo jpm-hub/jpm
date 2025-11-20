@@ -30,7 +30,7 @@ func Setup(setupSwitch string) {
 		osless.Clear(appHomeDir)
 		return
 	case "-jpx":
-		osless.Jpx()
+		osless.Jpx(appHomeDir)
 		return
 	}
 

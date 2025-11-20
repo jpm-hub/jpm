@@ -5,7 +5,14 @@ traverse_count=0
 found_package_yml=0
 
 if [ $# -eq 0 ]; then
-	jpm
+	echo "Usage: jpx <command> [args...]"
+	echo "available commands :"
+	dir="jpm_dependencies/execs"
+	for file in "$curdir/jpm_dependencies/execs/*"; do
+		if [ -x "$file" ] && [ -f "$file" ]; then
+			echo "$(basename "$file")"
+		fi
+	done
 else
 	while [ $traverse_count -lt $max_traverse ]; do
 		if [ -f "$curdir/package.yml" ]; then

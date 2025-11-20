@@ -8,7 +8,7 @@ set curdir=%CD%
 set arg_count=0
 for %%x in (%*) do set /a arg_count+=1
 if %arg_count%==0 (
-  jpm
+  "C:\Program Files\Git\bin\bash.exe" -c "echo Usage: jpx ^<command^> [args...]; echo available commands :; for file in ""$(pwd)/jpm_dependencies/execs/""*; do if [ -x ""$file"" ] && [ -f ""$file"" ]; then echo $(basename ""$file""); fi; done"
   ) else (
   set "PATH=%PATH%;%CD%\jpm_dependencies\execs"
   :find_package_yml_loop

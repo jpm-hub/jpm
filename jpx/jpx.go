@@ -8,7 +8,15 @@ traverse_count=0
 found_package_yml=0
 
 if [ $# -eq 0 ]; then
-	jpm
+  echo "Usage: jpx <command> [args...]"
+	echo "Add exec dependencies to your package.yml to make it available to jpx"
+	echo "available commands :"
+  echo ""
+	for file in "$curdir/jpm_dependencies/execs/"*; do
+		if [ -x "$file" ] && [ -f "$file" ]; then
+			echo "  $(basename "$file")"
+		fi
+	done
 else
 	while [ $traverse_count -lt $max_traverse ]; do
 		if [ -f "$curdir/package.yml" ]; then
@@ -44,7 +52,7 @@ set curdir=%CD%
 set arg_count=0
 for %%x in (%*) do set /a arg_count+=1
 if %arg_count%==0 (
-  jpm
+  "C:\Program Files\Git\bin\bash.exe -c " "echo Usage: jpx ^<command^> [args...]; echo available commands :; for file in "$(pwd)/jpm_dependencies/execs/"*; do if [ -x \"$file\" ] && [ -f \"$file\" ]; then echo \"$(basename \"$file\")\"; fi; done"
   ) else (
   set "PATH=%PATH%;%CD%\jpm_dependencies\execs"
   :find_package_yml_loop

@@ -28,8 +28,8 @@ func Bundle() {
 		for _, entry := range entries {
 			os.RemoveAll(filepath.Join(distDir, entry.Name()))
 		}
-		os.RemoveAll(filepath.Join("out"))
 	}
+	os.RemoveAll(filepath.Join("out"))
 	os.MkdirAll(filepath.Join("dist", "_dump"), 0755)
 	version = COM.GetSection("version", true).(string)
 	if version == "" {
@@ -158,6 +158,10 @@ func copyFromDependencies(dir string) {
 func extractJarAndZip() {}
 func createScripts(main string) {
 	argsMap := COM.ParseArgs()
+	modular := ""
+	if COM.GetSection("modular", false).(bool) {
+		modular = "-p jar_libraries "
+	}
 	args, found := argsMap["java"]
 	if !found {
 		args = ""
@@ -165,22 +169,28 @@ func createScripts(main string) {
 		args = " " + args
 	}
 	if publishing {
+		if len(modular) > 0 {
+			modular = "-p jpm_dependencies:jpm_dependencies/execs "
+		}
+		if COM.IsWindows() {
+			modular = strings.ReplaceAll(modular, ":", ";")
+		}
 		unixArgs := strings.ReplaceAll(args, "../jpm_dependencies", "jpm_dependencies")
 		unix := fmt.Sprintf(`#!/bin/bash
 `+COM.ParseEnvVars("export ", true)+`
 if $(jpm is-windows > /dev/null ); then
-    java%s -p "jpm_dependencies;jpm_dependencies/execs" -cp "jpm_dependencies/*;jpm_dependencies/execs/*" %s $@
+    java%s %s-cp "jpm_dependencies/*;jpm_dependencies/execs/*" %s $@
     exit $?; else
-    java%s -p jpm_dependencies:jpm_dependencies/execs -cp "jpm_dependencies/*:jpm_dependencies/execs/*" %s $@
+    java%s %s-cp "jpm_dependencies/*:jpm_dependencies/execs/*" %s $@
     exit $?
-fi; echo "unknown OS" && exit 1`, unixArgs, main, unixArgs, main)
+fi; echo "unknown OS" && exit 1`, unixArgs, modular, main, unixArgs, modular, main)
 		os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)), []byte(unix+"\n"), 0755)
 		return
 	}
 	unixArgs := strings.ReplaceAll(args, "../jpm_dependencies", "jar_libraries")
-	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ", true)+"java%s -p jar_libraries -cp ./*:jar_libraries/* %s $@", unixArgs, main)
+	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ", true)+"java%s %s-cp ./*:jar_libraries/* %s $@", unixArgs, modular, main)
 	winArgs := strings.ReplaceAll(args, "..\\jpm_dependencies", "jar_libraries")
-	windows := fmt.Sprintf(COM.ParseEnvVars("set ", false)+"java%s -p jar_libraries -cp ./*;jar_libraries/* %s ", winArgs, main)
+	windows := fmt.Sprintf(COM.ParseEnvVars("set ", false)+"java%s %s-cp ./*;jar_libraries/* %s ", winArgs, modular, main)
 	windows = windows + `"%*"`
 	os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)), []byte(unix+"\n"), 0755)
 	os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)+".cmd"), []byte(windows+"\r\n"), 0755)

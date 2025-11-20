@@ -101,7 +101,7 @@ func Verbose(homeDir string) {
 	println("verbose set to", !currentverbose)
 }
 
-func Jpx() {
+func Jpx(homeDir string) {
 	execDir, err := os.Executable()
 	if err != nil {
 		println("Failed to get executable directory:", err.Error())
@@ -112,5 +112,12 @@ func Jpx() {
 	if COM.IsWindows() {
 		os.WriteFile(execDir+"\\jpx.cmd", []byte(JPX.CMDTemplate()), 0755)
 	}
+	url := "https://raw.githubusercontent.com/jpm-hub/repo/refs/heads/main/packages/f/find-main/1.0.0/find-main-1.0.0.jar"
+	filename := "find-main-1.0.0.jar"
+	pluginDir := filepath.Join(homeDir, "libs")
+	os.MkdirAll(pluginDir, 0755)
+	println("  --- Downloading")
+	COM.DownloadFile(url, pluginDir, filename, true, false)
+	os.Rename(filepath.Join(pluginDir, filename), filepath.Join(pluginDir, "find-main.jar"))
 	println("\033[32m  --- jpx setup done\033[0m")
 }
