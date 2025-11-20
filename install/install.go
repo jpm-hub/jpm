@@ -267,8 +267,9 @@ func fromJPM(deps []string) string {
 		depString = saveAllJPMSubDependencies(&jDep)
 		if currentOuterScope == "exec" {
 			jarfilename := jDep.Package + "-" + jDep.Version + ".jar"
-			url := generateJpmDepUrl(currentWorkingRepo, jDep.Package, jDep.Version, jarfilename)
-			g_lockDeps.Scripts[jDep.Package] = jarfilename + "|" + url
+			urljar := generateJpmDepUrl(currentWorkingRepo, jDep.Package, jDep.Version, jarfilename)
+			urljscript := generateJpmDepUrl(currentWorkingRepo, jDep.Package, jDep.Version, jDep.Package)
+			g_lockDeps.Scripts[jDep.Package] = jarfilename + "|" + urljar + "|" + urljscript
 		}
 	}
 	addJPMSubDependenciesToDownloadList()
@@ -403,8 +404,7 @@ func download(url string, filename string, scope string, depsInstalled map[strin
 			COM.CleanupExtract(filepath.Join("jpm_dependencies", "tests"), filename)
 		}
 	case "exec":
-		v, ok := depsInstalled["exec"]
-		if ok && slices.Contains(v, filename) {
+		if slices.Contains(slices.Concat(depsInstalled["exec"], depsInstalled["jpm_dependencies"]), filename) {
 			if COM.Verbose {
 				println(filename, "already exists, skipping download")
 			}
@@ -582,8 +582,18 @@ func loadLockDependencies() []string {
 		os.Exit(1)
 	}
 	g_lockDeps = lockDeps
-	g_lockDeps.Classified = classified
-	g_lockDeps.Scripts = lockDeps.Scripts
+	if g_lockDeps.Scripts == nil {
+		g_lockDeps.Scripts = map[string]string{}
+	}
+	if g_lockDeps.JPM == nil {
+		g_lockDeps.JPM = map[string]string{}
+	}
+	if g_lockDeps.Repos == nil {
+		g_lockDeps.Repos = map[string]map[string]string{}
+	}
+	if g_lockDeps.Dependencies == nil {
+		g_lockDeps.Dependencies = []string{}
+	}
 	for k, v := range lockDeps.JPM {
 		depsList[jpmRepoUrl] = append(depsList[jpmRepoUrl], k, v)
 	}
@@ -624,6 +634,9 @@ func installScripts() {
 				defer wg.Done()
 				parts := strings.Split(value, "|")
 				download(parts[1], parts[0], "exec", already)
+				if len(parts) == 3 {
+					download(parts[2], ky, "exec", already)
+				}
 			}(k, v)
 		}
 		wg.Wait()
@@ -797,10 +810,12 @@ func createExecScript(scriptName, filename string) {
 	// is trying to execute a classified jar... maybe it should be handled here?
 	// but that person can always change the name of the Main-Class in the script anyway.
 	if !strings.HasSuffix(filename, ".jar") {
-		print("\033[31m=\033[0m")
 		return
 	}
-	if _, err := os.Stat(filepath.Join("jpm_dependencies", "execs", filename)); err == nil {
+	_, err1 := os.Stat(filepath.Join("jpm_dependencies", "execs", filename))
+	_, err2 := os.Stat(filepath.Join("jpm_dependencies", filename))
+	if err1 != nil || err2 != nil {
+		fmt.Println(os.Stat(filepath.Join("jpm_dependencies", "execs", scriptName)))
 		if _, err := os.Stat(filepath.Join("jpm_dependencies", "execs", scriptName)); err == nil {
 			if COM.Verbose {
 				println(scriptName, "already exists, skipping script creation")
@@ -811,7 +826,12 @@ func createExecScript(scriptName, filename string) {
 		if COM.IsWindows() {
 			separator = ";"
 		}
-		filename = "jpm_dependencies/execs/" + filename
+		if err1 == nil {
+			filename = "jpm_dependencies/execs/" + filename
+		} else {
+			filename = "jpm_dependencies/" + filename
+		}
+
 		scriptCmd := `
 	mainc=$(unzip -p ` + filename + ` META-INF/MANIFEST.MF | grep Main-Class | awk '/Main-Class:/ {print $2}'|tr -d '\n'| tr -d '\r')
 	if [ -z "$mainc" ]; then

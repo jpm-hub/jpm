@@ -180,12 +180,12 @@ func KOTLINC() string {
 }
 
 func CheckDeps(dep string) {
-	deps := GetDependencies(true)
+	deps := StripVersionInfo(NormalizeDependencies(GetDependencies(true))...)
 	seen := make(map[string]bool)
-	seen[NormalizeSpaces(dep)] = true
+	seen[StripVersionInfo(NormalizeSpaces(dep))[0]] = true
 	for _, d := range deps {
 		if seen[NormalizeSpaces(d)] {
-			println("duplicate dependency found: " + d)
+			println("package.yml:", d, "would be duplicated in dependencies")
 			os.Exit(1)
 		}
 		seen[NormalizeSpaces(d)] = true
@@ -232,30 +232,6 @@ func VerifyPackageYML() {
 			}
 		}
 	}
-
-	// verify dependencies
-	depSection := GetSection("dependencies", false).([]string)
-	if depSection != nil {
-		set := map[string]bool{}
-		for _, v := range depSection {
-			if strings.HasPrefix(v, "raw ") {
-				continue
-			}
-			s := strings.Split(v, ":")
-			sj := []string{}
-			if len(s) > 1 {
-				sj = strings.Split(s[len(s)-1], " ")
-				sj = sj[1:]
-				s = s[:len(s)-1]
-			}
-			val := strings.Join(append(s, sj...), " ")
-			if _, ok := set[val]; ok {
-				println("duplicate dependency:", val)
-				os.Exit(1)
-			}
-			set[val] = true
-		}
-	}
 }
 func FindPackageYML(fatal bool) (string, string) {
 	dir, err := os.Getwd()
@@ -289,9 +265,10 @@ func FindPackageYML(fatal bool) (string, string) {
 }
 func StripVersionInfo(deps ...string) []string {
 	result := []string{}
-	for _, dep := range deps {
-		if strings.Count(dep, ":") > 1 {
-			dep = strings.Replace(dep, ":", " ", 1)
+	for _, dep := range NormalizeDependencies(deps) {
+		if strings.HasPrefix(dep, "raw ") || strings.HasPrefix(dep, "local ") {
+			result = append(result, strings.TrimSpace(dep))
+			continue
 		}
 		indexOflastcolon := strings.Index(dep, ":")
 		if indexOflastcolon == -1 {
@@ -372,6 +349,7 @@ func AddToSection(sectionName string, sectionValue any) {
 			packageYML.Dependencies = make([]string, 0)
 		}
 		newDependency := sectionValue.(string)
+		CheckDeps(newDependency)
 		if !slices.Contains(pkgYAML.Dependencies, newDependency) {
 			pkgYAML.Dependencies = append(pkgYAML.Dependencies, newDependency)
 			packageYML.Dependencies = append(packageYML.Dependencies, newDependency)
