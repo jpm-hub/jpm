@@ -341,7 +341,6 @@ func fromRAW(deps []string) {
 				continue
 			}
 		}
-		COM.AddToSection("dependencies", d)
 		urlSlice := strings.Split(url, "/")
 		filename := urlSlice[len(urlSlice)-1]
 		downloadInfo[url] = []string{filename, "raw", scope}

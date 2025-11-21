@@ -186,7 +186,9 @@ func CheckDeps(dep string) {
 	for _, d := range deps {
 		if seen[NormalizeSpaces(d)] {
 			println("package.yml:", d, "would be duplicated in dependencies")
+			println("Aborting...")
 			os.Exit(1)
+
 		}
 		seen[NormalizeSpaces(d)] = true
 	}
@@ -349,6 +351,7 @@ func AddToSection(sectionName string, sectionValue any) {
 			packageYML.Dependencies = make([]string, 0)
 		}
 		newDependency := sectionValue.(string)
+		fmt.Println(newDependency)
 		CheckDeps(newDependency)
 		if !slices.Contains(pkgYAML.Dependencies, newDependency) {
 			pkgYAML.Dependencies = append(pkgYAML.Dependencies, newDependency)
