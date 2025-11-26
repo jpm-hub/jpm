@@ -307,7 +307,6 @@ func generateRepoDepUrl(repo, gid, aid, ver, filename string) string {
 	return repo + gidPath + "/" + aid + "/" + ver + "/" + filename
 }
 func downloadDepsRepo(repo string, groupID string, artifactID string, version string, scopeImport bool) *pom {
-	checkIfBackout(groupID, artifactID)
 	if version == "" {
 		return nil
 	}
@@ -364,9 +363,6 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 
 		if (optional == "" || strings.ToLower(optional) == "false") && !strings.HasPrefix(groupID, "org.junit") {
 			groupid := figureOutGroupID(repo, dep, pom)
-			if strings.HasPrefix(groupID, "org.junit") {
-				continue
-			}
 			artifactid := figureOutArtifactID(repo, dep, pom)
 			if slices.Contains(scopesAccepted, scope) {
 				dep.GroupID = groupid
@@ -401,15 +397,6 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 
 	}
 	return &pom
-}
-
-func checkIfBackout(groupID, artifactID string) {
-	if strings.Contains(currentLanguage, "kotlin") && strings.HasPrefix(groupID, "org.jetbrains.kotlin") && strings.HasPrefix(artifactID, "kotlin-stdlib") {
-		backOutFromKotlinStdlib = true
-	}
-	if strings.Contains(currentLanguage, "kotlin") && strings.HasPrefix(groupID, "org.jetbrains.kotlin") && strings.HasPrefix(artifactID, "kotlin-test") {
-		backOutFromKotlinTest = true
-	}
 }
 
 func checkOtherRepositories(dep dependency) *pom {
@@ -798,7 +785,7 @@ func downloadPOM(pomURL string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to download POM: status code %d", resp.StatusCode)
+		return "", fmt.Errorf("POM: status code %d trying other repos if any", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)

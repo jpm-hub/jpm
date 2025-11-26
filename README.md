@@ -32,8 +32,21 @@ jpm doctor -fix
 ```
 
 ## Quick Start
-
-1. **Initialize a new project:**
+1. **Install JPM**
+    <br>SDKMAN! (comming soon)
+    ```bash
+    # not yet on sdkman but coming soon
+    sdk install jpm
+    ```
+    linux / mac 
+    ```bash
+    curl -L -o s.sh https://sh.jpmhub.org && sh s.sh
+    ```
+    windows
+    ```bash
+    cmd /c "curl -L -o s.cmd https://cmd.jpmhub.org && s.cmd"
+    ```
+2. **Initialize a new project:**
    ```bash
    # this will create app/App.java
    jpm init 
@@ -41,7 +54,7 @@ jpm doctor -fix
    jpm init src/main/java/com.example.App -git
    ```
 
-2. **Compile and run:**
+3. **Compile and run:**
    ```bash
    jpm start
    ```

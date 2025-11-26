@@ -10,8 +10,10 @@ scripts:
     go build
     rm -f /c/Users/sderisme/.jpm/jpm.exe
     cp jpm.exe /c/Users/sderisme/.jpm/jpm.exe
+  install@: jpm install ...args@; mv jpm_dependencies/execs/qlty-x86_64-unknown-linux-gnu/qlty jpm_dependencies/execs/qlty; chmod +x jpm_dependencies/execs/qlty
 dependencies:
-  - google com.android.tools.lint:lint:31.13.1 exec
+  - rsync:1.0.0 exec
+  - raw -x https://github.com/qltysh/qlty/releases/download/v0.592.0/qlty-x86_64-unknown-linux-gnu.tar.xz exec
 repos:
   - default: https://repo1.maven.org/maven2/
   - google: https://maven.google.com/

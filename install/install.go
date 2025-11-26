@@ -47,9 +47,6 @@ var failedInstalledList []string = []string{}
 var latests []string = []string{}
 var finishMessages []string = []string{}
 var excludes []string = []string{}
-var backOutFromKotlinStdlib bool = false
-var backOutFromKotlinTest bool = false
-var backOutFromjunit bool = false
 
 func Install() {
 	println()
@@ -220,7 +217,7 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 
 	// maven second
 	repoList := getRepoList()
-	repoDeps, raws := findAllRepoDeps(noneJpmdeps, repoList)
+	repoDeps, _ := findAllRepoDeps(noneJpmdeps, repoList)
 	fromRepo(repoDeps)
 	installDependencies()
 	COM.CopyToDependencies(COM.GetSection("language", true).(string))
@@ -229,7 +226,7 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 	}
 
 	//raws last
-	rawDeps := findAllRaws(raws)
+	rawDeps := findAllRaws(COM.GetDependencies(false))
 	fromRAW(rawDeps)
 	installScripts()
 	g_lockDeps.Dependencies = COM.GetDependencies(false)
@@ -523,8 +520,6 @@ func resolveDependecy() map[string]string {
 				depMap[k] = ""
 			}
 		}
-	}
-	for k := range depMap {
 		if strings.HasSuffix(k, "|exec") {
 			d := strings.TrimSuffix(k, "exec")
 			if _, ok := depMap[d]; ok {
@@ -748,7 +743,7 @@ func cleanup() {
 		for _, file := range files {
 			if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
 				if !slices.Contains(jars, file.Name()) {
-					if !backOutFromKotlinStdlib && (file.Name() == "annotations-13.0.jar" || file.Name() == "kotlin-stdlib.jar" || file.Name() == "kotlin-reflect.jar") {
+					if file.Name() == "annotations-13.0.jar" || file.Name() == "kotlin-stdlib.jar" || file.Name() == "kotlin-reflect.jar" {
 						continue
 					}
 					os.Remove(filepath.Join("jpm_dependencies", file.Name()))
@@ -761,7 +756,7 @@ func cleanup() {
 		for _, file := range files {
 			if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
 				if !slices.Contains(testjars, file.Name()) {
-					if (!backOutFromjunit && file.Name() == "junit.jar") || (!backOutFromKotlinTest && file.Name() == "kotlin-test.jar") {
+					if file.Name() == "junit.jar" || file.Name() == "kotlin-test.jar" {
 						continue
 					}
 					os.Remove(filepath.Join("jpm_dependencies", "tests", file.Name()))
@@ -814,7 +809,6 @@ func createExecScript(scriptName, filename string) {
 	_, err1 := os.Stat(filepath.Join("jpm_dependencies", "execs", filename))
 	_, err2 := os.Stat(filepath.Join("jpm_dependencies", filename))
 	if err1 != nil || err2 != nil {
-		fmt.Println(os.Stat(filepath.Join("jpm_dependencies", "execs", scriptName)))
 		if _, err := os.Stat(filepath.Join("jpm_dependencies", "execs", scriptName)); err == nil {
 			if COM.Verbose {
 				println(scriptName, "already exists, skipping script creation")

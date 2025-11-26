@@ -23,7 +23,7 @@ func initCompile() {
 	}
 	argsMap = COM.ParseArgs()
 }
-func Compile() error {
+func Compile(src ...string) error {
 	initCompile()
 	languageList := findLanguages()
 	var err error
@@ -31,11 +31,11 @@ func Compile() error {
 	for _, v := range languageList {
 		switch v {
 		case "java":
-			err = compileJava()
+			err = compileJava(strings.Join(src, " "))
 		case "kotlin":
-			err = compileKotlin()
+			err = compileKotlin(strings.Join(src, " "))
 		default:
-			err = compileJava()
+			err = compileJava(strings.Join(src, " "))
 		}
 		if err != nil {
 			println(err.Error())
@@ -113,46 +113,60 @@ func endCheckLastLineForErrors(r *os.File, w *os.File, originalStdout *os.File) 
 	return nil
 }
 
-func findAllSrcFile(dir string, fileWildcard string) string {
-	info, err := os.Stat(dir)
-	if err != nil || !info.IsDir() {
-		println(" The package name should be a dir in the root directory :", dir)
-		os.Exit(1)
-		return ""
-	}
-	// Recursively add all subdirectories, but only include if a file matches the wildcard in the dir
+func findAllSrcFile(dirs string, fileWildcard string) string {
 	str := strings.Builder{}
-	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if d.IsDir() {
-			matches, _ := filepath.Glob(filepath.Join(path, fileWildcard))
-			if len(matches) > 0 {
-				str.WriteString(filepath.Join(path, fileWildcard))
-				str.WriteString(" ")
-			}
+	for dir := range strings.SplitSeq(dirs, " ") {
+		info, err := os.Stat(dir)
+		if err != nil {
+			println(" Non-existent directory :", dir)
+			os.Exit(1)
+			return ""
 		}
-		return nil
-	})
+		if !info.IsDir() {
+			str.WriteString(filepath.Join(dir))
+			str.WriteString(" ")
+			continue
+		}
+		// Recursively add all subdirectories, but only include if a file matches the wildcard in the dir
+		filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+			if d.IsDir() {
+				matches, _ := filepath.Glob(filepath.Join(path, fileWildcard))
+				if len(matches) > 0 {
+					str.WriteString(filepath.Join(path, fileWildcard))
+					str.WriteString(" ")
+				}
+			}
+			return nil
+		})
+	}
 	return str.String()
 }
 
-func findListofAllSrcFile(dir string, fileWildcard string) string {
-	info, err := os.Stat(dir)
-	if err != nil || !info.IsDir() {
-		println(" The package name should be a dir in the root directory :", dir)
-		os.Exit(1)
-		return ""
-	}
-	// Recursively find all files that match the wildcard pattern
+func findListofAllSrcFile(dirs string, fileWildcard string) string {
 	str := strings.Builder{}
-	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if !d.IsDir() {
-			matched, _ := filepath.Match(fileWildcard, d.Name())
-			if matched {
-				str.WriteString(path)
-				str.WriteString(" ")
-			}
+	for dir := range strings.SplitSeq(dirs, " ") {
+		info, err := os.Stat(dir)
+		if err != nil {
+			println(" Non-existent directory :", dir)
+			os.Exit(1)
+			return ""
 		}
-		return nil
-	})
+		if !info.IsDir() {
+			str.WriteString(filepath.Join(dir))
+			str.WriteString(" ")
+			continue
+		}
+		// Recursively find all files that match the wildcard pattern
+		filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+			if !d.IsDir() {
+				matched, _ := filepath.Match(fileWildcard, d.Name())
+				if matched {
+					str.WriteString(path)
+					str.WriteString(" ")
+				}
+			}
+			return nil
+		})
+	}
 	return str.String()
 }

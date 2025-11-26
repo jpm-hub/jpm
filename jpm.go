@@ -161,7 +161,11 @@ func main() {
 		CREATE.Create()
 	case "compile":
 		execOverride("compile")
-		if COMPILE.Compile() != nil {
+		args := []string{}
+		if len(os.Args) > 2 {
+			args = os.Args[2:]
+		}
+		if COMPILE.Compile(args...) != nil {
 			os.Exit(1)
 		}
 	case "run":

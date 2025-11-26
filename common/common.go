@@ -804,7 +804,10 @@ func Extract(dirname string, filename string) {
 	extract.Archive(context.TODO(), file, dirname, nil)
 }
 func CleanupExtract(dirname string, filename string) {
-	os.Remove(filepath.Join(dirname, filename))
+	err := os.Remove(filepath.Join(dirname, filename))
+	if err != nil {
+		//println("failed to remove", filename, ":", err.Error())
+	}
 }
 func DownloadFile(url string, dirpath string, filename string, override bool, returnContent bool) (error, []byte) {
 	filePath := filepath.Join(dirpath, filename)

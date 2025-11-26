@@ -11,8 +11,10 @@ if [ $# -eq 0 ]; then
 	for file in "$curdir/jpm_dependencies/execs/*"; do
 		if [ -x "$file" ] && [ -f "$file" ]; then
 			echo "$(basename "$file")"
+			echo ""
 		fi
 	done
+	echo ""
 else
 	while [ $traverse_count -lt $max_traverse ]; do
 		if [ -f "$curdir/package.yml" ]; then
@@ -32,6 +34,6 @@ else
 		echo "Error: package.yml not found"
 		exit 1
 	fi
-	export PATH="$PATH:$(pwd)/jpm_dependencies/execs"
+	export PATH="$(pwd)/jpm_dependencies/execs:$PATH"
 	"$@"
 fi

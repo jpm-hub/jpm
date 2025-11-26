@@ -3,12 +3,13 @@ package compile
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	COM "jpm/common"
 )
 
-func compileKotlin() error {
+func compileKotlin(dir string) error {
 	args := ""
 	if allBuildArgs, found := argsMap["kotlinc"]; found {
 		args = COM.NormalizeSpaces(allBuildArgs)
@@ -23,6 +24,25 @@ func compileKotlin() error {
 		}
 	}
 	var builder strings.Builder
+	if strings.TrimSpace(dir) == "" {
+		dir = COM.SrcDir()
+	} else {
+		_, errS = os.Stat(filepath.Join("jpm_dependencies", "execs"))
+		if errS == nil {
+			files, err := os.ReadDir(filepath.Join("jpm_dependencies", "execs"))
+			if err == nil {
+				for _, file := range files {
+					if strings.HasSuffix(file.Name(), ".jar") || strings.HasSuffix(file.Name(), ".zip") {
+						if builder.Len() > 0 {
+							builder.WriteString(separator)
+						}
+						builder.WriteString("jpm_dependencies/execs/")
+						builder.WriteString(file.Name())
+					}
+				}
+			}
+		}
+	}
 	for _, file := range jpm_dependenciesFiles {
 		if strings.HasSuffix(file.Name(), ".jar") || strings.HasSuffix(file.Name(), ".zip") {
 			if builder.Len() > 0 {
@@ -36,13 +56,12 @@ func compileKotlin() error {
 	if jarFilesString == "" {
 		jarFilesString = "."
 	}
-
 	var err1 error
 	if COM.IsWindows() {
-		allKts := findListofAllSrcFile(COM.SrcDir(), "*.kt")
+		allKts := findListofAllSrcFile(dir, "*.kt")
 		err1 = COM.RunCMD(COM.KOTLINC()+" "+args+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
 	} else {
-		allKts := findAllSrcFile(COM.SrcDir(), "*.kt")
+		allKts := findAllSrcFile(dir, "*.kt")
 		err1 = COM.RunScript("kotlinc "+args+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
 	}
 
