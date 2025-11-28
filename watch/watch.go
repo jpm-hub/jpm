@@ -19,6 +19,7 @@ import (
 
 var command string = "jpm compile"
 var procs []*os.Process = []*os.Process{}
+var refreshing bool = false
 
 func Watch(fromRun bool) {
 	COM.FindPackageYML(true)
@@ -30,13 +31,29 @@ func Watch(fromRun bool) {
 	}
 	defer watcher.Close()
 
+	for i := 0; i < len(os.Args); i++ {
+		if i == 0 || i == 1 {
+			continue
+		}
+		if os.Args[i] == "-r" {
+			refreshing = true
+			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+			i--
+			continue
+		}
+	}
 	// Parse the filter pattern
-	patterns := parseFilterPattern(figureOutFilter(fromRun))
-	fmt.Println("\033[33mWatching file changes " + figureOutFilter(fromRun) + "\033[0m")
+	filter := figureOutFilter(fromRun)
+	patterns := parseFilterPattern(filter)
 	if len(patterns) == 0 {
 		fmt.Println("Invalid filter pattern")
 		return
 	}
+	andReferesh := ""
+	if refreshing {
+		andReferesh = " with restart on changes"
+	}
+	fmt.Println("\033[33mWatching file changes " + filter + andReferesh + "\033[0m")
 	if fromRun {
 		println("\n\n\033[33m Warning: 'jpm run -hot' is in alpha, hot reloading may not work as expected\033[0m\n")
 	}
@@ -201,7 +218,6 @@ func getDirectoriesToWatch(patterns []string) []string {
 			if !seen[dir] {
 				dirs = append(dirs, dir)
 				seen[dir] = true
-
 				// Recursively add all subdirectories
 				filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 					if err != nil {
@@ -222,6 +238,11 @@ func getDirectoriesToWatch(patterns []string) []string {
 }
 
 func refresh(fromRunWatch bool) {
+	if !refreshing {
+		println("\033[32mexecuting : " + command + "\033[0m")
+		COM.RunScript(command, true)
+		return
+	}
 	var proc *os.Process
 	if !fromRunWatch {
 		killpids()

@@ -31,6 +31,6 @@ else
 		echo "Error: package.yml not found"
 		exit 1
 	fi
-	export PATH="$(pwd)/jpm_dependencies/execs:$PATH"
+	export PATH="$curdir/jpm_dependencies/execs:$PATH"
 	"$@"
 fi
