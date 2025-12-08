@@ -56,7 +56,9 @@ func Doctor(silent bool, ask bool) bool {
 	fixkotlinlib(!good7 && fix)
 	good8 := checkJavac(silent)
 	fixjavac(!good8 && fix)
-	goodFinal := good1 && good2 && good3 && good4 && good5 && good6 && good7 && good8
+	good9 := checkRsync(silent)
+	fixrsync(!good9 && fix)
+	goodFinal := good1 && good2 && good3 && good4 && good5 && good6 && good7 && good8 && good9
 	if goodFinal && asked {
 		println("\n\033[32mAll good!\033[0m")
 	} else if asked && !fix {
@@ -126,6 +128,19 @@ func fixgit(b bool) {
 		runScript("winget install Git.Git", true)
 	} else {
 		runScript("apt-get -y install git || pacman -S -noconfirm git || dnf install -y git || apk add git", true)
+	}
+}
+
+func fixrsync(b bool) {
+	if !b || COM.IsWindows() {
+		return
+	}
+	if strings.Contains(runtime.GOOS, "darwin") {
+		runScript("brew install rsync", true)
+	} else if strings.Contains(runtime.GOOS, "windows") {
+		runScript("winget install Git.Git", true)
+	} else {
+		runScript("apt-get -y install rsync || pacman -S -noconfirm rsync || dnf install -y rsync || apk add rsync", true)
 	}
 }
 
@@ -267,7 +282,24 @@ func CheckGit(silent bool) bool {
 	}
 	return true
 }
-
+func checkRsync(silent bool) bool {
+	if !COM.IsWindows() {
+		if !which("rsync") && !silent {
+			println("\n\033[31m( rsync )\033[0m is not accesible")
+			if asked {
+				println("\tfix mac    : brew install rsync")
+				println("\tfix linux  : apt-get install rsync || pacman -S rsync || dnf install rsync || apk add rsync")
+			}
+			return false
+		} else {
+			if !silent {
+				println("\033[32m( rsync )\033[0m works")
+			}
+		}
+		return true
+	}
+	return true
+}
 func CheckJPX(silent bool) bool {
 	_, err := os.Stat(filepath.Join(COM.HomeDir(), "libs", "find-main.jar"))
 	if (!which("jpx") || err != nil) && !silent {
