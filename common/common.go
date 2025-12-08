@@ -674,7 +674,55 @@ func NormalizeDependencies(dep []string) []string {
 	}
 	return dep
 }
+func RunPS(script string, showStdOut bool) error {
+	if !IsWindows() {
+		println("PS is only available on windows")
+		return fmt.Errorf("PS is only available on windows")
+	}
+	var cmd *exec.Cmd
+	if tmpFile, err := os.CreateTemp("", "jpm_script_*.ps1"); err == nil {
+		tmpFile.WriteString(script)
+		if Verbose {
+			println("\033[33m-(Verbose)=> " + script + "\033[0m")
+			showStdOut = true
+		}
+		tmpFile.Close()
+		cmd = exec.Command("powershell", "-File", tmpFile.Name())
+		defer os.Remove(tmpFile.Name())
+		if dir, err := os.Getwd(); err == nil {
+			cmd.Dir = dir
+		}
+		if showStdOut {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+		}
 
+		// Set up signal handling for Ctrl+C
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT)
+		defer signal.Stop(sigChan)
+		// Start the command
+		if err := cmd.Start(); err == nil {
+			done := make(chan error, 1)
+			go func() {
+				done <- cmd.Wait()
+			}()
+			select {
+			case err := <-done:
+				return err
+			case sig := <-sigChan:
+				// Kill the process immediately when Ctrl+C is pressed
+				if cmd.Process != nil {
+					cmd.Process.Kill()
+				}
+				return fmt.Errorf("process terminated by signal: %v", sig)
+			}
+		}
+		return fmt.Errorf("failed to trap signals")
+	}
+	return fmt.Errorf("failed to run")
+}
 func RunCMD(script string, showStdOut bool) error {
 	if !IsWindows() {
 		println("CMD is only available on windows")

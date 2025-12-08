@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"time"
 
 	COM "jpm/common"
 	COMPILE "jpm/compile"
@@ -73,9 +72,6 @@ func Watch(fromRun bool) {
 			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
 				if matchesPattern(event.Name, patterns) {
 					refresh(fromRunWatch)
-					if COM.IsWindows() {
-						time.Sleep(time.Second)
-					}
 				}
 			}
 		}
@@ -238,23 +234,22 @@ func getDirectoriesToWatch(patterns []string) []string {
 }
 
 func refresh(fromRunWatch bool) {
-	if !refreshing {
-		println("\033[32mexecuting : " + command + "\033[0m")
+	if !refreshing && !fromRunWatch {
+		println("\033[32mRunning : " + command + "\033[0m")
 		COM.RunScript(command, true)
 		return
 	}
 	var proc *os.Process
 	if !fromRunWatch {
 		killpids()
-		fmt.Println("\033[32mRunning: " + command + "\033[0m")
+		fmt.Println("\033[32mExecuting: " + command + "\033[0m")
 		proc = runScriptWithPID(command)
 	} else {
-		if command != "" {
-			println("\033[32mexecuting : " + command + "\033[0m")
+		err := COMPILE.Compile()
+		if command != "" && err == nil {
+			println("\n\033[32mCompiling and Running : " + command + "\033[0m")
 			COM.RunScript(command, true)
 		}
-		println("\n\033[32mCompiling\033[0m")
-		COMPILE.Compile()
 	}
 	procs = append(procs, proc)
 }

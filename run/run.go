@@ -65,7 +65,10 @@ func Run() error {
 					runArgs += os.Args[i]
 				}
 			}
-			COMPILE.Compile()
+			err := COMPILE.Compile()
+			if err != nil {
+				os.Exit(1)
+			}
 			go WATCH.Watch(true)
 			createHotswapConfig()
 			defer os.Remove("out/hotswap-agent.properties")

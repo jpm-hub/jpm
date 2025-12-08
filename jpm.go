@@ -199,7 +199,11 @@ func main() {
 	default:
 		argsStr := ""
 		if len(os.Args) > 1 {
-			argsStr = strings.TrimSpace(strings.Join(os.Args[2:], " "))
+			if COM.IsWindows() {
+				argsStr = strings.TrimSpace(strings.Join(os.Args[2:], "' '"))
+			} else {
+				argsStr = strings.TrimSpace(strings.Join(os.Args[2:], " "))
+			}
 		}
 		if !found {
 			fmt.Printf("Script '%s' not found in package.yml\n", scriptName)
