@@ -773,10 +773,6 @@ func RunCMD(script string, showStdOut bool) error {
 	return fmt.Errorf("failed to run")
 }
 func RunScript(script string, showStdOut bool) error {
-	if Verbose {
-		println("\033[33m-(Verbose)=> " + script + "\033[0m")
-		showStdOut = true
-	}
 	var cmd *exec.Cmd
 	if IsWindows() {
 		cmd = exec.Command("C:\\Program Files\\Git\\bin\\bash.exe", "-c", script)
@@ -785,6 +781,11 @@ func RunScript(script string, showStdOut bool) error {
 	}
 	if dir, err := os.Getwd(); err == nil {
 		cmd.Dir = dir
+	}
+	if Verbose {
+		println("\033[33m-(Verbose)=> " + script + "\033[0m")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 	}
 	if showStdOut {
 		cmd.Stdout = os.Stdout

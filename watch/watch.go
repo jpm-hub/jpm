@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"syscall"
 
 	COM "jpm/common"
 	COMPILE "jpm/compile"
@@ -56,26 +57,6 @@ func Watch(fromRun bool) {
 	if fromRun {
 		println("\n\n\033[33m Warning: 'jpm run -hot' is in alpha, hot reloading may not work as expected\033[0m\n")
 	}
-	// Start watching for changes
-	go func(fromRunWatch bool) {
-		for {
-			// flush channel
-			select {
-			case <-watcher.Events:
-			default:
-			}
-			// listen for events
-			event, ok := <-watcher.Events
-			if !ok {
-				break
-			}
-			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
-				if matchesPattern(event.Name, patterns) {
-					refresh(fromRunWatch)
-				}
-			}
-		}
-	}(fromRun)
 
 	// Add directories to watch based on the filter pattern
 	dirs := getDirectoriesToWatch(patterns)
@@ -86,11 +67,38 @@ func Watch(fromRun bool) {
 		}
 	}
 
-	// Wait for interrupt signal (Ctrl+C) and run killpids() before exiting
+	// Channel to listen for interrupt signal (Ctrl+C)
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
-	<-sigChan
-	killpids()
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT)
+
+	// Listen for file changes and interrupt signal concurrently
+	done := make(chan struct{})
+	go func(fromRunWatch bool) {
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					killpids()
+					done <- struct{}{}
+					return
+				}
+				if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
+					if matchesPattern(event.Name, patterns) {
+						if COM.Verbose {
+							fmt.Println("change : ", event.Name)
+						}
+						refresh(fromRunWatch)
+					}
+				}
+			case <-sigChan:
+				killpids()
+				done <- struct{}{}
+				return
+			}
+		}
+	}(fromRun)
+
+	<-done
 }
 
 func killpids() {
@@ -248,7 +256,7 @@ func refresh(fromRunWatch bool) {
 		err := COMPILE.Compile()
 		if command != "" && err == nil {
 			println("\n\033[32mCompiling and Running : " + command + "\033[0m")
-			COM.RunScript(command, true)
+			COM.RunScript(command, false)
 		}
 	}
 	procs = append(procs, proc)
