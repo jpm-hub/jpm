@@ -212,9 +212,9 @@ func figureOutJPMClassifier(d COM.Dependencies, info jpmRepo) (string, bool) {
 	classifier := COM.GetSection("classifiers", false).(map[string]string)
 	v, ok := classifier[info.Package]
 	vs, oks := classifier["*"]
-	if ok {
+	if ok && d.Classified {
 		return v + "|", true
-	} else if oks {
+	} else if oks && d.Classified {
 		return vs + "|", true
 	}
 	if !d.Classified {
