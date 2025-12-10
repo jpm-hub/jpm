@@ -122,6 +122,7 @@ func Install() {
 	case 3:
 		if os.Args[2] == "-update" {
 			os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
+			loadLockDependencies()
 			deps := COM.GetDependencies(false)
 			deps = COM.StripVersionInfo(deps...)
 			aliases := findExistingAliases()
