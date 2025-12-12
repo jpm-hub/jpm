@@ -39,7 +39,6 @@ var depsList map[string][]string = map[string][]string{}
 var importList []string = []string{}
 var currentWorkingRepo string
 var currentOuterScope string
-var currentLanguage string = "java"
 var cache map[string]pom = map[string]pom{}
 var g_lockDeps COM.Dependencies = COM.Dependencies{}
 var downloadInfo map[string][]string = map[string][]string{}
@@ -100,9 +99,8 @@ func Install() {
 			continue
 		}
 	}
-	COM.CopyToDependencies(COM.GetSection("language", true).(string))
+	COM.CopyToDependencies(COM.GetSection("language", false).(string))
 	excludes = COM.GetSection("excludes", false).([]string)
-	currentLanguage = COM.GetSection("language", false).(string)
 	switch len(os.Args) {
 	case 2:
 		if force {

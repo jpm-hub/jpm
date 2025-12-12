@@ -118,8 +118,8 @@ echo "Installing JPM binaries to /usr/local/bin... (this might require elevated 
 cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
 if [ -f "jpm" ]; then
     cd /usr/local/bin/
-    rm -f jpm.old >/dev/null 2>&1 || sudo rm -f jpm.old >/dev/null 2>&1
-    mv jpm jpm.old >/dev/null 2>&1 || sudo mv jpm jpm.old >/dev/null 2>&1 || true
+    rm -f /tmp/jpm.old >/dev/null 2>&1 || sudo rm -f /tmp/jpm.old >/dev/null 2>&1
+    mv jpm /tmp/jpm.old >/dev/null 2>&1 || sudo mv jpm /tmp/jpm.old >/dev/null 2>&1 || true
     cd -
     cp jpm /usr/local/bin/jpm >/dev/null 2>&1 || sudo cp jpm /usr/local/bin/jpm 
     chmod +x /usr/local/bin/jpm >/dev/null 2>&1 || sudo chmod +x /usr/local/bin/jpm
@@ -130,17 +130,16 @@ else
 fi
 if [ -f "jpx" ]; then
     cd /usr/local/bin/
-    rm -f jpx.old >/dev/null 2>&1 || sudo rm -f jpx.old >/dev/null 2>&1
-    mv jpx jpx.old >/dev/null 2>&1 || sudo mv jpx jpx.old >/dev/null 2>&1 || true
+    rm -f /tmp/jpx.old >/dev/null 2>&1 || sudo rm -f /tmp/jpx.old >/dev/null 2>&1
+    mv jpx /tmp/jpx.old >/dev/null 2>&1 || sudo mv jpx /tmp/jpx.old >/dev/null 2>&1 || true
     cd -
     cp jpx /usr/local/bin/jpx >/dev/null 2>&1 || sudo cp jpx /usr/local/bin/jpx
     chmod +x /usr/local/bin/jpx >/dev/null 2>&1 || sudo chmod +x /usr/local/bin/jpx
     echo "- Installed jpx to /usr/local/bin"
 else
-    echo "ERROR: jpx binary not found after extraction"
+    echo "ERROR: jpx executable not found after extraction"
     exit 1
 fi
-
 
 # Clean up
 echo "Cleaning up..."
