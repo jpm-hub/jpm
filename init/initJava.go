@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-func initJava(appMainJavaFile string, packaging string, className string, lang string, src string) {
+func initJava(appMainJavaFile string, packaging string, className string, lang string, src string, modular bool) {
 	// Write package.yml
-	if err := os.WriteFile("package.yml", []byte(COM.GetPackageTemplate(packaging, className, lang, src)), 0644); err != nil {
+	if err := os.WriteFile("package.yml", []byte(COM.GetPackageTemplate(packaging, className, lang, src, modular)), 0644); err != nil {
 		fmt.Printf("Error creating package.yml: %v\n", err)
 		os.Exit(1)
 	}

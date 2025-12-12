@@ -45,11 +45,24 @@ func GetPackageTemplateSimple(language string) string {
 language: ` + language + `
 package: App
 src: .
-repos: [{default: https://repo1.maven.org/maven2/}]
+scripts: { start: jpm compile && jpm run }
+repos: [{ default: https://repo1.maven.org/maven2/ }]
 `
 }
-
-func GetPackageTemplate(packaging string, className string, language string, src string) string {
+func GetModuleInfoTemplate(packaging string, lang string) string {
+	return `module ` + packaging + ` {
+	exports ` + packaging + `;` + ifLangModuleRequires(lang) + `
+	requires junit;
+}`
+}
+func ifLangModuleRequires(lang string) string {
+	if strings.Contains(lang, "kotlin") {
+		return `
+		requires kotlin.stdlib;`
+	}
+	return ""
+}
+func GetPackageTemplate(packaging string, className string, language string, src string, modular bool) string {
 	var p []string
 	if packaging == "" {
 		p = []string{"app"}
@@ -61,7 +74,7 @@ func GetPackageTemplate(packaging string, className string, language string, src
 	return `main: ` + className + ifkotlinMain(language) + `
 version: 0.0.0
 language: ` + language + `
-package: ` + p[len(p)-1] + ifSrc(src) + `
+package: ` + p[len(p)-1] + ifSrc(src) + ifModular(modular) + `
 scripts:
   start : jpm compile && jpm run
   dev: jpm watch _ "jpm start"
@@ -89,9 +102,15 @@ func GetDotVscodeTemplate(src string) string {
 func ifSrc(src string) string {
 	if len(src) == 0 {
 		return ""
-	} else {
-		return "\nsrc: " + src
 	}
+	return "\nsrc: " + src
+}
+
+func ifModular(modular bool) string {
+	if modular {
+		return "\nmodular: true"
+	}
+	return ""
 }
 
 func ifkotlinMain(language string) string {

@@ -26,6 +26,7 @@ func Init(cliargs []string) {
 	git := false
 	docker := false
 	bare := false
+	modular := false
 	if len(cliargs) >= 2 {
 		for i, arg := range cliargs {
 			if i < 2 {
@@ -58,7 +59,7 @@ func Init(cliargs []string) {
 			}
 
 			if arg == "-mod" {
-				println("new module")
+				modular = true
 				continue
 			}
 			if arg == "-add" {
@@ -80,8 +81,8 @@ func Init(cliargs []string) {
 			}
 		}
 
-		if !diffName {
-			fmt.Println("Initializing project App")
+		if !diffName || bare {
+			fmt.Println("Initializing App")
 		}
 	}
 	language = strings.Trim(language, ",")
@@ -93,20 +94,19 @@ func Init(cliargs []string) {
 		return
 	}
 	appPathSlice := strings.Split(strings.ReplaceAll(projectName, ".", "/"), "/")
-	className := COM.CapitalizeFirst(appPathSlice[len(appPathSlice)-1]) // App
+	className := COM.CapitalizeFirst(appPathSlice[len(appPathSlice)-1]) // com.example.App
 	appMainJavaFile := className + ".java"                              // App.java
 	appMainKotlinFile := className + ".kt"                              // App.kt
 	appDir := appPathSlice[0]
 	if len(appPathSlice) > 1 {
-		appDir = strings.Join(appPathSlice[:len(appPathSlice)-1], "/") // com/app
+		appDir = strings.Join(appPathSlice[:len(appPathSlice)-1], "/") // com/example
 	}
 
 	p := strings.Split(appDir, "/")
 	appDir = strings.ReplaceAll(appDir, "-", "_")
 	packaging := p[len(p)-1]
-	count := strings.Count(projectName, "/")
 	src := ""
-	if count > 0 {
+	if strings.Count(projectName, "/") > 0 {
 		pSlice := strings.Split(projectName, "/")
 		p := pSlice[len(pSlice)-1]
 		pSlice = strings.Split(p, ".")
@@ -118,6 +118,12 @@ func Init(cliargs []string) {
 		src = strings.SplitN(projectName, ".", 2)[0]
 		srcSlice := strings.Split(src, "/")
 		src = strings.Join(srcSlice[:len(srcSlice)-1], "/")
+	}
+	if strings.Count(projectName, ".") > 1 {
+		pSlice := strings.Split(projectName, "/")
+		p := pSlice[len(pSlice)-1]
+		pSlice = strings.Split(p, ".")
+		packaging = strings.Join(pSlice[:len(pSlice)-1], ".")
 	}
 	if !diffName {
 		appDir = "src"
@@ -135,6 +141,16 @@ func Init(cliargs []string) {
 
 	if err := os.MkdirAll(filepath.Join(".vscode"), 0755); err == nil {
 		os.WriteFile(filepath.Join(".vscode", "settings.json"), []byte(COM.GetDotVscodeTemplate(src)), 0644)
+	}
+	if modular {
+		if packaging == "" {
+			fmt.Println("Modular projects require a package name : jpm init your.package.name -mod")
+			os.Exit(1)
+		}
+		if err := os.WriteFile(filepath.Join(src, "module-info.java"), []byte(COM.GetModuleInfoTemplate(packaging, language)), 0644); err != nil {
+			fmt.Printf("Error creating module-info.java: %v\n", err)
+			os.Exit(1)
+		}
 	}
 	if appDir == src {
 		packaging = "" // no package declaration, will be set to "app" in template
@@ -155,13 +171,13 @@ func Init(cliargs []string) {
 	}
 	COM.CopyToDependencies(language)
 	if language == "" {
-		initJava(appMainJavaFile, packaging, className, "java", src)
+		initJava(appMainJavaFile, packaging, className, "java", src, modular)
 	} else {
 		if strings.Contains(language, "kotlin") {
-			initKotlin(appMainKotlinFile, packaging, className, language, src)
+			initKotlin(appMainKotlinFile, packaging, className, language, src, modular)
 		}
 		if strings.Contains(language, "java") {
-			initJava(appMainJavaFile, packaging, className, language, src)
+			initJava(appMainJavaFile, packaging, className, language, src, modular)
 		}
 	}
 	if git {

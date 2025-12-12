@@ -444,7 +444,7 @@ func GetSection(section string, isFatal bool) any {
 		}
 		return packages
 	case "src":
-		return ParseENV(packageYML.Src)
+		return strings.TrimSpace(ParseENV(packageYML.Src))
 	case "classified":
 		return packageYML.Classified
 	case "scripts":
@@ -837,9 +837,13 @@ func SrcDir() string {
 	} else {
 		valpkg := GetSection("package", true)
 		if str = valpkg.(string); str != "" {
-			return strings.ReplaceAll(str, "-", "_")
+			_, err := os.Stat(strings.ReplaceAll(str, "-", "_"))
+			if err == nil {
+				return strings.ReplaceAll(str, "-", "_")
+			}
+			return "."
 		}
-		return ""
+		return "."
 	}
 }
 func NormalizeSpaces(s string) string {

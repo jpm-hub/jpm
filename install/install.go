@@ -100,7 +100,7 @@ func Install() {
 			continue
 		}
 	}
-
+	COM.CopyToDependencies(COM.GetSection("language", true).(string))
 	excludes = COM.GetSection("excludes", false).([]string)
 	currentLanguage = COM.GetSection("language", false).(string)
 	switch len(os.Args) {
@@ -221,7 +221,6 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 	repoDeps, _ := findAllRepoDeps(noneJpmdeps, repoList)
 	fromRepo(repoDeps)
 	installDependencies()
-	COM.CopyToDependencies(COM.GetSection("language", true).(string))
 	if clean {
 		cleanup()
 	}

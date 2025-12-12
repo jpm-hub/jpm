@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	COM "jpm/common"
@@ -28,12 +29,20 @@ func Compile(src ...string) error {
 	languageList := findLanguages()
 	var err error
 	var err2 error = nil
+	srcPath := strings.TrimSuffix(COM.GetSection("src", false).(string), "/")
+	if srcPath != "." && srcPath != "" && slices.Contains(languageList, "java") {
+		// do nothing
+	} else if COM.GetSection("modular", false).(bool) {
+		languageList = append(languageList, "module-info.java")
+	}
 	for _, v := range languageList {
 		switch v {
 		case "java":
 			err = compileJava(strings.Join(src, " "))
 		case "kotlin":
 			err = compileKotlin(strings.Join(src, " "))
+		case "module-info.java":
+			err = compileJava(filepath.Join(srcPath, "module-info.java"))
 		default:
 			err = compileJava(strings.Join(src, " "))
 		}
@@ -42,6 +51,7 @@ func Compile(src ...string) error {
 			err2 = fmt.Errorf("%s", err.Error())
 		}
 	}
+
 	return err2
 }
 
@@ -118,7 +128,7 @@ func findAllSrcFile(dirs string, fileWildcard string) string {
 	for dir := range strings.SplitSeq(dirs, " ") {
 		info, err := os.Stat(dir)
 		if err != nil {
-			println(" Non-existent directory :", dir)
+			println(" Non-existent :", dir)
 			os.Exit(1)
 			return ""
 		}

@@ -24,4 +24,6 @@ func Bare(language string) {
 			os.Exit(1)
 		}
 	}
+	COM.PrintArt()
+	println("\n\tApp is ready to \033[34mrun\033[0m : jpm start")
 }
