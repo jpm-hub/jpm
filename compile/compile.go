@@ -42,7 +42,10 @@ func Compile(src ...string) error {
 		case "kotlin":
 			err = compileKotlin(strings.Join(src, " "))
 		case "module-info.java":
-			err = compileJava(filepath.Join(srcPath, "module-info.java"))
+			p := filepath.Join(srcPath, "module-info.java")
+			if _, errs := os.Stat(p); errs == nil {
+				err = compileJava(p)
+			}
 		default:
 			err = compileJava(strings.Join(src, " "))
 		}
