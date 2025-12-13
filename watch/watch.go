@@ -24,6 +24,7 @@ var refreshing bool = false
 func Watch(fromRun bool) {
 	COM.FindPackageYML(true)
 	// Create a new watcher
+	var watcher *fsnotify.Watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		fmt.Println("Error creating watcher:", err)
@@ -88,7 +89,13 @@ func Watch(fromRun bool) {
 							fmt.Println("change : ", event.Name)
 						}
 						refresh(fromRunWatch)
+						watcher.Close()
+						watcher, _ = fsnotify.NewWatcher()
+						for _, dir := range dirs {
+							watcher.Add(dir)
+						}
 					}
+
 				}
 			case <-sigChan:
 				killpids()
