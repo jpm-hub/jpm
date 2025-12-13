@@ -89,10 +89,12 @@ func Watch(fromRun bool) {
 							fmt.Println("change : ", event.Name)
 						}
 						refresh(fromRunWatch)
-						watcher.Close()
-						watcher, _ = fsnotify.NewWatcher()
-						for _, dir := range dirs {
-							watcher.Add(dir)
+						if COM.IsWindows() {
+							watcher.Close()
+							watcher, _ = fsnotify.NewWatcher()
+							for _, dir := range dirs {
+								watcher.Add(dir)
+							}
 						}
 					}
 
