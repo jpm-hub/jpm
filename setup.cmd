@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-set VERSION=1.1.4
+set VERSION=1.1.5
 
 :: JPM Windows Setup Script
 echo ===============================================
@@ -96,7 +96,7 @@ echo.
 :: Extract ZIP file
 echo Extracting %ZIP_FILE%...
 cd %JPM_HOME%
-tar -xf %ZIP_FILE%
+C:\Windows\System32\tar.exe -xf %ZIP_FILE%
 if %errorLevel% neq 0 (
     echo ERROR: Failed to extract ZIP file
     pause

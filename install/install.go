@@ -48,7 +48,6 @@ var finishMessages []string = []string{}
 var excludes []string = []string{}
 
 func Install() {
-	println()
 	force := false
 	COM.FindPackageYML(true)
 	for i := 0; i < len(os.Args); i++ {

@@ -27,7 +27,7 @@ func inputTextSanitized(s string) string {
 	fmt.Printf("\033[94m ⮕ %s\033[0m", s)
 	// Read input until newline
 	fmt.Scanln(&input)
-	return COM.Sanitize(input)
+	return COM.Sanitize(input, false)
 }
 
 func inputNumber(s string) string {

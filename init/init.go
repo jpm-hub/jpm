@@ -11,14 +11,6 @@ import (
 )
 
 func Init(cliargs []string) {
-	if dir, err := os.Getwd(); err == nil {
-		ymlPath := filepath.Join(dir, "package.yml")
-		if _, err := os.Stat(ymlPath); err == nil {
-			fmt.Println("Project already initialized")
-			os.Exit(1)
-		}
-	}
-
 	projectName := "app"
 	diffName := false
 	language := ""
@@ -82,7 +74,18 @@ func Init(cliargs []string) {
 		}
 
 		if !diffName || bare {
+			if modular {
+				fmt.Println("jpms projects cannot be nameless")
+				os.Exit(1)
+			}
 			fmt.Println("Initializing App")
+		}
+	}
+	if dir, err := os.Getwd(); err == nil {
+		ymlPath := filepath.Join(dir, "package.yml")
+		if _, err := os.Stat(ymlPath); err == nil {
+			fmt.Println("Project already initialized")
+			os.Exit(1)
 		}
 	}
 	language = strings.Trim(language, ",")

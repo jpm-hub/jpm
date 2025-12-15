@@ -95,7 +95,7 @@ func saveAllJPMSubDependencies(d *jpmRepo) string {
 		// figure out version for this jpm dependency
 		v, err := figureOutLatestJPM(d.Package)
 		if err != nil {
-			println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
+			println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get latest version\033[0m\n")
 			return ""
 		}
 		version = v
@@ -104,7 +104,7 @@ func saveAllJPMSubDependencies(d *jpmRepo) string {
 		// figure out version for this jpm dependency
 		v, err := figureOutLatestJPM(d.Package)
 		if err != nil {
-			println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
+			println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get latest version\033[0m\n")
 			return ""
 		}
 		version = v

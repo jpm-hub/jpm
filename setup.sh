@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-VERSION="1.1.4"
+VERSION="1.1.5"
 
 # JPM Unix Setup Script
 echo "==============================================="

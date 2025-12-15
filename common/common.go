@@ -948,8 +948,12 @@ func CapitalizeFirst(s string) string {
 	return strings.Join(sS, "")
 }
 
-func Sanitize(s string) string {
+func Sanitize(s string, canBeEmpty bool) string {
 	var b strings.Builder
+	if len(s) == 0 && !canBeEmpty {
+		println("cannot be empty")
+		os.Exit(1)
+	}
 	for _, r := range s {
 		if (r >= 'a' && r <= 'z') ||
 			(r >= 'A' && r <= 'Z') ||

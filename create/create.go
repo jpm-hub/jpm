@@ -30,11 +30,11 @@ func Create() {
 	if len(files) > 0 {
 		fmt.Print("\033[38;5;208mDirectory is not empty. Continue? (y/N): \033[0m")
 		var response string
-		fmt.Scanf("%s", &response)
+		fmt.Scanln(&response)
 		response = strings.ToLower(strings.TrimSpace(response))
 		if response != "y" && response != "yes" {
 			fmt.Println("Aborted.")
-			os.Exit(0)
+			os.Exit(1)
 		}
 	}
 	if len(os.Args) < 3 {
@@ -61,10 +61,7 @@ func Create() {
 	}
 
 	// Download from jpm repo (override local)
-	err, _ = COM.DownloadFile(COM.JPM_REPO_API+"templates/"+os.Args[2]+"/"+template, templatesDir, template, true, false)
-	if err == nil {
-		fmt.Println("\033[32mtemplate script saved\033[0m")
-	}
+	COM.DownloadFile(COM.JPM_REPO_API+"templates/"+os.Args[2]+"/"+template, templatesDir, template, true, false)
 	// Check if the template file exists
 	templatePath = filepath.Join(templatesDir, template)
 	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
@@ -82,14 +79,23 @@ jump:
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
+	if msg, ok := templateYml["404"].(string); ok {
+		if msg == "Not Found" {
+			fmt.Println("Template not found")
+			os.Exit(1)
+		}
+	}
 	//start message
-	println(removeSpacer(templateYml["<start-message>"].(string)))
+	if msg, ok := templateYml["<start-message>"].(string); ok {
+		println(removeSpacer(msg))
+	}
 
 	// run <init-script>
-	if err := COM.RunScript(parse(templateYml["<init-script>"].(string)), true); err != nil {
-		println(err)
-		os.Exit(1)
+	if msg, ok := templateYml["<init-script>"].(string); ok {
+		if err := COM.RunScript(parse(msg), true); err != nil {
+			println(err)
+			os.Exit(1)
+		}
 	}
 	// run <template-init>
 	if val, ok := templateYml["<template-init>"]; ok {
@@ -103,7 +109,9 @@ jump:
 		}
 	}
 	// print <finish-message>
-	println(removeSpacer(parse(templateYml["<finish-message>"])))
+	if msg, ok := templateYml["<finish-message>"].(string); ok {
+		println(removeSpacer(parse(msg)))
+	}
 }
 
 func parse(str any) string {

@@ -262,9 +262,9 @@ func refresh(fromRunWatch bool) {
 		fmt.Println("\033[32mExecuting: " + command + "\033[0m")
 		proc = runScriptWithPID(command)
 	} else {
+		println("\n\033[32mCompiling and Running : " + command + "\033[0m")
 		err := COMPILE.Compile()
 		if command != "" && err == nil {
-			println("\n\033[32mCompiling and Running : " + command + "\033[0m")
 			COM.RunScript(command, false)
 		}
 	}

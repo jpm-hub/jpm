@@ -14,7 +14,7 @@ func Upgrade() {
 			return
 		}
 		tempFile.Close()
-		COM.RunCMD(fmt.Sprintf(`curl -L -o "%s" https://cmd.jpmhub.org && start "upgrade" "C:\WINDOWS\system32\cmd.exe" /param="/c ""%s"""`, tempFile.Name(), tempFile.Name()), true)
+		COM.RunCMD(fmt.Sprintf(`curl -L -o "%s" https://cmd.jpmhub.org && start "jpm upgrade" "C:\WINDOWS\system32\cmd.exe" /param="/c ""%s"""`, tempFile.Name(), tempFile.Name()), true)
 	} else {
 		// if /.sdkman/ is found in the exec path of this, propose to upgrade via sdkman
 		execDir, _ := os.Executable()
