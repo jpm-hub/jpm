@@ -168,23 +168,22 @@ func createScripts(main string) {
 	} else {
 		args = " " + args
 	}
+	packageName := COM.GetSection("package", true).(string)
 	if publishing {
 		if len(modular) > 0 {
-			modular = "-p jpm_dependencies:jpm_dependencies/execs "
+			modular = "-p \"jpm_dependencies:jpm_dependencies/execs\" "
 		}
-		if COM.IsWindows() {
-			modular = strings.ReplaceAll(modular, ":", ";")
-		}
+		modularwin := strings.ReplaceAll(modular, ":", ";")
 		unixArgs := strings.ReplaceAll(args, "../jpm_dependencies", "jpm_dependencies")
 		unix := fmt.Sprintf(`#!/bin/bash
 `+COM.ParseEnvVars("export ", true)+`
 if $(jpm is-windows > /dev/null ); then
-    java%s %s-cp "jpm_dependencies/*;jpm_dependencies/execs/*" %s $@
+    java%s $(jpm args %s) %s-cp "jpm_dependencies/*;jpm_dependencies/execs/*" %s $@
     exit $?; else
-    java%s %s-cp "jpm_dependencies/*:jpm_dependencies/execs/*" %s $@
+    java%s $(jpm args %s) %s-cp "jpm_dependencies/*:jpm_dependencies/execs/*" %s $@
     exit $?
-fi; echo "unknown OS" && exit 1`, unixArgs, modular, main, unixArgs, modular, main)
-		os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)), []byte(unix+"\n"), 0755)
+fi; echo "unknown OS" && exit 1`, unixArgs, packageName, modularwin, main, unixArgs, packageName, modular, main)
+		os.WriteFile(filepath.Join("dist", packageName), []byte(unix+"\n"), 0755)
 		return
 	}
 	unixArgs := strings.ReplaceAll(args, "../jpm_dependencies", "jar_libraries")
@@ -192,8 +191,8 @@ fi; echo "unknown OS" && exit 1`, unixArgs, modular, main, unixArgs, modular, ma
 	winArgs := strings.ReplaceAll(args, "..\\jpm_dependencies", "jar_libraries")
 	windows := fmt.Sprintf(COM.ParseEnvVars("set ", false)+"java%s %s-cp ./*;jar_libraries/* %s ", winArgs, modular, main)
 	windows = windows + `"%*"`
-	os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)), []byte(unix+"\n"), 0755)
-	os.WriteFile(filepath.Join("dist", COM.GetSection("package", true).(string)+".cmd"), []byte(windows+"\r\n"), 0755)
+	os.WriteFile(filepath.Join("dist", packageName), []byte(unix+"\n"), 0755)
+	os.WriteFile(filepath.Join("dist", packageName+".cmd"), []byte(windows+"\r\n"), 0755)
 }
 
 func makePublish(publishing bool, keepClassifiers bool) {

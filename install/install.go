@@ -832,21 +832,18 @@ func createExecScript(scriptName, filename string) {
 				mainc=$main
 				scriptname=` + scriptName + `-$(echo $main | awk -F. '{print $NF}')
 				echo "#!/bin/sh" > jpm_dependencies/execs/$scriptname
-				echo "# use -p <module_path> to add modules paths" >> jpm_dependencies/execs/$scriptname
-				printf "java -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$mainc" '$@' >> jpm_dependencies/execs/$scriptname
+				printf "java $(jpm args %s) -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$scriptname" "$mainc" '$@' >> jpm_dependencies/execs/$scriptname
 			done
 			exit 0
 		elif [ $(echo $classes | wc -w) -eq 1 ]; then
 			echo "#!/bin/sh" > jpm_dependencies/execs/` + scriptName + `
-			echo "# use -p <module_path> to add modules paths" >> jpm_dependencies/execs/` + scriptName + `
-			printf "java -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$classes" '$@' >> jpm_dependencies/execs/` + scriptName + `
+			printf "java $(jpm args %s) -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "` + scriptName + `" "$classes" '$@' >> jpm_dependencies/execs/` + scriptName + `
 			exit 0
 		fi
 		exit 1
 	else
 		echo "#!/bin/sh" > jpm_dependencies/execs/` + scriptName + `
-		echo "# use -p <module_path> to add modules paths" >> jpm_dependencies/execs/` + scriptName + `
-		printf "java -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$mainc" '$@' >> jpm_dependencies/execs/` + scriptName + `
+		printf "java $(jpm args %s) -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "` + scriptName + `" "$mainc" '$@' >> jpm_dependencies/execs/` + scriptName + `
 	fi`
 		err := COM.RunScript(scriptCmd, true)
 		if err != nil {
