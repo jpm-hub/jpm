@@ -21,7 +21,11 @@ type dependency struct {
 	Scope      string
 	optional   string
 	Classifier string
-	Type       string // e.g., "jar", "war", "aar"
+	Exclusions []struct {
+		GroupID    string `xml:"groupId"`
+		ArtifactID string `xml:"artifactId"`
+	}
+	Type string // e.g., "jar", "war", "aar"
 }
 type pom struct {
 	Parent               *dependency
@@ -52,6 +56,10 @@ type document struct {
 			Version    string `xml:"version"`
 			Scope      string `xml:"scope"`
 			Optional   string `xml:"optional"`
+			Exclusions []struct {
+				GroupID    string `xml:"groupId"`
+				ArtifactID string `xml:"artifactId"`
+			} `xml:"exclusions>exclusion"`
 			Classifier string `xml:"classifier"`
 		} `xml:"dependencies>dependency"`
 	} `xml:"dependencyManagement"`
@@ -61,6 +69,10 @@ type document struct {
 		Version    string `xml:"version"`
 		Scope      string `xml:"scope"`
 		Optional   string `xml:"optional"`
+		Exclusions []struct {
+			GroupID    string `xml:"groupId"`
+			ArtifactID string `xml:"artifactId"`
+		} `xml:"exclusions>exclusion"`
 		Classifier string `xml:"classifier"`
 	} `xml:"dependencies>dependency"`
 
@@ -273,6 +285,7 @@ func parsePOM(pomContent string) pom {
 					Version:    dep.Version,
 					optional:   dep.Optional,
 					Scope:      dep.Scope,
+					Exclusions: dep.Exclusions,
 					Classifier: dep.Classifier,
 				},
 			)
@@ -289,6 +302,7 @@ func parsePOM(pomContent string) pom {
 				Version:    dep.Version,
 				optional:   dep.Optional,
 				Scope:      dep.Scope,
+				Exclusions: dep.Exclusions,
 				Classifier: dep.Classifier,
 			},
 		)
@@ -332,6 +346,15 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 	pom := cache[pomURL]
 	already := resolvedAlready[groupID+"|"+artifactID] > 3
 	if already {
+		classifier, classified := figureOutRepoClassifier(dependency{
+			GroupID:    groupID,
+			ArtifactID: artifactID,
+			Classifier: "",
+		})
+		depsList[repo] = append(depsList[repo], groupID+"|"+artifactID+"|"+currentOuterScope, version)
+		if classified {
+			depsList[repo] = append(depsList[repo], classifier+groupID+"|"+artifactID+"|"+currentOuterScope, version)
+		}
 		return &pom
 	}
 	if scopeImport {
@@ -339,16 +362,16 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		return &pom
 	}
 	if strings.ToLower(pom.Packaging) != "pom" {
-		if checkRepoExcludes(artifactID) {
+		if checkRepoExcludes(dependency{
+			GroupID:    groupID,
+			ArtifactID: artifactID,
+		}) {
 			return &pom
 		}
 		classifier, classified := figureOutRepoClassifier(dependency{
 			GroupID:    groupID,
 			ArtifactID: artifactID,
-			Version:    version,
-			Scope:      currentOuterScope,
 			Classifier: "",
-			Type:       "",
 		})
 		depsList[repo] = append(depsList[repo], dep, version)
 		if classified {
@@ -364,6 +387,7 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		if (optional == "" || strings.ToLower(optional) == "false") && !strings.HasPrefix(groupID, "org.junit") {
 			groupid := figureOutGroupID(repo, dep, pom)
 			artifactid := figureOutArtifactID(repo, dep, pom)
+			excludeAll := addToExludes(dep)
 			if slices.Contains(scopesAccepted, scope) {
 				dep.GroupID = groupid
 				dep.ArtifactID = artifactid
@@ -371,10 +395,17 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 				dep.Version = version
 				classifier, classified := figureOutRepoClassifier(dep)
 				dep.Classifier = classifier
-				if checkRepoExcludes(artifactid) {
+				if checkRepoExcludes(dep) {
 					continue
 				}
 				resolvedAlready[groupID+"|"+artifactID] += 1
+				if excludeAll {
+					depsList[repo] = append(depsList[repo], groupid+"|"+artifactid+"|"+currentOuterScope, version)
+					if classified {
+						depsList[repo] = append(depsList[repo], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
+					}
+					continue
+				}
 				// parallel download maybe??
 				p := downloadDepsRepo(repo, groupid, artifactid, version, false)
 				if p != nil {
@@ -399,6 +430,16 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 	return &pom
 }
 
+func addToExludes(dep dependency) bool {
+	if len(dep.Exclusions) > 0 && dep.Exclusions[0].GroupID == "*" && dep.Exclusions[0].ArtifactID == "*" {
+		return true
+	}
+	for _, ex := range dep.Exclusions {
+		excludes = append(excludes, ex.GroupID+"|"+ex.ArtifactID)
+	}
+	return false
+}
+
 func checkOtherRepositories(dep dependency) *pom {
 	for _, repo := range getRepoList().Repos {
 		if repo.Repo == currentWorkingRepo {
@@ -414,14 +455,20 @@ func checkOtherRepositories(dep dependency) *pom {
 	return nil
 }
 
-func checkRepoExcludes(artifactID string) bool {
+func checkRepoExcludes(dep dependency) bool {
 	for _, ex := range excludes {
-		if strings.Contains(artifactID, ex) {
+		if dep.ArtifactID == ex {
 			if COM.Verbose {
-				addFinishMessage("Info : excluded " + artifactID)
-				foundExcluded(artifactID)
+				addFinishMessage("Info : excluded " + dep.ArtifactID)
+				foundExcluded(dep.ArtifactID)
 			}
-			excluded[artifactID] = true
+			return true
+		}
+		if dep.GroupID+"|"+dep.ArtifactID == ex {
+			if COM.Verbose {
+				addFinishMessage("Info : excluded " + dep.ArtifactID)
+				foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
+			}
 			return true
 		}
 	}
@@ -719,7 +766,7 @@ func figureOutRepoClassifier(dep dependency) (string, bool) {
 		return "", false
 	}
 	if !strings.HasPrefix(dep.Classifier, "${") {
-		addFinishMessage("Info : default classifier -> " + dep.Classifier + " is used for " + dep.ArtifactID)
+		addFinishMessage("\033[33mInfo : default classifier -> " + dep.Classifier + " is used for " + dep.ArtifactID + "\033[0m")
 		return dep.Classifier + "|", true
 	}
 	c := strings.TrimSuffix(strings.TrimPrefix(dep.Classifier, "${"), "}")

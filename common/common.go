@@ -260,8 +260,7 @@ func FindPackageYML(fatal bool) (string, string) {
 		dir = parent
 	}
 	if fatal {
-		println("package.yml not found")
-		os.Exit(1)
+		os.Exit(404)
 	}
 	return "", ""
 }
@@ -351,7 +350,6 @@ func AddToSection(sectionName string, sectionValue any) {
 			packageYML.Dependencies = make([]string, 0)
 		}
 		newDependency := sectionValue.(string)
-		fmt.Println(newDependency)
 		CheckDeps(newDependency)
 		if !slices.Contains(pkgYAML.Dependencies, newDependency) {
 			pkgYAML.Dependencies = append(pkgYAML.Dependencies, newDependency)
@@ -478,7 +476,6 @@ func GetSection(section string, isFatal bool) any {
 	case "args":
 		args := map[string]string{}
 		for key, v := range packageYML.Args {
-
 			args[key] = ParseENV(v)
 		}
 		return args
@@ -571,6 +568,13 @@ func loadInEnv() {
 }
 func ParseENV(str string) string {
 	result := str
+	if _, ok := env[":"]; !ok {
+		separator := ":"
+		if IsWindows() {
+			separator = ";"
+		}
+		env[":"] = separator
+	}
 	for {
 		startIdx := strings.Index(result, "{{")
 		if startIdx == -1 {
@@ -583,7 +587,7 @@ func ParseENV(str string) string {
 		endIdx += startIdx
 		varName := strings.TrimSpace(result[startIdx+2 : endIdx])
 		val, ok := env[varName]
-		if !ok {
+		if !ok && varName != "" {
 			if val, ok = os.LookupEnv(strings.TrimPrefix(varName, "ENV.")); !ok {
 				found := false
 				if slices.Contains(parsed, varName) {

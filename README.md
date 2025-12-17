@@ -133,7 +133,7 @@ args:
   - `javac` -> executes on the javac command
   - `kotlinc` -> executes on the kotlinc command
   - `junit` -> args are added to junit5 jar
-  - `hotswap` -> args added to hotswap-agent
+  - `<any-exec-dependencies>` -> args added to scripts of exec dependencies
 
 ## Commands
 
@@ -218,6 +218,26 @@ jpm watch "(src/**.java)" "jpm test"
 
 # Watch specific pattern and start
 jpm watch "(src/com/example/**.java)" "jpm start"
+```
+
+#### `jpm args [key]`
+yields the arguments written in package.yml for the key specified<br>
+very helpful fro executable dependencies
+
+```yaml
+# in package.yml
+args:
+  javac: -parameters
+  dex: -path .
+```
+
+```bash
+# in the shell
+$ jpm args "javac"
+-parameters
+
+$ jpm args "dex"
+-path .
 ```
 
 ### Testing
@@ -404,7 +424,7 @@ Define custom scripts in your `package.yml`:
 ```yaml
 port: "8090"
 scripts:
-  dev: jpm run -hot {{ port }}
+  dev: jpm run -hot _ _ {{ port }}
   start: jpm compile && jpm run {{ port }}
   clean:deep: |
     echo cleaning

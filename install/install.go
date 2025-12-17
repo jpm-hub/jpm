@@ -276,9 +276,8 @@ func fromRepo(dependenciesWithRepo map[string][]Repo) {
 				printNotValidScope(dr.Scope)
 				println("\033[38;5;208m" + tab + "dependency might have a faulty alias, check your package.yml\033[0m")
 				continue
-			} else {
-				currentOuterScope = dr.Scope
 			}
+			currentOuterScope = dr.Scope
 			currentWorkingRepo = dr.Repo
 			saveAllRepoSubDependencies(&dr)
 			if currentOuterScope == "exec" {
@@ -531,6 +530,7 @@ func resolveDependecy() map[string]string {
 	maps.DeleteFunc(depMap, func(k string, v string) bool {
 		for _, ex := range excludes {
 			k = strings.TrimSuffix(k, "|test")
+			k = strings.TrimSuffix(k, "|exec")
 			k = strings.TrimSuffix(k, "|")
 			ks := strings.Split(k, "|")
 			k = ks[len(ks)-1]
@@ -790,7 +790,7 @@ func foundExcluded(s string) {
 }
 func checkUnexcluded() {
 	for _, v := range excludes {
-		if !excluded[v] {
+		if !excluded[v] && !strings.Contains(v, "|") {
 			addFinishMessage("\033[33mInfo : was not excluded anywhere " + v + " in this install process\033[0m")
 		}
 	}

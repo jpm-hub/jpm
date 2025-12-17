@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	ARGS "jpm/args"
 	BUNDLE "jpm/bundle"
 	COM "jpm/common"
 	COMPILE "jpm/compile"
@@ -130,6 +131,13 @@ func main() {
 			os.Exit(0)
 		}
 		os.Exit(1)
+	case "args":
+		if len(os.Args) > 2 {
+			os.Stdout.Write([]byte(ARGS.Args(os.Args[2])))
+			return
+		}
+		os.Exit(1)
+		return
 	case "upgrade":
 		UPGRADE.Upgrade()
 		return
