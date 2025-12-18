@@ -61,12 +61,17 @@ func HotSwapAgentPlugin(homeDir string) {
 
 func Clear(homeDir string) {
 	entries, err := os.ReadDir(homeDir)
+	println("press Enter to remove all files under", homeDir)
+	fmt.Scanln()
 	if err == nil {
 		for _, entry := range entries {
+			if entry.Name() == "jpm.exe" {
+				continue
+			}
 			os.RemoveAll(filepath.Join(homeDir, entry.Name()))
 		}
 	}
-	println("\033[32m  --- Cleared .jpm dir \033[0m")
+	println("\033[32m  --- Cleared", homeDir, " \033[0m")
 }
 
 func Verbose(homeDir string) {

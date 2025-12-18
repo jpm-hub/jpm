@@ -138,4 +138,3 @@ echo To verify installation, open a new Command Prompt and run:
 echo   jpm 
 echo   jpm -h
 echo.
-pause
