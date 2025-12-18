@@ -1,7 +1,16 @@
 #!/bin/sh
 set -e
 
+
 VERSION="1.1.5"
+
+# Default install directory
+INSTALL_DIR="/usr/local/bin"
+
+# Parse optional argument for install directory
+if [ $# -ge 1 ]; then
+    INSTALL_DIR="$1"
+fi
 
 # JPM Unix Setup Script
 echo "==============================================="
@@ -47,11 +56,21 @@ echo ""
 echo "2. Extract and install JPM binaries to /usr/local/bin"
 echo "   - /usr/local/bin/jpm"
 echo "   - /usr/local/bin/jpx"
+
+echo "2. Extract and install JPM binaries to $INSTALL_DIR"
+echo "   - $INSTALL_DIR/jpm"
+echo "   - $INSTALL_DIR/jpx"
 echo ""
+if [ "$INSTALL_DIR" != "/usr/local/bin" ]; then
+    echo " ⚠️  Note: You are installing to a custom directory ($INSTALL_DIR)."
+    echo "    Make sure $INSTALL_DIR is in your PATH to use 'jpm' and 'jpx' from the command line."
+else 
+echo ""
+echo " ❗❗This script might require sudo privileges to copy jpm to $INSTALL_DIR"
+echo "to install in a different directory, run: $0 <install_directory>"
 printf "Press Enter to continue or Ctrl+C to cancel... "
 read -r ok
-echo ""
-echo " ❗❗This script might require sudo privileges to copy jpm to /usr/local/bin"
+fi
 echo ""
 printf "Press Enter to continue or Ctrl+C to cancel... "
 read -r ok
@@ -113,29 +132,29 @@ rm "$ARCHIVE_FILE"
 echo "- Files extracted successfully"
 echo ""
 
-# Install JPM binaries to /usr/local/bin
-echo "Installing JPM binaries to /usr/local/bin... (this might require elevated privileges)"
+echo "Installing JPM binaries to $INSTALL_DIR... (this might require elevated privileges)"
+
 cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
 if [ -f "jpm" ]; then
-    cd /usr/local/bin/
+    cd "$INSTALL_DIR" 2>/dev/null || sudo mkdir -p "$INSTALL_DIR" && cd "$INSTALL_DIR"
     rm -f /tmp/jpm.old >/dev/null 2>&1 || sudo rm -f /tmp/jpm.old >/dev/null 2>&1
     mv jpm /tmp/jpm.old >/dev/null 2>&1 || sudo mv jpm /tmp/jpm.old >/dev/null 2>&1 || true
     cd -
-    cp jpm /usr/local/bin/jpm >/dev/null 2>&1 || sudo cp jpm /usr/local/bin/jpm 
-    chmod +x /usr/local/bin/jpm >/dev/null 2>&1 || sudo chmod +x /usr/local/bin/jpm
-    echo "- Installed jpm to /usr/local/bin"
+    cp jpm "$INSTALL_DIR/jpm" >/dev/null 2>&1 || sudo cp jpm "$INSTALL_DIR/jpm" >/dev/null 2>&1
+    chmod +x "$INSTALL_DIR/jpm" >/dev/null 2>&1 || sudo chmod +x "$INSTALL_DIR/jpm" >/dev/null 2>&1
+    echo "- Installed jpm to $INSTALL_DIR"
 else
     echo "ERROR: jpm binary not found after extraction"
     exit 1
 fi
 if [ -f "jpx" ]; then
-    cd /usr/local/bin/
+    cd "$INSTALL_DIR" 2>/dev/null || sudo mkdir -p "$INSTALL_DIR" && cd "$INSTALL_DIR"
     rm -f /tmp/jpx.old >/dev/null 2>&1 || sudo rm -f /tmp/jpx.old >/dev/null 2>&1
     mv jpx /tmp/jpx.old >/dev/null 2>&1 || sudo mv jpx /tmp/jpx.old >/dev/null 2>&1 || true
     cd -
-    cp jpx /usr/local/bin/jpx >/dev/null 2>&1 || sudo cp jpx /usr/local/bin/jpx
-    chmod +x /usr/local/bin/jpx >/dev/null 2>&1 || sudo chmod +x /usr/local/bin/jpx
-    echo "- Installed jpx to /usr/local/bin"
+    cp jpx "$INSTALL_DIR/jpx" >/dev/null 2>&1 || sudo cp jpx "$INSTALL_DIR/jpx"
+    chmod +x "$INSTALL_DIR/jpx" >/dev/null 2>&1 || sudo chmod +x "$INSTALL_DIR/jpx"
+    echo "- Installed jpx to $INSTALL_DIR"
 else
     echo "ERROR: jpx executable not found after extraction"
     exit 1
@@ -151,7 +170,7 @@ echo "==============================================="
 echo "           Installation Complete!"
 echo "==============================================="
 echo ""
-echo "JPM has been successfully installed to /usr/local/bin"
+echo "JPM has been successfully installed to $INSTALL_DIR"
 echo ""
 echo "To verify installation, run:"
 echo "  jpm"

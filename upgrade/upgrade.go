@@ -22,7 +22,9 @@ func Upgrade() {
 			println("\033[33mDetected sdkman installation of jpm. To upgrade, run:\n\n  sdk upgrade jpm\n\033[0m")
 			return
 		}
-		COM.RunScript(`curl -L -o s.sh https://sh.jpmhub.org && sh s.sh; rm -f s.sh`, true)
+		// get the directrory of the current executable
+		execDir = strings.TrimSuffix(execDir, "/jpm")
+		COM.RunScript(`curl -L -o s.sh https://sh.jpmhub.org && sh s.sh; rm -f s.sh `+execDir, true)
 	}
 
 }
