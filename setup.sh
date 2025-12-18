@@ -1,6 +1,5 @@
 #!/bin/sh
 set -e
-set -x
 VERSION="1.1.5"
 
 # Default install directory
