@@ -25,7 +25,8 @@ if [ $found_package_yml -eq 0 ]; then
 	exit 1
 fi
 if [ $# -eq 0 ]; then
-	echo "Add exec dependencies to your package.yml to make it available to jpx"
+	echo "Usage: jpx [-d] <command> [args...]"
+	echo "            -d: run command in detached mode"
 	echo "available commands :"
 	for file in "$curdir/jpm_dependencies/execs/"*; do
 		if [ -x "$file" ] && [ -f "$file" ]; then
@@ -34,7 +35,13 @@ if [ $# -eq 0 ]; then
 	done
 else
 	export PATH="$curdir/jpm_dependencies/execs:$PATH"
-	"$@"
+	if [ "$1" = "-d" ]; then
+		shift
+		"$@" > /dev/null 2>&1 &
+		echo "Started in detached mode: $*"
+	else
+		"$@"
+	fi
 fi`
 }
 
@@ -75,7 +82,12 @@ if %arg_count%==0 (
   echo available commands :
   "C:\Program Files\Git\bin\bash.exe" -c "for file in ""$(pwd)/jpm_dependencies/execs/""*; do if [ -x ""$file"" ] && [ -f ""$file"" ]; then echo "" > $(basename ""$file"")""; fi; done;"
   ) else (
-  "C:\Program Files\Git\bin\bash.exe" jpm_dependencies/execs/%*
+  if "%1"=="-d" (
+    "C:\Program Files\Git\bin\bash.exe" -c "cmd=%*; cmd=${cmd:3}; ./jpm_dependencies/execs/${cmd} > /dev/null 2>&1 &"
+    echo Started in detached mode: %*
+  ) else (
+    %*
+  )
 )
 endlocal`
 }

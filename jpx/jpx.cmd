@@ -34,6 +34,11 @@ if %arg_count%==0 (
   echo available commands :
   "C:\Program Files\Git\bin\bash.exe" -c "for file in ""$(pwd)/jpm_dependencies/execs/""*; do if [ -x ""$file"" ] && [ -f ""$file"" ]; then echo "" > $(basename ""$file"")""; fi; done;"
   ) else (
-  "C:\Program Files\Git\bin\bash.exe" jpm_dependencies/execs/%*
+  if "%1"=="-d" (
+    "C:\Program Files\Git\bin\bash.exe" -c "cmd=%*; cmd=${cmd:3}; ./jpm_dependencies/execs/${cmd} > /dev/null 2>&1 &"
+    echo Started in detached mode: %*
+  ) else (
+    %*
+  )
 )
 endlocal
