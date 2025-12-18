@@ -24,7 +24,7 @@ func Upgrade() {
 		}
 		// get the directrory of the current executable
 		execDir = strings.TrimSuffix(execDir, "/jpm")
-		COM.RunScript(`curl -L -o s.sh https://sh.jpmhub.org && sh s.sh; rm -f /tmp/s.sh `+execDir, true)
+		COM.RunScript(`curl -L -o s.sh https://sh.jpmhub.org && sh s.sh `+execDir+`; rm -f s.sh`, true)
 	}
 
 }
