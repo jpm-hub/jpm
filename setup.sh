@@ -1,7 +1,6 @@
 #!/bin/sh
 set -e
-
-
+set -x
 VERSION="1.1.5"
 
 # Default install directory
@@ -64,6 +63,9 @@ echo ""
 if [ "$INSTALL_DIR" != "/usr/local/bin" ]; then
     echo " ⚠️  Note: You are installing to a custom directory ($INSTALL_DIR)."
     echo "     Make sure $INSTALL_DIR is in your PATH to use 'jpm' and 'jpx' from the command line."
+    echo ""
+    printf "Press Enter to continue or Ctrl+C to cancel... "
+    read -r ok
 else 
 echo ""
 echo " ❗❗This script might require sudo privileges to copy jpm to $INSTALL_DIR"
@@ -73,9 +75,6 @@ echo ""
 printf "Press Enter to continue or Ctrl+C to cancel... "
 read -r ok
 fi
-echo ""
-printf "Press Enter to continue or Ctrl+C to cancel... "
-read -r ok
 
 # Create temporary directory
 echo "Creating temporary directory..."
@@ -136,27 +135,22 @@ echo ""
 
 echo "Installing JPM binaries to $INSTALL_DIR... (this might require elevated privileges)"
 cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
-if [ -f "jpm" ]; then
-else
-    echo "ERROR: jpm binary not found after extraction"
-    exit 1
-fi
-if [ -f "jpx" ]; then
-else
-    echo "ERROR: jpx executable not found after extraction"
+if [ ! -f "jpm" ] || [ ! -f "jpx" ]; then
+    echo "ERROR: jpm or jpx binary not found after extraction"
     exit 1
 fi
 if [ "$INSTALL_DIR" = "/usr/local/bin" ]; then
     cd "$INSTALL_DIR" 2>/dev/null || sudo mkdir -p "$INSTALL_DIR" && cd "$INSTALL_DIR"
     rm -f /tmp/jpm.old >/dev/null 2>&1 || sudo rm -f /tmp/jpm.old >/dev/null 2>&1
     mv jpm /tmp/jpm.old >/dev/null 2>&1 || sudo mv jpm /tmp/jpm.old >/dev/null 2>&1 || true
-    cd -
+    cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
     cp jpm "$INSTALL_DIR/jpm" >/dev/null 2>&1 || sudo cp jpm "$INSTALL_DIR/jpm" >/dev/null 2>&1
     chmod +x "$INSTALL_DIR/jpm" >/dev/null 2>&1 || sudo chmod +x "$INSTALL_DIR/jpm" >/dev/null 2>&1
     echo "- Installed jpm to $INSTALL_DIR"
+    cd "$INSTALL_DIR" 2>/dev/null
     rm -f /tmp/jpx.old >/dev/null 2>&1 || sudo rm -f /tmp/jpx.old >/dev/null 2>&1
     mv jpx /tmp/jpx.old >/dev/null 2>&1 || sudo mv jpx /tmp/jpx.old >/dev/null 2>&1 || true
-    cd -
+    cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
     cp jpx "$INSTALL_DIR/jpx" >/dev/null 2>&1 || sudo cp jpx "$INSTALL_DIR/jpx"
     chmod +x "$INSTALL_DIR/jpx" >/dev/null 2>&1 || sudo chmod +x "$INSTALL_DIR/jpx"
     echo "- Installed jpx to $INSTALL_DIR"
@@ -164,13 +158,14 @@ else
     cd "$INSTALL_DIR" 2>/dev/null || mkdir -p "$INSTALL_DIR" && cd "$INSTALL_DIR"
     rm -f jpm.old >/dev/null 2>&1
     mv jpm jpm.old >/dev/null 2>&1 || true
-    cd -
+    cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
     cp jpm "$INSTALL_DIR/jpm" >/dev/null 2>&1
     chmod +x "$INSTALL_DIR/jpm" >/dev/null 2>&1
     echo "- Installed jpm to $INSTALL_DIR"
+    cd "$INSTALL_DIR" 2>/dev/null
     rm -f jpx.old >/dev/null 2>&1
     mv jpx jpx.old >/dev/null 2>&1 || true
-    cd -
+    cd "$TEMP_DIR/jpm-$VERSION-$OS-$ARCH_TYPE/bin/"
     cp jpx "$INSTALL_DIR/jpx" >/dev/null 2>&1
     chmod +x "$INSTALL_DIR/jpx" >/dev/null 2>&1
     echo "- Installed jpx to $INSTALL_DIR"
