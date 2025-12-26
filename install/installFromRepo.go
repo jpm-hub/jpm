@@ -344,8 +344,9 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		cache[pomURL] = p
 	}
 	pom := cache[pomURL]
+	// Check if already resolved, 3 might be overkill to avoid circular deps
 	already := resolvedAlready[groupID+"|"+artifactID] > 3
-	if already {
+	if already && pom.Packaging != "pom" {
 		classifier, classified := figureOutRepoClassifier(dependency{
 			GroupID:    groupID,
 			ArtifactID: artifactID,
@@ -361,7 +362,7 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		savingImports(repo, &pom)
 		return &pom
 	}
-	if strings.ToLower(pom.Packaging) != "pom" {
+	if pom.Packaging != "pom" {
 		if checkRepoExcludes(dependency{
 			GroupID:    groupID,
 			ArtifactID: artifactID,
@@ -382,7 +383,6 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		scope := figureOutScope(repo, dep, pom)
 		dep.Scope = scope
 		optional := figureOutOptional(repo, dep, pom)
-		// if scope == import add to import depsManagement list
 
 		if (optional == "" || strings.ToLower(optional) == "false") && !strings.HasPrefix(groupID, "org.junit") {
 			groupid := figureOutGroupID(repo, dep, pom)
