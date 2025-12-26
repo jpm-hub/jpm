@@ -160,36 +160,34 @@ func createScripts(main string) {
 	argsMap := COM.ParseArgs()
 	modular := ""
 	if COM.GetSection("modular", false).(bool) {
-		modular = "-p jar_libraries "
+		modular = "-p jar_libraries"
 	}
 	args, found := argsMap["java"]
 	if !found {
 		args = ""
-	} else {
-		args = " " + args
 	}
 	packageName := COM.GetSection("package", true).(string)
 	if publishing {
 		if len(modular) > 0 {
-			modular = "-p \"jpm_dependencies:jpm_dependencies/execs\" "
+			modular = "-p jpm_dependencies:jpm_dependencies/execs"
 		}
 		modularwin := strings.ReplaceAll(modular, ":", ";")
-		unixArgs := strings.ReplaceAll(args, "../jpm_dependencies", "jpm_dependencies")
+		depsArg := strings.ReplaceAll(args, "../jpm_dependencies", "jpm_dependencies")
 		unix := fmt.Sprintf(`#!/bin/bash
 `+COM.ParseEnvVars("export ", true)+`
 if $(jpm is-windows > /dev/null ); then
-    java%s $(jpm args %s) %s-cp "jpm_dependencies/*;jpm_dependencies/execs/*" %s $@
+    java %s $(jpm args %s) %s -cp "jpm_dependencies/*;jpm_dependencies/execs/*" %s $@
     exit $?; else
-    java%s $(jpm args %s) %s-cp "jpm_dependencies/*:jpm_dependencies/execs/*" %s $@
+    java %s $(jpm args %s) %s -cp "jpm_dependencies/*:jpm_dependencies/execs/*" %s $@
     exit $?
-fi; echo "unknown OS" && exit 1`, unixArgs, packageName, modularwin, main, unixArgs, packageName, modular, main)
+fi; echo "unknown OS" && exit 1`, depsArg, packageName, modularwin, main, depsArg, packageName, modular, main)
 		os.WriteFile(filepath.Join("dist", packageName), []byte(unix+"\n"), 0755)
 		return
 	}
-	unixArgs := strings.ReplaceAll(args, "../jpm_dependencies", "jar_libraries")
-	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ", true)+"java%s %s-cp ./*:jar_libraries/* %s $@", unixArgs, modular, main)
+	depsArg := strings.ReplaceAll(args, "../jpm_dependencies", "jar_libraries")
+	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ", true)+"java %s %s -cp ./*:jar_libraries/* %s $@", depsArg, modular, main)
 	winArgs := strings.ReplaceAll(args, "..\\jpm_dependencies", "jar_libraries")
-	windows := fmt.Sprintf(COM.ParseEnvVars("set ", false)+"java%s %s-cp ./*;jar_libraries/* %s ", winArgs, modular, main)
+	windows := fmt.Sprintf(COM.ParseEnvVars("set ", false)+"java %s %s -cp ./*;jar_libraries/* %s ", winArgs, modular, main)
 	windows = windows + `"%*"`
 	os.WriteFile(filepath.Join("dist", packageName), []byte(unix+"\n"), 0755)
 	os.WriteFile(filepath.Join("dist", packageName+".cmd"), []byte(windows+"\r\n"), 0755)
