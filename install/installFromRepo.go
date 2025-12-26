@@ -408,14 +408,14 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 				}
 				// parallel download maybe??
 				p := downloadDepsRepo(repo, groupid, artifactid, version, false)
-				if p != nil {
+				if p != nil && p.Packaging != "pom" {
 					depsList[p.Url] = append(depsList[p.Url], groupid+"|"+artifactid+"|"+currentOuterScope, version)
 					if classified {
 						depsList[p.Url] = append(depsList[p.Url], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
 					}
 					continue
 				}
-				if otherP := checkOtherRepositories(dep); otherP != nil {
+				if otherP := checkOtherRepositories(dep); otherP != nil && otherP.Packaging != "pom" {
 					depsList[otherP.Url] = append(depsList[otherP.Url], groupid+"|"+artifactid+"|"+currentOuterScope, version)
 					if classified {
 						depsList[otherP.Url] = append(depsList[otherP.Url], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
