@@ -720,7 +720,7 @@ func RunPS(script string, showStdOut bool) error {
 				if cmd.Process != nil {
 					cmd.Process.Kill()
 				}
-				return fmt.Errorf("process terminated by signal: %v", sig)
+				return fmt.Errorf("[JPM] signal: %v", sig)
 			}
 		}
 		return fmt.Errorf("failed to trap signals")
@@ -769,7 +769,7 @@ func RunCMD(script string, showStdOut bool) error {
 				if cmd.Process != nil {
 					cmd.Process.Kill()
 				}
-				return fmt.Errorf("process terminated by signal: %v", sig)
+				return fmt.Errorf("[JPM] signal: %v", sig)
 			}
 		}
 		return fmt.Errorf("failed to trap signals")

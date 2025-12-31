@@ -77,7 +77,7 @@ language: ` + language + `
 package: ` + p[len(p)-1] + ifSrc(src) + ifModular(modular) + `
 scripts:
   start : jpm compile && jpm run
-  dev: jpm watch _ "jpm start"
+  dev: jpm watch -r _ "jpm start"
   clean: rm -rf out/* dist
 dependencies:
 repos:

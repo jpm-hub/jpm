@@ -161,7 +161,8 @@ func downloadDepsJPM(d *jpmRepo) {
 
 	for repo, deps := range deps.Repos {
 		for dep, version := range deps {
-			if checkJPMExcludes(dep) {
+			depS := strings.Split(dep, "|")
+			if checkRepoExcludes(dependency{ArtifactID: depS[len(depS)-1], GroupID: depS[len(depS)-1]}) {
 				continue
 			}
 			_classifier, innerIsThere := figureOutJPMInnerClassifier(dep, true)
@@ -181,11 +182,9 @@ func downloadDepsJPM(d *jpmRepo) {
 	print("-")
 }
 func checkJPMExcludes(dep string) bool {
-	dep = strings.TrimSuffix(dep, "|test")
-	dep = strings.TrimSuffix(dep, "|")
 	depS := strings.Split(dep, "|")
 	dep = depS[len(depS)-1]
-	if slices.Contains(excludes, dep) && currentOuterScope != "exec" {
+	if slices.Contains(excludes, dep) {
 		if COM.Verbose {
 			addFinishMessage("Info : excluded " + strings.Split(dep, "|")[1])
 			foundExcluded(strings.Split(dep, "|")[1])

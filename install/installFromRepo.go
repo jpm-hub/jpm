@@ -387,7 +387,7 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		if (optional == "" || strings.ToLower(optional) == "false") && !strings.HasPrefix(groupID, "org.junit") {
 			groupid := figureOutGroupID(repo, dep, pom)
 			artifactid := figureOutArtifactID(repo, dep, pom)
-			excludeAll := addToExludes(dep)
+			excludeAll, scopedExcludes := addToExludes(dep)
 			if slices.Contains(scopesAccepted, scope) {
 				dep.GroupID = groupid
 				dep.ArtifactID = artifactid
@@ -409,13 +409,16 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 				// parallel download maybe??
 				p := downloadDepsRepo(repo, groupid, artifactid, version, false)
 				if p != nil && p.Packaging != "pom" {
+					removeFromExcludes(scopedExcludes)
 					depsList[p.Url] = append(depsList[p.Url], groupid+"|"+artifactid+"|"+currentOuterScope, version)
 					if classified {
 						depsList[p.Url] = append(depsList[p.Url], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
 					}
 					continue
 				}
-				if otherP := checkOtherRepositories(dep); otherP != nil && otherP.Packaging != "pom" {
+				otherP := checkOtherRepositories(dep)
+				if otherP != nil && otherP.Packaging != "pom" {
+					removeFromExcludes(scopedExcludes)
 					depsList[otherP.Url] = append(depsList[otherP.Url], groupid+"|"+artifactid+"|"+currentOuterScope, version)
 					if classified {
 						depsList[otherP.Url] = append(depsList[otherP.Url], classifier+groupid+"|"+artifactid+"|"+currentOuterScope, version)
@@ -424,20 +427,37 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 				}
 				latests = append(latests, groupid+"|"+artifactid)
 			}
+			removeFromExcludes(scopedExcludes)
 		}
 
 	}
 	return &pom
 }
 
-func addToExludes(dep dependency) bool {
-	if len(dep.Exclusions) > 0 && dep.Exclusions[0].GroupID == "*" && dep.Exclusions[0].ArtifactID == "*" {
-		return true
-	}
+func addToExludes(dep dependency) (bool, []string) {
+	scopedEcxludes := []string{}
 	for _, ex := range dep.Exclusions {
-		excludes = append(excludes, ex.GroupID+"|"+ex.ArtifactID)
+		scopedEcxludes = append(scopedEcxludes, ex.GroupID+"|"+ex.ArtifactID)
 	}
-	return false
+	if slices.Contains(scopedEcxludes, "*|*") {
+		return true, []string{}
+	}
+	excludes = append(scopedEcxludes, excludes...)
+	return false, scopedEcxludes
+}
+
+func removeFromExcludes(scopedExcludes []string) {
+	if len(scopedExcludes) == 0 {
+		return
+	}
+	for _, ex := range scopedExcludes {
+		for i, v := range excludes {
+			if v == ex {
+				excludes = append(excludes[:i], excludes[i+1:]...)
+				break
+			}
+		}
+	}
 }
 
 func checkOtherRepositories(dep dependency) *pom {
@@ -457,13 +477,6 @@ func checkOtherRepositories(dep dependency) *pom {
 
 func checkRepoExcludes(dep dependency) bool {
 	for _, ex := range excludes {
-		if dep.ArtifactID == ex {
-			if COM.Verbose {
-				addFinishMessage("Info : excluded " + dep.ArtifactID)
-				foundExcluded(dep.ArtifactID)
-			}
-			return true
-		}
 		if dep.GroupID+"|"+dep.ArtifactID == ex {
 			if COM.Verbose {
 				addFinishMessage("Info : excluded " + dep.ArtifactID)
@@ -479,6 +492,13 @@ func checkRepoExcludes(dep dependency) bool {
 			return true
 		}
 		if "*|"+dep.ArtifactID == ex {
+			if COM.Verbose {
+				addFinishMessage("Info : excluded " + dep.ArtifactID)
+				foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
+			}
+			return true
+		}
+		if "*|*" == ex {
 			if COM.Verbose {
 				addFinishMessage("Info : excluded " + dep.ArtifactID)
 				foundExcluded(dep.GroupID + "|" + dep.ArtifactID)

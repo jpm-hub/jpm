@@ -99,7 +99,7 @@ func Install() {
 		}
 	}
 	COM.CopyToDependencies(COM.GetSection("language", false).(string))
-	excludes = COM.GetSection("excludes", false).([]string)
+	excludes = parseExludes(COM.GetSection("excludes", false).([]string))
 	switch len(os.Args) {
 	case 2:
 		if force {
@@ -158,6 +158,15 @@ func Install() {
 	for _, v := range finishMessages {
 		println("\033[38;5;208m"+tab, v, "\033[0m")
 	}
+}
+
+func parseExludes(s []string) []string {
+	for i, v := range s {
+		v = COM.NormalizeSpaces(v)
+		v = strings.ReplaceAll(v, " ", "|")
+		s[i] = strings.ReplaceAll(v, ":", "|")
+	}
+	return s
 }
 
 func determineCLIClassifier(s string) any {
@@ -527,19 +536,6 @@ func resolveDependecy() map[string]string {
 		}
 	}
 	maps.DeleteFunc(depMap, func(k string, v string) bool { return v == "" || k == "" || strings.HasPrefix(k, "|") })
-	maps.DeleteFunc(depMap, func(k string, v string) bool {
-		for _, ex := range excludes {
-			k = strings.TrimSuffix(k, "|test")
-			k = strings.TrimSuffix(k, "|exec")
-			k = strings.TrimSuffix(k, "|")
-			ks := strings.Split(k, "|")
-			k = ks[len(ks)-1]
-			if k == ex {
-				return true
-			}
-		}
-		return false
-	})
 	switch currentWorkingRepo {
 	case jpmRepoUrl:
 		g_lockDeps.JPM = depMap
