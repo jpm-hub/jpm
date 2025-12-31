@@ -471,6 +471,20 @@ func checkRepoExcludes(dep dependency) bool {
 			}
 			return true
 		}
+		if dep.GroupID+"|*" == ex {
+			if COM.Verbose {
+				addFinishMessage("Info : excluded " + dep.ArtifactID)
+				foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
+			}
+			return true
+		}
+		if "*|"+dep.ArtifactID == ex {
+			if COM.Verbose {
+				addFinishMessage("Info : excluded " + dep.ArtifactID)
+				foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
+			}
+			return true
+		}
 	}
 	return false
 }

@@ -186,8 +186,8 @@ fi; echo "unknown OS" && exit 1`, depsArg, packageName, modularwin, main, depsAr
 	}
 	depsArg := strings.ReplaceAll(args, "../jpm_dependencies", "jar_libraries")
 	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ", true)+"java %s %s -cp ./*:jar_libraries/* %s $@", depsArg, modular, main)
-	winArgs := strings.ReplaceAll(args, "..\\jpm_dependencies", "jar_libraries")
-	windows := fmt.Sprintf(COM.ParseEnvVars("set ", false)+"java %s %s -cp ./*;jar_libraries/* %s ", winArgs, modular, main)
+	depsArg = strings.ReplaceAll(args, "..\\jpm_dependencies", "jar_libraries")
+	windows := fmt.Sprintf(COM.ParseEnvVars("set ", false)+"java %s %s -cp ./*;jar_libraries/* %s ", depsArg, modular, main)
 	windows = windows + `"%*"`
 	os.WriteFile(filepath.Join("dist", packageName), []byte(unix+"\n"), 0755)
 	os.WriteFile(filepath.Join("dist", packageName+".cmd"), []byte(windows+"\r\n"), 0755)
