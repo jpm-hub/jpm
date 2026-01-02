@@ -1,4 +1,4 @@
 package common
 
-const VERSION = "1.2.0"
+const VERSION = "1.2.1"
 const JPM_REPO_API = "https://raw.githubusercontent.com/jpm-hub/repo/refs/heads/main/" //"http://localhost:9090/"

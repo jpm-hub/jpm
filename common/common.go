@@ -1008,24 +1008,31 @@ func CopyToDependencies(lang string) {
 func LinkToDependencies(lang string) {
 	homeDir := HomeDir()
 	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
-	os.Link(filepath.Join(homeDir, "libs", "junit.jar"), filepath.Join("jpm_dependencies", "tests", "junit.jar"))
+	junitPath := filepath.Join("jpm_dependencies", "tests", "junit.jar")
+	if _, err := os.Stat(junitPath); os.IsNotExist(err) {
+		os.Link(filepath.Join(homeDir, "libs", "junit.jar"), junitPath)
+	}
 	if IsWindows() {
 		homeDir = filepath.Join(homeDir, "kotlinc", "lib")
 	} else {
 		homeDir = filepath.Join(homeDir, "libs")
 	}
 	if strings.Contains(lang, "kotlin") {
-		if err := os.Link(filepath.Join(homeDir, "kotlin-test.jar"), filepath.Join("jpm_dependencies", "tests", "kotlin-test.jar")); err != nil {
-			fmt.Printf("Error linking kotlin-test.jar: %v\n", err)
-		}
-		if err := os.Link(filepath.Join(homeDir, "annotations-13.0.jar"), filepath.Join("jpm_dependencies", "annotations-13.0.jar")); err != nil {
-			fmt.Printf("Error linking annotations-13.0.jar: %v\n", err)
-		}
-		if err := os.Link(filepath.Join(homeDir, "kotlin-stdlib.jar"), filepath.Join("jpm_dependencies", "kotlin-stdlib.jar")); err != nil {
-			fmt.Printf("Error linking kotlin-stdlib.jar: %v\n", err)
-		}
-		if err := os.Link(filepath.Join(homeDir, "kotlin-reflect.jar"), filepath.Join("jpm_dependencies", "kotlin-reflect.jar")); err != nil {
-			fmt.Printf("Error linking kotlin-reflect.jar: %v\n", err)
+		kotlinFiles := []string{"kotlin-test.jar", "annotations-13.0.jar", "kotlin-stdlib.jar", "kotlin-reflect.jar"}
+		for _, file := range kotlinFiles {
+			var destPath string
+			if file == "kotlin-test.jar" {
+				destPath = filepath.Join("jpm_dependencies", "tests", file)
+			} else {
+				destPath = filepath.Join("jpm_dependencies", file)
+			}
+			
+			if _, err := os.Stat(destPath); os.IsNotExist(err) {
+				srcPath := filepath.Join(homeDir, file)
+				if err := os.Link(srcPath, destPath); err != nil {
+					fmt.Printf("Error linking %s: %v\n", file, err)
+				}
+			}
 		}
 	}
 }
