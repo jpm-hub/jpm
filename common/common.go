@@ -809,7 +809,7 @@ func HomeDir() string {
 	dirPath := filepath.Join(homeDir, appDir)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		if err := os.MkdirAll(dirPath, 0755); err != nil {
-			return "."
+			panic(err)
 		}
 	}
 	return dirPath
@@ -1001,6 +1001,31 @@ func CopyToDependencies(lang string) {
 		}
 		if err := CopyFile(filepath.Join(homeDir, "kotlin-reflect.jar"), filepath.Join("jpm_dependencies", "kotlin-reflect.jar")); err != nil {
 			fmt.Printf("Error copying kotlin-reflect.jar: %v\n", err)
+		}
+	}
+}
+
+func LinkToDependencies(lang string) {
+	homeDir := HomeDir()
+	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
+	os.Link(filepath.Join(homeDir, "libs", "junit.jar"), filepath.Join("jpm_dependencies", "tests", "junit.jar"))
+	if IsWindows() {
+		homeDir = filepath.Join(homeDir, "kotlinc", "lib")
+	} else {
+		homeDir = filepath.Join(homeDir, "libs")
+	}
+	if strings.Contains(lang, "kotlin") {
+		if err := os.Link(filepath.Join(homeDir, "kotlin-test.jar"), filepath.Join("jpm_dependencies", "tests", "kotlin-test.jar")); err != nil {
+			fmt.Printf("Error linking kotlin-test.jar: %v\n", err)
+		}
+		if err := os.Link(filepath.Join(homeDir, "annotations-13.0.jar"), filepath.Join("jpm_dependencies", "annotations-13.0.jar")); err != nil {
+			fmt.Printf("Error linking annotations-13.0.jar: %v\n", err)
+		}
+		if err := os.Link(filepath.Join(homeDir, "kotlin-stdlib.jar"), filepath.Join("jpm_dependencies", "kotlin-stdlib.jar")); err != nil {
+			fmt.Printf("Error linking kotlin-stdlib.jar: %v\n", err)
+		}
+		if err := os.Link(filepath.Join(homeDir, "kotlin-reflect.jar"), filepath.Join("jpm_dependencies", "kotlin-reflect.jar")); err != nil {
+			fmt.Printf("Error linking kotlin-reflect.jar: %v\n", err)
 		}
 	}
 }

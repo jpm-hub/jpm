@@ -87,14 +87,16 @@ repos:
 
 func GetDotVscodeTemplate(src string) string {
 	if len(src) == 0 {
-		src = "."
+		src = "\".\""
+	} else {
+		src = "\".\",\"" + src + "\""
 	}
 	return `{
 	"java.project.referencedLibraries": [
 		"jpm_dependencies/**/*"
 	],
 	"java.project.sourcePaths": [
-		"` + src + `"
+		` + src + `
 	]
 }`
 }

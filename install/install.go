@@ -98,7 +98,7 @@ func Install() {
 			continue
 		}
 	}
-	COM.CopyToDependencies(COM.GetSection("language", false).(string))
+	COM.LinkToDependencies(COM.GetSection("language", false).(string))
 	excludes = parseExludes(COM.GetSection("excludes", false).([]string))
 	switch len(os.Args) {
 	case 2:
@@ -193,7 +193,7 @@ func execChmod() {
 		}
 		name := entry.Name()
 		// TODO: turn this to Has shbang check
-		if !strings.HasSuffix(name, ".jar") {
+		if !strings.HasSuffix(name, ".jar") && !strings.HasSuffix(name, ".zip") && !strings.HasSuffix(name, ".war") && !strings.HasSuffix(name, ".ear") && !strings.HasSuffix(name, ".aar") {
 			err := os.Chmod(filepath.Join("jpm_dependencies/execs", name), 0755)
 			if err != nil {
 				println("Error changing permissions for", name+":", err)
@@ -346,7 +346,7 @@ func fromRAW(deps []string) {
 		urlSlice := strings.Split(url, "/")
 		filename := urlSlice[len(urlSlice)-1]
 		downloadInfo[url] = []string{filename, "raw", scope}
-		download(url, filename, scope, listAlreadyInstalledDeps())
+		download(url, filename, scope, true, listAlreadyInstalledDeps())
 		sname := strings.Split(strings.TrimSuffix(filename, filepath.Ext(filename)), "-")[0]
 		if scope == "exec" {
 			g_lockDeps.Scripts[sname] = filename + "|" + url
@@ -373,7 +373,7 @@ func printNotValidScope(scope string) {
 	addFinishMessage(tab + "Warning: scope " + scope + " is a unknown scope")
 }
 
-func download(url string, filename string, scope string, depsInstalled map[string][]string) {
+func download(url string, filename string, scope string, raw bool, depsInstalled map[string][]string) {
 	sc := strings.Split(strings.Trim(scope, "|"), "|")[0]
 	extract := false
 	if sc == "extract x" || strings.HasSuffix(sc, " x") {
@@ -387,60 +387,47 @@ func download(url string, filename string, scope string, depsInstalled map[strin
 	}
 	switch sc {
 	case "test":
-		v, ok := depsInstalled["test"]
-		if ok && slices.Contains(v, filename) {
-			if COM.Verbose {
-				println(filename, "already exists, skipping download")
-			}
-			return
-		}
-		if err, _ := COM.DownloadFile(url, filepath.Join("jpm_dependencies", "tests"), filename, false, false); err != nil {
-			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
-			print("\033[31m=\033[0m")
-			return
-		}
-		print("=")
-		if extract {
-			COM.Extract(filepath.Join("jpm_dependencies", "tests"), filename)
-			COM.CleanupExtract(filepath.Join("jpm_dependencies", "tests"), filename)
-		}
+		downloadAndMakeLinks(raw, extract, url, filename, depsInstalled, "tests")
 	case "exec":
-		if slices.Contains(slices.Concat(depsInstalled["exec"], depsInstalled["jpm_dependencies"]), filename) {
-			if COM.Verbose {
-				println(filename, "already exists, skipping download")
-			}
-			return
-		}
-		if err, _ := COM.DownloadFile(url, filepath.Join("jpm_dependencies", "execs"), filename, false, false); err != nil {
-			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
-			print("\033[31m=\033[0m")
-			return
-		}
-		print("=")
-		if extract {
-			COM.Extract(filepath.Join("jpm_dependencies", "execs"), filename)
-			COM.CleanupExtract(filepath.Join("jpm_dependencies", "execs"), filename)
-		}
+		downloadAndMakeLinks(raw, extract, url, filename, depsInstalled, "execs")
 	default:
-		v, ok := depsInstalled["jpm_dependencies"]
-		if ok && slices.Contains(v, filename) {
-			if COM.Verbose {
-				println(filename, "already exists, skipping download")
-			}
-			return
-		}
-		if err, _ := COM.DownloadFile(url, "jpm_dependencies", filename, false, false); err != nil {
-			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
-			print("\033[31m=\033[0m")
-			return
-		}
-		print("=")
-		if extract {
-			COM.Extract("jpm_dependencies", filename)
-			COM.CleanupExtract("jpm_dependencies", filename)
-		}
+		downloadAndMakeLinks(raw, extract, url, filename, depsInstalled, "")
 	}
 
+}
+
+func downloadAndMakeLinks(raw bool, extract bool, url string, filename string, depsInstalled map[string][]string, scope string) {
+	depsInstalledList, ok := depsInstalled[strings.TrimSuffix(scope, "s")]
+	if ok && slices.Contains(depsInstalledList, filename) {
+		if COM.Verbose {
+			println(filename, "already exists, skipping download")
+		}
+		return
+	}
+	if !raw {
+		if err, _ := COM.DownloadFile(url, filepath.Join(COM.HomeDir(), "libs"), filename, true, false); err != nil {
+			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
+			print("\033[31m█\033[0m")
+			return
+		}
+		if err := os.Link(filepath.Join(COM.HomeDir(), "libs", filename), filepath.Join("jpm_dependencies", scope, filename)); err != nil {
+			fmt.Printf("Error creating hard link: %v\n", err)
+			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
+			print("\033[31m█\033[0m")
+			return
+		}
+	} else {
+		if err, _ := COM.DownloadFile(url, filepath.Join("jpm_dependencies", scope), filename, true, false); err != nil {
+			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
+			print("\033[31m█\033[0m")
+			return
+		}
+	}
+	print("█")
+	if extract {
+		COM.Extract(filepath.Join("jpm_dependencies", scope), filename)
+		COM.CleanupExtract(filepath.Join("jpm_dependencies", scope), filename)
+	}
 }
 
 func listAlreadyInstalledDeps() map[string][]string {
@@ -597,17 +584,17 @@ func loadLockDependencies() []string {
 func installDependencies() {
 	already := listAlreadyInstalledDeps()
 	if len(downloadInfo) != 0 {
-		print("      Downloading [")
+		print("      Downloading |")
 		var wg sync.WaitGroup
 		for k, v := range downloadInfo {
 			wg.Add(1)
 			go func(url, filename, scope string) {
 				defer wg.Done()
-				download(url, filename, scope, already)
+				download(url, filename, scope, false, already)
 			}(k, v[0], v[1])
 		}
 		wg.Wait()
-		println("]")
+		println("|")
 	}
 }
 func installScripts() {
@@ -620,9 +607,9 @@ func installScripts() {
 			go func(ky, value string) {
 				defer wg.Done()
 				parts := strings.Split(value, "|")
-				download(parts[1], parts[0], "exec", already)
+				download(parts[1], parts[0], "exec", false, already)
 				if len(parts) == 3 {
-					download(parts[2], ky, "exec", already)
+					download(parts[2], ky, "exec", false, already)
 				}
 			}(k, v)
 		}
@@ -711,20 +698,21 @@ func cleanup() {
 			value := strings.TrimSuffix(key, "|test")
 			value = strings.TrimSuffix(value, "|exec")
 			valueS := strings.Split(strings.TrimSuffix(value, "|"), "|")
-			value = valueS[len(valueS)-1]
+			aid := valueS[len(valueS)-1]
+			gid := valueS[len(valueS)-2]
 			classifier := ""
 			if len(valueS) == 3 {
 				classifier = "-" + valueS[0]
 			}
 			switch jar {
 			case "tests":
-				jar = value + "-" + v + classifier + ".jar"
+				jar = gid + "." + aid + "-" + v + classifier + ".jar"
 				testjars = append(testjars, jar)
 			case "execs":
-				jar = value + "-" + v + classifier + ".jar"
-				execjars = append(execjars, jar, value)
+				jar = gid + "." + aid + "-" + v + classifier + ".jar"
+				execjars = append(execjars, jar, aid)
 			default:
-				jar = value + "-" + v + classifier + ".jar"
+				jar = gid + "." + aid + "-" + v + classifier + ".jar"
 				jars = append(jars, jar)
 			}
 		}
@@ -734,7 +722,7 @@ func cleanup() {
 	files, err := os.ReadDir("jpm_dependencies")
 	if err == nil {
 		for _, file := range files {
-			if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
+			if !file.IsDir() && (strings.HasSuffix(file.Name(), ".jar") || strings.HasSuffix(file.Name(), ".zip") || strings.HasSuffix(file.Name(), ".war") || strings.HasSuffix(file.Name(), ".ear") || strings.HasSuffix(file.Name(), ".aar")) {
 				if !slices.Contains(jars, file.Name()) {
 					if file.Name() == "annotations-13.0.jar" || file.Name() == "kotlin-stdlib.jar" || file.Name() == "kotlin-reflect.jar" {
 						continue
@@ -747,7 +735,7 @@ func cleanup() {
 	files, err = os.ReadDir(filepath.Join("jpm_dependencies", "tests"))
 	if err == nil {
 		for _, file := range files {
-			if !file.IsDir() && strings.HasSuffix(file.Name(), ".jar") {
+			if !file.IsDir() && (strings.HasSuffix(file.Name(), ".jar") || strings.HasSuffix(file.Name(), ".zip") || strings.HasSuffix(file.Name(), ".war") || strings.HasSuffix(file.Name(), ".ear") || strings.HasSuffix(file.Name(), ".aar")) {
 				if !slices.Contains(testjars, file.Name()) {
 					if file.Name() == "junit.jar" || file.Name() == "kotlin-test.jar" {
 						continue

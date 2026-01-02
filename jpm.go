@@ -102,7 +102,7 @@ func main() {
 		fmt.Println("\t\t-publish: creates necessary files to publish")
 		fmt.Println("\t\t--keep-classifiers: Keeps the classifiers in the dependencies.json")
 		println()
-		fmt.Println(" \033[33mjpm test\033[0m :\tRuns tests with junit under tests/")
+		fmt.Println(" \033[33mjpm test\033[0m [junit_args...] : Runs tests with junit under tests/")
 		println()
 		fmt.Println(" \033[33mjpm install \033[0m [-f, -update, -with <classifier>, -no <package>, -repo <alias>:<url>] <dependency>,... :")
 		fmt.Println("\t\tInstalls the dependencies from package.yml, dependency list seperated by commas")

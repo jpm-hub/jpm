@@ -9,6 +9,11 @@ import (
 )
 
 func TestScript() error {
+	extraArgs := strings.TrimSpace(strings.Join(os.Args[2:], " "))
+	if len(extraArgs) == 0 {
+		extraArgs = "--scan-classpath"
+	}
+	extraArgs = " " + extraArgs
 	COM.FindPackageYML(true)
 	argsMap := COM.ParseArgs()
 	os.RemoveAll(filepath.Join("out", "tests"))
@@ -36,12 +41,12 @@ func TestScript() error {
 		if isModular := COM.GetSection("modular", true).(bool); isModular {
 			modular = "-p ../jpm_dependencies;../jpm_dependencies/tests"
 		}
-		err = COM.RunCMD(COM.ParseEnvVars(prefix, false)+"cd out && java "+modular+" -cp \"./;../jpm_dependencies/"+hasDeps+";../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
+		err = COM.RunCMD(COM.ParseEnvVars(prefix, false)+"cd out && java "+modular+" -cp \"./;../jpm_dependencies/"+hasDeps+";../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --disable-banner --fail-if-no-tests "+args+extraArgs, true)
 	} else {
 		if isModular := COM.GetSection("modular", true).(bool); isModular {
 			modular = "-p ../jpm_dependencies:../jpm_dependencies/tests"
 		}
-		err = COM.RunScript(COM.ParseEnvVars(prefix, true)+"cd out && java "+modular+" -cp \".:../jpm_dependencies/*:../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --class-path tests --scan-classpath --disable-banner --fail-if-no-tests "+args, true)
+		err = COM.RunScript(COM.ParseEnvVars(prefix, true)+"cd out && java "+modular+" -cp \".:../jpm_dependencies/*:../jpm_dependencies/tests/*\" org.junit.platform.console.ConsoleLauncher --disable-banner --fail-if-no-tests "+args+extraArgs, true)
 	}
 
 	if err != nil {

@@ -238,7 +238,7 @@ func addRepoSubDependenciesToDownloadList(url string) {
 		version := v
 		scope := gas[len(gas)-1]
 		url := url + strings.ReplaceAll(groupID, ".", "/") + "/" + artefactID + "/" + version + "/" + artefactID + "-" + version + classifier + ".jar"
-		filename := artefactID + "-" + version + classifier + ".jar"
+		filename := groupID + "." + artefactID + "-" + version + classifier + ".jar"
 		downloadInfo[url] = []string{filename, "" + scope + "|"}
 	}
 }

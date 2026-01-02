@@ -131,7 +131,7 @@ func findAllSrcFile(dirs string, fileWildcard string) string {
 	for dir := range strings.SplitSeq(dirs, " ") {
 		info, err := os.Stat(dir)
 		if err != nil {
-			println(" Non-existent :", dir)
+			println(" Non-existent dir :", dir)
 			os.Exit(1)
 			return ""
 		}

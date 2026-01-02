@@ -14,6 +14,8 @@ scripts:
 dependencies:
   - rsync:1.0.0 exec
   - raw -x https://github.com/qltysh/qlty/releases/download/v0.592.0/qlty-x86_64-unknown-linux-gnu.tar.xz exec
+# additionnal module and class paths
+paths: []
 repos:
   - default: https://repo1.maven.org/maven2/
   - google: https://maven.google.com/
