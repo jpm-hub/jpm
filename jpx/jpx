@@ -37,6 +37,6 @@ else
 		"$@" > /dev/null 2>&1 &
 		echo "Started in detached mode: $*"
 	else
-		"$@"
+		exec "$@"
 	fi
 fi
