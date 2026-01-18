@@ -152,7 +152,15 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
+	scriptName = strings.TrimSuffix(scriptName, "!")
+	switch scriptName {
+	case "run":
+		COM.Environment = "dev"
+	case "test":
+		COM.Environment = "test"
+	case "bundle":
+		COM.Environment = "prod"
+	}
 	COM.FindPackageYML(false)
 	scripts = COM.ParseScripts()
 	scriptCmd, found := scripts[scriptName]
@@ -160,7 +168,6 @@ func main() {
 		scriptsS = append(scriptsS, k)
 	}
 
-	scriptName = strings.TrimSuffix(scriptName, "!")
 	switch scriptName {
 	case "init":
 		execOverride("init")

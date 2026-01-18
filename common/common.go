@@ -1,7 +1,6 @@
 package common
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -25,6 +24,7 @@ import (
 
 var g_yamlPath string = ""
 var Verbose = false
+var Environment string = "dev"
 var env map[string]string = map[string]string{}
 var packageYML PackageYAMLSimple
 var parsed []string = []string{}
@@ -45,6 +45,7 @@ type PackageYAMLSimple struct {
 	Description   string              `yaml:"description,omitempty"`
 	Language      string              `yaml:"language,omitempty"`
 	Env           string              `yaml:"env,omitempty"`
+	Envs          map[string]string   `yaml:"envs,omitempty"`
 	Classified    bool                `yaml:"classified,omitempty"`
 	Modular       bool                `yaml:"modular,omitempty"`
 	Scripts       map[string]string   `yaml:"scripts,omitempty"`
@@ -66,6 +67,7 @@ type PackageYAML struct {
 	Description   string         `yaml:"description,omitempty"`
 	Language      string         `yaml:"language,omitempty"`
 	Env           string         `yaml:"env,omitempty"`
+	Envs          *OrderedMap    `yaml:"envs,omitempty"`
 	Classified    bool           `yaml:"classified,omitempty"`
 	Modular       bool           `yaml:"modular,omitempty"`
 	Scripts       *OrderedMap    `yaml:"scripts,omitempty"`
@@ -212,7 +214,11 @@ func VerifyPackageYML() {
 		os.Exit(1)
 	}
 	// load in env
-	loadInEnv()
+	env := os.Getenv("ENV")
+	if env == "" {
+		env = Environment
+	}
+	loadInEnv(env)
 	// verify duplicate deps
 	CheckDeps("")
 	// verify repos
@@ -433,6 +439,12 @@ func GetSection(section string, isFatal bool) any {
 		return ParseENV(packageYML.Description)
 	case "env":
 		return ParseENV(packageYML.Env)
+	case "envs":
+		envs := map[string]string{}
+		for key, v := range packageYML.Envs {
+			envs[key] = ParseENV(v)
+		}
+		return envs
 	case "package":
 		return ParseENV(packageYML.Package)
 	case "packages":
@@ -530,9 +542,32 @@ func ParseArgs() map[string]string {
 	}
 	return args
 }
-func loadInEnv() {
-	// Attempt to read a .env file in the same directory as package.yml
-	envPath := packageYML.Env
+func loadInEnv(envireonment string) {
+	ignoreEnv := false
+	for k, v := range GetSection("envs", false).(map[string]string) {
+		if strings.TrimSpace(v) == "" {
+			continue
+		}
+		if k == "dev" || k == "prod" || k == "test" {
+			ignoreEnv = true
+		}
+		break
+	}
+	envPath := ""
+	if !ignoreEnv {
+		envPath = GetSection("env", false).(string)
+	} else {
+		switch envireonment {
+		case "dev":
+			envPath = GetSection("envs", false).(map[string]string)["dev"]
+		case "prod":
+			envPath = GetSection("envs", false).(map[string]string)["prod"]
+		case "test":
+			envPath = GetSection("envs", false).(map[string]string)["test"]
+		default:
+			envPath = GetSection("envs", false).(map[string]string)["dev"]
+		}
+	}
 	// Handle both forward and backslashes for Windows compatibility
 	envPath = filepath.Clean(envPath)
 	if data, err := os.ReadFile(envPath); err == nil {
@@ -619,35 +654,19 @@ func ParseENV(str string) string {
 }
 func ParseEnvVars(prefix string, quotes bool) string {
 	envString := ""
-	if str := GetSection("env", false); str != "" {
-		file, err := os.Open(str.(string))
-		if err != nil {
-			println("env file was not found :" + err.Error())
-			os.Exit(1)
-			return ""
+	lines := []string{}
+	for k, v := range env {
+		if !strings.HasPrefix(k, "env.") {
+			continue
 		}
-		defer file.Close()
-
-		var lines []string
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if strings.TrimSpace(line) == "" {
-				continue
-			}
-			l := strings.SplitN(line, "=", 2)
-			if quotes {
-				lines = append(lines, prefix+l[0]+"='"+l[1]+"'")
-			} else {
-				lines = append(lines, prefix+l[0]+"="+l[1])
-			}
+		k = strings.TrimPrefix(k, "env.")
+		if quotes {
+			lines = append(lines, prefix+k+"='"+v+"'")
+		} else {
+			lines = append(lines, prefix+k+"="+v)
 		}
-
-		if err := scanner.Err(); err != nil {
-			return ""
-		}
-		envString = strings.Join(lines, "\n") + "\n"
 	}
+	envString = strings.Join(lines, "\n") + "\n"
 	return envString
 }
 
@@ -1026,7 +1045,7 @@ func LinkToDependencies(lang string) {
 			} else {
 				destPath = filepath.Join("jpm_dependencies", file)
 			}
-			
+
 			if _, err := os.Stat(destPath); os.IsNotExist(err) {
 				srcPath := filepath.Join(homeDir, file)
 				if err := os.Link(srcPath, destPath); err != nil {
