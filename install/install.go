@@ -311,7 +311,7 @@ func fromRAW(deps []string) {
 		delete(downloadInfo, k)
 	}
 
-	print("\033[32m  --- RAW: Downloading \033[0m[")
+	print("\033[32m  --- RAW: Downloading \033[0m|")
 	for _, d := range deps {
 		checkSlice := strings.Split(d, " ")
 		if len(checkSlice) > 4 || len(checkSlice) < 2 || !strings.Contains(d, "/") {
@@ -352,7 +352,7 @@ func fromRAW(deps []string) {
 			g_lockDeps.Scripts[sname] = filename + "|" + url
 		}
 	}
-	println("]")
+	println("|")
 }
 func findAllRaws(raws []string) []string {
 	deps := []string{}
@@ -410,11 +410,13 @@ func downloadAndMakeLinks(raw bool, extract bool, url string, filename string, d
 			print("\033[31m█\033[0m")
 			return
 		}
-		if err := os.Link(filepath.Join(COM.HomeDir(), "libs", filename), filepath.Join("jpm_dependencies", scope, filename)); err != nil {
-			fmt.Printf("Error creating hard link: %v\n", err)
-			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
-			print("\033[31m█\033[0m")
-			return
+		destPath := filepath.Join("jpm_dependencies", scope, filename)
+		if _, err := os.Stat(destPath); os.IsNotExist(err) {
+			if err := os.Link(filepath.Join(COM.HomeDir(), "libs", filename), destPath); err != nil {
+				failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
+				print("\033[31m█\033[0m")
+				return
+			}
 		}
 	} else {
 		if err, _ := COM.DownloadFile(url, filepath.Join("jpm_dependencies", scope), filename, true, false); err != nil {
@@ -600,7 +602,7 @@ func installDependencies() {
 func installScripts() {
 	already := listAlreadyInstalledDeps()
 	if len(g_lockDeps.Scripts) != 0 {
-		print("      Downloading Scripts [")
+		print("      Downloading Scripts |")
 		var wg sync.WaitGroup
 		for k, v := range g_lockDeps.Scripts {
 			wg.Add(1)
@@ -618,7 +620,7 @@ func installScripts() {
 			parts := strings.Split(v, "|")
 			createExecScript(k, parts[0])
 		}
-		println("]")
+		println("|")
 	}
 	if len(failedInstalledList) > 0 {
 		for _, v := range failedInstalledList {
@@ -816,18 +818,18 @@ func createExecScript(scriptName, filename string) {
 				mainc=$main
 				scriptname=` + scriptName + `-$(echo $main | awk -F. '{print $NF}')
 				echo "#!/bin/sh" > jpm_dependencies/execs/$scriptname
-				printf "java \$(jpm args %s) -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$scriptname" "$mainc" '$@' >> jpm_dependencies/execs/$scriptname
+				printf "java \$(jpm args %s) -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "$scriptname" "$mainc" '"$@"' >> jpm_dependencies/execs/$scriptname
 			done
 			exit 0
 		elif [ $(echo $classes | wc -w) -eq 1 ]; then
 			echo "#!/bin/sh" > jpm_dependencies/execs/` + scriptName + `
-			printf "java \$(jpm args %s) -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "` + scriptName + `" "$classes" '$@' >> jpm_dependencies/execs/` + scriptName + `
+			printf "java \$(jpm args %s) -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "` + scriptName + `" "$classes" '"$@"' >> jpm_dependencies/execs/` + scriptName + `
 			exit 0
 		fi
 		exit 1
 	else
 		echo "#!/bin/sh" > jpm_dependencies/execs/` + scriptName + `
-		printf "java \$(jpm args %s) -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "` + scriptName + `" "$mainc" '$@' >> jpm_dependencies/execs/` + scriptName + `
+		printf "java \$(jpm args %s) -cp \"jpm_dependencies/*` + separator + `jpm_dependencies/execs/*\" %s %s" "` + scriptName + `" "$mainc" '"$@"' >> jpm_dependencies/execs/` + scriptName + `
 	fi`
 		err := COM.RunScript(scriptCmd, true)
 		if err != nil {
@@ -838,6 +840,6 @@ func createExecScript(scriptName, filename string) {
 			}
 			return
 		}
-		print("=")
+		print("█")
 	}
 }

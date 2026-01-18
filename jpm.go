@@ -210,6 +210,8 @@ func main() {
 		if len(os.Args) > 1 {
 			if COM.IsWindows() {
 				argsStr = strings.TrimSpace(strings.Join(os.Args[2:], "' '"))
+				argsStr = "'" + argsStr + "'"
+				println(argsStr)
 			} else {
 				argsStr = strings.TrimSpace(strings.Join(os.Args[2:], " "))
 			}
