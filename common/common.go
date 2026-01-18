@@ -36,6 +36,14 @@ type Dependencies struct {
 	Repos        map[string]map[string]string `json:"repos"`
 	Scripts      map[string]string            `json:"scripts,omitempty"`
 }
+
+type Envs struct {
+	Dev    string            `yaml:"dev"`
+	Test   string            `yaml:"test"`
+	Prod   string            `yaml:"prod"`
+	Others map[string]string `yaml:",inline,omitempty"`
+}
+
 type PackageYAMLSimple struct {
 	Main          string              `yaml:"main,omitempty"`
 	Package       string              `yaml:"package,omitempty"`
@@ -45,7 +53,7 @@ type PackageYAMLSimple struct {
 	Description   string              `yaml:"description,omitempty"`
 	Language      string              `yaml:"language,omitempty"`
 	Env           string              `yaml:"env,omitempty"`
-	Envs          map[string]string   `yaml:"envs,omitempty"`
+	Envs          Envs                `yaml:"envs,omitempty"`
 	Classified    bool                `yaml:"classified,omitempty"`
 	Modular       bool                `yaml:"modular,omitempty"`
 	Scripts       map[string]string   `yaml:"scripts,omitempty"`
@@ -67,7 +75,7 @@ type PackageYAML struct {
 	Description   string         `yaml:"description,omitempty"`
 	Language      string         `yaml:"language,omitempty"`
 	Env           string         `yaml:"env,omitempty"`
-	Envs          *OrderedMap    `yaml:"envs,omitempty"`
+	Envs          Envs           `yaml:"envs"`
 	Classified    bool           `yaml:"classified,omitempty"`
 	Modular       bool           `yaml:"modular,omitempty"`
 	Scripts       *OrderedMap    `yaml:"scripts,omitempty"`
@@ -441,7 +449,10 @@ func GetSection(section string, isFatal bool) any {
 		return ParseENV(packageYML.Env)
 	case "envs":
 		envs := map[string]string{}
-		for key, v := range packageYML.Envs {
+		envs["prod"] = ParseENV(packageYML.Envs.Prod)
+		envs["test"] = ParseENV(packageYML.Envs.Test)
+		envs["dev"] = ParseENV(packageYML.Envs.Dev)
+		for key, v := range packageYML.Envs.Others {
 			envs[key] = ParseENV(v)
 		}
 		return envs
@@ -544,29 +555,23 @@ func ParseArgs() map[string]string {
 }
 func loadInEnv(envireonment string) {
 	ignoreEnv := false
-	for k, v := range GetSection("envs", false).(map[string]string) {
+	for _, v := range GetSection("envs", false).(map[string]string) {
 		if strings.TrimSpace(v) == "" {
 			continue
 		}
-		if k == "dev" || k == "prod" || k == "test" {
-			ignoreEnv = true
-		}
+		ignoreEnv = true
 		break
 	}
 	envPath := ""
 	if !ignoreEnv {
 		envPath = GetSection("env", false).(string)
 	} else {
-		switch envireonment {
-		case "dev":
-			envPath = GetSection("envs", false).(map[string]string)["dev"]
-		case "prod":
-			envPath = GetSection("envs", false).(map[string]string)["prod"]
-		case "test":
-			envPath = GetSection("envs", false).(map[string]string)["test"]
-		default:
-			envPath = GetSection("envs", false).(map[string]string)["dev"]
+		tenvPath, ok := GetSection("envs", true).(map[string]string)[envireonment]
+		if !ok {
+			println("environment", envireonment, "not found in package.yml envs section, please add it")
+			os.Exit(1)
 		}
+		envPath = tenvPath
 	}
 	// Handle both forward and backslashes for Windows compatibility
 	envPath = filepath.Clean(envPath)

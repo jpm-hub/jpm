@@ -19,18 +19,6 @@ A simple and efficient build tool and package manager for Java and Kotlin projec
 - [String Substitution](#string-substitution)
 
 
-## Setup JPM Environment
-
-After adding jpm to your PATH, set up the JPM environment with required tools:
-
-```bash
-# look for problems with jpm
-jpm doctor
-
-# fix the problems
-jpm doctor -fix
-```
-
 ## Quick Start
 1. **Install JPM**
     <br>SDKMAN! (comming soon)
@@ -91,6 +79,11 @@ language: java
 src: .
 description: an example project
 env: .env
+envs:
+  dev: .env
+  test: .test.env
+  prod: .prod.env
+  custom_env: .custom_env.env
 scripts:
   start: jpm compile && jpm run
   dev: jpm watch "(src/**)" "jpm start"
@@ -119,6 +112,11 @@ args:
 - **main**: The main class to run (e.g., `com.example.MyApp`)
 - **version**: Project version
 - **env**: .env file location (you can get the values of keys with `System.getenv("KEY")`)
+- **envs**: same thing as env, but has priority if defined
+  - `ENV=custom_env jpm run` here we can run jpm with a custom env file
+  - `prod` is the env file used when bundling
+  - `dev` is the env file used when running `jpm compile` and `jpm run` in any case
+  - `test` is the env file used when running `jpm test` in any case
 - **src**: Project source dir (usually just . or src/main/java)
 - **language**: Programming language (`java` or `kotlin` or `java,kotlin`)
 - **scripts**: Custom commands (see [Scripts](#scripts))
