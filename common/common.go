@@ -75,7 +75,7 @@ type PackageYAML struct {
 	Description   string         `yaml:"description,omitempty"`
 	Language      string         `yaml:"language,omitempty"`
 	Env           string         `yaml:"env,omitempty"`
-	Envs          Envs           `yaml:"envs"`
+	Envs          Envs           `yaml:"envs,omitempty"`
 	Classified    bool           `yaml:"classified,omitempty"`
 	Modular       bool           `yaml:"modular,omitempty"`
 	Scripts       *OrderedMap    `yaml:"scripts,omitempty"`

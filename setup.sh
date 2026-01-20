@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-VERSION="1.1.5"
+VERSION="1.2.3"
 
 # Default install directory
 INSTALL_DIR="/usr/local/bin"

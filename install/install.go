@@ -290,7 +290,7 @@ func fromRepo(dependenciesWithRepo map[string][]Repo) {
 			currentWorkingRepo = dr.Repo
 			saveAllRepoSubDependencies(&dr)
 			if currentOuterScope == "exec" {
-				jarfilename := dr.ArtefactID + "-" + dr.ArtVer + ".jar"
+				jarfilename := dr.GroupID + "." + dr.ArtefactID + "-" + dr.ArtVer + ".jar"
 				url := generateRepoDepUrl(currentWorkingRepo, dr.GroupID, dr.ArtefactID, dr.ArtVer, jarfilename)
 				g_lockDeps.Scripts[dr.ArtefactID] = jarfilename + "|" + url
 			}
