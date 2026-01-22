@@ -139,6 +139,13 @@ func main() {
 		}
 		os.Exit(1)
 		return
+	case "version++":
+		suffix := ""
+		if len(os.Args) > 2 {
+			suffix = os.Args[2]
+		}
+		os.Stdout.Write([]byte(COM.IncrementVersion() + suffix))
+		return
 	case "upgrade":
 		UPGRADE.Upgrade()
 		return

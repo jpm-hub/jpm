@@ -106,7 +106,9 @@ func Watch(fromRun bool) {
 			}
 		}
 	}(fromRun)
-
+	if refreshing {
+		refresh(false)
+	}
 	<-done
 }
 

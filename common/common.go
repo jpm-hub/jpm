@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"unicode"
@@ -334,11 +335,7 @@ func ReplaceDependency(oldDepString string, newDepString string) {
 		AddToSection("dependencies", newDepString)
 		return
 	}
-	// Write back to file with comment preservation
-	if err := WriteYAML(g_yamlPath, pkgYAML); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+
 }
 
 func AddToSection(sectionName string, sectionValue any) {
@@ -1067,4 +1064,44 @@ func Ping(url string) bool {
 	}
 	defer resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
+}
+
+func IncrementVersion() string {
+	FindPackageYML(false)
+	v := GetSection("version", true).(string)
+	parts := strings.Split(v, ".")
+	if len(parts) == 0 {
+		return "0.0.0"
+	}
+	lastPartIdx := len(parts) - 1
+	//remove all non-numeric characters from the last part
+	parts[lastPartIdx] = strings.TrimFunc(parts[lastPartIdx], func(r rune) bool {
+		return r < '0' || r > '9'
+	})
+	lastPart, err := strconv.Atoi(parts[lastPartIdx])
+	if err != nil {
+		println("version format is invalid")
+		os.Exit(1)
+	}
+	lastPart++
+	parts[lastPartIdx] = strconv.Itoa(lastPart)
+	version := strings.Join(parts, ".")
+	data, err := os.ReadFile(g_yamlPath)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	var pkgYAML PackageYAML
+	if err := yaml.Unmarshal(data, &pkgYAML); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	pkgYAML.Version = version
+	packageYML.Version = version
+	if err := WriteYAML(g_yamlPath, pkgYAML); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	return packageYML.Version
 }
