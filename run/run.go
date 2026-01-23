@@ -62,7 +62,7 @@ func Run() error {
 					if i > 5 {
 						runArgs += " "
 					}
-					runArgs += os.Args[i]
+					runArgs += "\"" + os.Args[i] + "\""
 				}
 			}
 			err := COMPILE.Compile()
@@ -83,7 +83,7 @@ func Run() error {
 				if i > 2 {
 					runArgs += " "
 				}
-				runArgs += os.Args[i]
+				runArgs += "\"" + os.Args[i] + "\""
 			}
 			if COM.IsWindows() {
 				return COM.RunCMD(COM.ParseEnvVars(prefix, false)+"cd out && java "+args+" "+modular+" -cp \".;./*"+jpm_dependenciescp+"\" "+mainClass+" "+runArgs, true)

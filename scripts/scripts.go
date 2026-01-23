@@ -13,9 +13,6 @@ var scripts map[string]string
 func Scripts(scriptName string) {
 	scripts = COM.ParseScripts()
 	scriptCmd, found := scripts[scriptName]
-	if len(os.Args) > 1 {
-
-	}
 	if !found {
 		fmt.Printf("Script '%s' not found in package.yml\n", scriptName)
 		os.Exit(1)
@@ -31,13 +28,15 @@ func argsReplacer(scriptCmd string) string {
 	if len(os.Args) > 1 {
 		argsSubs := map[string]string{}
 		// Replace ...args@ with all args joined as a string
-		val := strings.TrimSpace(strings.Join(os.Args[2:], " "))
-		if !strings.Contains(val, " ") {
-			argsSubs["...args@"] = strings.TrimSpace(strings.Join(os.Args[2:], " "))
-		} else {
-			argsStr := strings.TrimSpace(strings.Join(os.Args[2:], "' '"))
-			argsSubs["...args@"] = "'" + argsStr + "'"
+		argsSubs["...args@"] = ""
+		for _, v := range os.Args[2:] {
+			if !strings.Contains(v, " ") {
+				argsSubs["...args@"] = argsSubs["...args@"] + v + " "
+			} else {
+				argsSubs["...args@"] = argsSubs["...args@"] + "'" + v + "' "
+			}
 		}
+		argsSubs["...args@"] = strings.TrimSpace(argsSubs["...args@"])
 		// Replace ...args# with the number of args
 		argsSubs["args@[#]"] = fmt.Sprint(len(os.Args) - 2)
 		if !strings.Contains(argsSubs["args@[#]"], " ") {
@@ -124,15 +123,11 @@ func ExecOverride(sc string) {
 	}
 	if os.Getenv("JPM_OVERRIDE") != sc {
 		// Join all the args from os.Args except os.Args[0] into a string
-		argsStr := ""
-		if len(os.Args) > 1 {
-			argsStr = strings.TrimSpace(strings.Join(os.Args[2:], " "))
-		}
 		if slices.Contains(scriptsS, sc+"@") {
 			if COM.Verbose {
 				println("\033[33mOverriding: "+"'"+"jpm", sc+"'", "for "+"'"+"jpm", sc+"@"+"'", "\033[0m")
 			}
-			cmd := "export JPM_OVERRIDE=" + sc + "\nexport PATH=\"$PATH:$(pwd)/jpm_dependencies/execs\"\n" + strings.ReplaceAll(scripts[sc+"@"], "...args@", argsStr)
+			cmd := "export JPM_OVERRIDE=" + sc + "\nexport PATH=\"$PATH:$(pwd)/jpm_dependencies/execs\"\n" + argsReplacer(scripts[sc+"@"])
 			if err := COM.RunScript(cmd, true); err != nil {
 				fmt.Printf("Error running script '%s': %v \n", sc, err)
 				os.Exit(1)
