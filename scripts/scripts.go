@@ -29,11 +29,10 @@ func Scripts(scriptName string) {
 
 func argsReplacer(scriptCmd string) string {
 	if len(os.Args) > 1 {
-
 		argsSubs := map[string]string{}
 		// Replace ...args@ with all args joined as a string
 		val := strings.TrimSpace(strings.Join(os.Args[2:], " "))
-		if !COM.IsWindows() && !strings.Contains(val, " ") {
+		if !strings.Contains(val, " ") {
 			argsSubs["...args@"] = strings.TrimSpace(strings.Join(os.Args[2:], " "))
 		} else {
 			argsStr := strings.TrimSpace(strings.Join(os.Args[2:], "' '"))
@@ -41,7 +40,7 @@ func argsReplacer(scriptCmd string) string {
 		}
 		// Replace ...args# with the number of args
 		argsSubs["args@[#]"] = fmt.Sprint(len(os.Args) - 2)
-		if !COM.IsWindows() && !strings.Contains(argsSubs["args@[#]"], " ") {
+		if !strings.Contains(argsSubs["args@[#]"], " ") {
 			argsSubs["args@[last]"] = os.Args[len(os.Args)-1]
 		} else {
 			argsSubs["args@[last]"] = "'" + os.Args[len(os.Args)-1] + "'"
@@ -49,7 +48,7 @@ func argsReplacer(scriptCmd string) string {
 
 		// Replace ...args[i] with the ith arg
 		for i, v := range os.Args[2:] {
-			if !COM.IsWindows() && !strings.Contains(v, " ") {
+			if !strings.Contains(v, " ") {
 				argsSubs["args@["+fmt.Sprint(i)+"]"] = v
 			} else {
 				argsSubs["args@["+fmt.Sprint(i)+"]"] = "'" + v + "'"
@@ -65,7 +64,7 @@ func argsReplacer(scriptCmd string) string {
 		// Replace ...args[--flag] with value if flag is present
 		for i, v := range os.Args[2:] {
 			if strings.HasPrefix(v, "--") && !strings.Contains(v, "=") {
-				if !COM.IsWindows() && !strings.Contains(v, " ") {
+				if !strings.Contains(v, " ") {
 					argsSubs["args@["+v+"]"] = os.Args[2+i+1]
 				} else {
 					argsSubs["args@["+v+"]"] = "'" + os.Args[2+i+1] + "'"
@@ -76,7 +75,7 @@ func argsReplacer(scriptCmd string) string {
 		// Replace ...args[--flag=value] with value if flag is present
 		for _, v := range os.Args[2:] {
 			if strings.HasPrefix(v, "--") && strings.Contains(v, "=") {
-				if !COM.IsWindows() && !strings.Contains(v, " ") {
+				if !strings.Contains(v, " ") {
 					argsSubs["args@["+strings.SplitN(v, "=", 2)[0]+"]"] = strings.SplitN(v, "=", 2)[1]
 				} else {
 					argsSubs["args@["+strings.SplitN(v, "=", 2)[0]+"]"] = "'" + strings.SplitN(v, "=", 2)[1] + "'"
