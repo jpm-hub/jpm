@@ -15,6 +15,7 @@ import (
 
 var separator string = ":"
 var argsMap map[string]string
+var testing bool = false
 
 func initCompile() {
 	COM.FindPackageYML(true)
@@ -25,6 +26,7 @@ func initCompile() {
 	argsMap = COM.ParseArgs()
 }
 func Compile(src ...string) error {
+	testing = false
 	initCompile()
 	languageList := findLanguages()
 	var err error
@@ -40,6 +42,7 @@ func Compile(src ...string) error {
 		case "java":
 			err = compileJava(strings.Join(src, " "))
 		case "kotlin":
+			COM.LinkToDependencies(COM.GetSection("language", false).(string))
 			err = compileKotlin(strings.Join(src, " "))
 		case "module-info.java":
 			p := filepath.Join(srcPath, "module-info.java")
@@ -59,6 +62,7 @@ func Compile(src ...string) error {
 }
 
 func CompileTest() error {
+	testing = true
 	initCompile()
 	languageList := findLanguages()
 	var err error
@@ -68,6 +72,7 @@ func CompileTest() error {
 		case "java":
 			err = compileTestJava()
 		case "kotlin":
+			COM.LinkToDependencies(COM.GetSection("language", false).(string))
 			err = compileTestKotlin()
 		default:
 			err = compileTestJava()
@@ -143,6 +148,10 @@ func findAllSrcFile(dirs string, fileWildcard string) string {
 		// Recursively add all subdirectories, but only include if a file matches the wildcard in the dir
 		filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 			if d.IsDir() {
+				if !testing && path == "tests" && COM.SrcDir() == "." {
+					// skip test directory if src is current directory
+					return filepath.SkipDir
+				}
 				matches, _ := filepath.Glob(filepath.Join(path, fileWildcard))
 				if len(matches) > 0 {
 					str.WriteString(filepath.Join(path, fileWildcard))
@@ -171,6 +180,10 @@ func findListofAllSrcFile(dirs string, fileWildcard string) string {
 		}
 		// Recursively find all files that match the wildcard pattern
 		filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+			if !testing && d.IsDir() && path == "tests" && COM.SrcDir() == "." {
+				// skip test directory if src is current directory
+				return filepath.SkipDir
+			}
 			if !d.IsDir() {
 				matched, _ := filepath.Match(fileWildcard, d.Name())
 				if matched {

@@ -862,7 +862,11 @@ func SrcDir() string {
 	} else {
 		valpkg := GetSection("package", true)
 		if str = valpkg.(string); str != "" {
-			_, err := os.Stat(strings.ReplaceAll(str, "-", "_"))
+			s, err := os.Stat(strings.ReplaceAll(str, "-", "_"))
+			if err == nil && !s.IsDir() {
+				println("src must be a directory")
+				os.Exit(1)
+			}
 			if err == nil {
 				return strings.ReplaceAll(str, "-", "_")
 			}
@@ -1028,11 +1032,7 @@ func CopyToDependencies(lang string) {
 
 func LinkToDependencies(lang string) {
 	homeDir := HomeDir()
-	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
-	junitPath := filepath.Join("jpm_dependencies", "tests", "junit.jar")
-	if _, err := os.Stat(junitPath); os.IsNotExist(err) {
-		os.Link(filepath.Join(homeDir, "libs", "junit.jar"), junitPath)
-	}
+	os.MkdirAll(filepath.Join("jpm_dependencies"), 0755)
 	if IsWindows() {
 		homeDir = filepath.Join(homeDir, "kotlinc", "lib")
 	} else {

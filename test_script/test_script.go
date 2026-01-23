@@ -15,6 +15,7 @@ func TestScript() error {
 	}
 	extraArgs = " " + extraArgs
 	COM.FindPackageYML(true)
+	makeTestDirsIfNotExists()
 	argsMap := COM.ParseArgs()
 	os.RemoveAll(filepath.Join("out", "tests"))
 	modular := ""
@@ -55,4 +56,37 @@ func TestScript() error {
 	}
 	println("\033[32mAll pass\033[0m")
 	return nil
+}
+
+func makeTestDirsIfNotExists() {
+	if _, err := os.Stat("tests"); os.IsNotExist(err) {
+		os.Mkdir("tests", os.ModePerm)
+		// create a sample test file if not exists
+
+		if strings.Contains(COM.GetSection("language", false).(string), "kotlin") {
+			if matches, _ := filepath.Glob(filepath.Join("tests", "*.kt")); len(matches) == 0 {
+				sample := strings.ReplaceAll(COM.GetKotlinTestTemplate("", ""), "run()", "\"Hello, World\"")
+				sample = strings.ReplaceAll(sample, " Test ", " TestKotlin ")
+				os.WriteFile(filepath.Join("tests", "TestKotlin.kt"), []byte(sample), 0644)
+			}
+		}
+		if strings.Contains(COM.GetSection("language", false).(string), "java") {
+			if matches, _ := filepath.Glob(filepath.Join("tests", "*.java")); len(matches) == 0 {
+				sample := strings.ReplaceAll(COM.GetJavaTestTemplate("", ""), "app.run()", "\"Hello, World\"")
+				sample = strings.ReplaceAll(sample, "app = new ();", "")
+				sample = strings.ReplaceAll(sample, " Test ", " TestJava ")
+				os.WriteFile(filepath.Join("tests", "TestJava.java"), []byte(sample), 0644)
+			}
+		}
+	}
+	if _, err := os.Stat(filepath.Join("jpm_dependencies", "tests", "junit.jar")); os.IsNotExist(err) {
+		os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), os.ModePerm)
+		junitPath := filepath.Join("jpm_dependencies", "tests", "junit.jar")
+		if _, err := os.Stat(junitPath); os.IsNotExist(err) {
+			os.Link(filepath.Join(COM.HomeDir(), "libs", "junit.jar"), junitPath)
+			if strings.Contains(COM.GetSection("language", false).(string), "kotlin") {
+				os.Link(filepath.Join(COM.HomeDir(), "libs", "kotlin-test.jar"), filepath.Join("jpm_dependencies", "tests", "kotlin-test.jar"))
+			}
+		}
+	}
 }

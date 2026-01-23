@@ -98,7 +98,6 @@ func Install() {
 			continue
 		}
 	}
-	COM.LinkToDependencies(COM.GetSection("language", false).(string))
 	excludes = parseExludes(COM.GetSection("excludes", false).([]string))
 	switch len(os.Args) {
 	case 2:

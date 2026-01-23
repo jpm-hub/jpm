@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	INIT "jpm/init"
 	INSTALL "jpm/install"
 	RUN "jpm/run"
+	SCRIPTS "jpm/scripts"
 	SETUP "jpm/setup"
 	TEST "jpm/test_script"
 	UPGRADE "jpm/upgrade"
@@ -30,10 +30,6 @@ import (
 // add detection of version downgrade in install
 // add support for inner projects and local dependencies
 // add support for multiple packages compilation and bundling to create classified jars
-// add -with for classiified installs
-// add -no for excluding dependencies
-var scriptsS []string = []string{}
-var scripts map[string]string
 
 func main() {
 	COM.Init()
@@ -169,21 +165,16 @@ func main() {
 		COM.Environment = "prod"
 	}
 	COM.FindPackageYML(false)
-	scripts = COM.ParseScripts()
-	scriptCmd, found := scripts[scriptName]
-	for k := range maps.Keys(scripts) {
-		scriptsS = append(scriptsS, k)
-	}
 
 	switch scriptName {
 	case "init":
-		execOverride("init")
+		SCRIPTS.ExecOverride("init")
 		INIT.Init(os.Args)
 	case "create":
-		execOverride("create")
+		SCRIPTS.ExecOverride("create")
 		CREATE.Create()
 	case "compile":
-		execOverride("compile")
+		SCRIPTS.ExecOverride("compile")
 		args := []string{}
 		if len(os.Args) > 2 {
 			args = os.Args[2:]
@@ -192,80 +183,35 @@ func main() {
 			os.Exit(1)
 		}
 	case "run":
-		execOverride("run")
+		SCRIPTS.ExecOverride("run")
 		err := RUN.Run()
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
 	case "watch":
-		execOverride("watch")
+		SCRIPTS.ExecOverride("watch")
 		WATCH.Watch(false)
 	case "bundle":
-		execOverride("bundle")
+		SCRIPTS.ExecOverride("bundle")
 		BUNDLE.Bundle()
 	case "test":
-		execOverride("test")
+		SCRIPTS.ExecOverride("test")
 		if err := TEST.TestScript(); err != nil {
 			println("\n Tests failed")
 			os.Exit(1)
 		}
 	case "ci":
-		execOverride("ci")
+		SCRIPTS.ExecOverride("ci")
 		COM.RunScript("rm -rf ./jpm_dependencies/*", false)
 		fallthrough
 	case "i":
 		fallthrough
 	case "install":
-		execOverride("install")
+		SCRIPTS.ExecOverride("install")
 		INSTALL.Install()
 	default:
-		argsStr := ""
-		if len(os.Args) > 1 {
-			if COM.IsWindows() {
-				argsStr = strings.TrimSpace(strings.Join(os.Args[2:], "' '"))
-				argsStr = "'" + argsStr + "'"
-				println(argsStr)
-			} else {
-				argsStr = strings.TrimSpace(strings.Join(os.Args[2:], " "))
-			}
-		}
-		if !found {
-			fmt.Printf("Script '%s' not found in package.yml\n", scriptName)
-			os.Exit(1)
-		}
-		cmd := "export PATH=\"$PATH:$(pwd)/jpm_dependencies/execs\"\n" + strings.ReplaceAll(scriptCmd, "...args@", argsStr)
-		if err := COM.RunScript(cmd, true); err != nil {
-			fmt.Printf("Error running script '%s': %v \n", scriptName, err)
-			os.Exit(1)
-		}
+		SCRIPTS.Scripts(scriptName)
 	}
 
-}
-
-func execOverride(sc string) {
-	if strings.HasSuffix(os.Args[1], "!") {
-		if COM.Verbose {
-			println("\033[33mOmitting Override: "+"'"+"jpm", sc+"'", "\033[0m")
-		}
-		return
-	}
-	if os.Getenv("JPM_OVERRIDE") != sc {
-		// Join all the args from os.Args except os.Args[0] into a string
-		argsStr := ""
-		if len(os.Args) > 1 {
-			argsStr = strings.TrimSpace(strings.Join(os.Args[2:], " "))
-		}
-		if slices.Contains(scriptsS, sc+"@") {
-			if COM.Verbose {
-				println("\033[33mOverriding: "+"'"+"jpm", sc+"'", "for "+"'"+"jpm", sc+"@"+"'", "\033[0m")
-			}
-			cmd := "export JPM_OVERRIDE=" + sc + "\nexport PATH=\"$PATH:$(pwd)/jpm_dependencies/execs\"\n" + strings.ReplaceAll(scripts[sc+"@"], "...args@", argsStr)
-			if err := COM.RunScript(cmd, true); err != nil {
-				fmt.Printf("Error running script '%s': %v \n", sc, err)
-				os.Exit(1)
-			}
-			os.Exit(0)
-		}
-	}
 }

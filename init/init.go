@@ -24,14 +24,14 @@ func Init(cliargs []string) {
 			if i < 2 {
 				continue
 			}
-			if arg == "-bare" {
-				bare = true
-				continue
-			}
 			if slices.Contains(handled, arg) {
 				continue
 			}
 			handled = append(handled, arg)
+			if arg == "-bare" {
+				bare = true
+				continue
+			}
 			if arg == "-git" {
 				git = true
 				continue
@@ -45,7 +45,6 @@ func Init(cliargs []string) {
 				continue
 			}
 			if arg == "-java" {
-
 				language = language + "java,"
 				continue
 			}
@@ -172,7 +171,6 @@ func Init(cliargs []string) {
 			os.Exit(1)
 		}
 	}
-	COM.CopyToDependencies(language)
 	if language == "" {
 		initJava(appMainJavaFile, packaging, className, "java", src, modular)
 	} else {

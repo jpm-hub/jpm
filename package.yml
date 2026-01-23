@@ -6,7 +6,21 @@ version: 0.0.0
 language: kotlin
 classified: true
 scripts:
-  print: jfiglet ...args@
+  print: |
+    case "args@[0]" in
+      -h)
+        echo "Usage: jpm print [message]"
+        ;;
+      -normal)
+        echo "args@[last]"
+        ;;
+      -fancy)
+        jfiglet "args@[last]"
+        ;;
+      *)
+        echo "Usage: jpm print [message]"
+        ;;
+    esac
   build: |
     go build
     rm -f /c/Users/sderisme/.jpm/jpm.exe
@@ -18,3 +32,4 @@ repos:
   - default: https://repo1.maven.org/maven2/
   - google: https://maven.google.com/
 paths: []
+languages: [kotlin, java,scala, groovy, clojure]
