@@ -45,13 +45,17 @@ func compileTestKotlin() error {
 	}
 	jarFilesString := builder.String()
 
+	mods := ""
+	if COM.GetSection("modular", false).(bool) {
+		mods = "-Xmodule-path=jpm_dependencies" + separator + "jpm_dependencies/tests"
+	}
 	var err4 error
 	if COM.IsWindows() {
 		allkts := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "."), findAllSrcFile("tests", ".")}, " ")
-		err4 = COM.RunCMD(COM.KOTLINC()+" "+args+" -cp \""+"out;"+jarFilesString+"\" -d out "+allkts, true)
+		err4 = COM.RunCMD(COM.KOTLINC()+" "+args+" "+mods+" -cp \""+"out;"+jarFilesString+"\" -d out "+allkts, true)
 	} else {
 		allkts := findAllSrcFile(COM.SrcDir(), "*.kt")
-		err4 = COM.RunScript("kotlinc  -cp \""+"out:"+jarFilesString+"\" "+args+" -d out "+allkts, true)
+		err4 = COM.RunScript("kotlinc  -cp \""+"out:"+jarFilesString+"\" "+args+" "+mods+" -d out "+allkts, true)
 	}
 	if err4 != nil {
 		return fmt.Errorf("\033[31m test compilation failed for kotlin\033[0m")

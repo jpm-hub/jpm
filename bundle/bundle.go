@@ -29,7 +29,6 @@ func Bundle() {
 			os.RemoveAll(filepath.Join(distDir, entry.Name()))
 		}
 	}
-	os.RemoveAll(filepath.Join("out"))
 	os.MkdirAll(filepath.Join("dist", "_dump"), 0755)
 	version = COM.GetSection("version", true).(string)
 	if version == "" {
@@ -43,6 +42,7 @@ func Bundle() {
 	println("\033[32mBundleling " + name + ".jar \033[0m")
 	classes := ""
 	exec := ""
+	clean := true
 	var builder strings.Builder
 	builder.WriteString("jar cf")
 	handled := []string{}
@@ -55,20 +55,27 @@ func Bundle() {
 		}
 		handled = append(handled, arg)
 		switch arg {
+		case "-no-clean":
+			clean = false
 		case "-fat":
 			println("Bundling to a fat jar is not yet supported, yet..., help us implement it!")
 			os.Exit(1)
 		case "-native":
 			println("Bundling to native is not yet supported, yet..., help us implement it!")
+			os.Exit(1)
 		case "-exec":
 			execing = true
 		case "-publish":
 			publishing = true
-		case "--keep-classifiers":
+		case "-keep-classifiers":
 			keepClassifiers = true
 		default:
 			println("\t unknown option", arg)
 		}
+	}
+	if clean {
+		println("\033[32mCleaning out\033[0m")
+		os.RemoveAll(filepath.Join("out"))
 	}
 	exec = makeExec(name)
 	makePublish(publishing, keepClassifiers)

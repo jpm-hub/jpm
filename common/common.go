@@ -46,24 +46,24 @@ type Envs struct {
 }
 
 type PackageYAMLSimple struct {
-	Main          string              `yaml:"main,omitempty"`
-	Package       string              `yaml:"package,omitempty"`
-	Packages      []string            `yaml:"packages,omitempty"`
-	Src           string              `yaml:"src,omitempty"`
-	Version       string              `yaml:"version,omitempty"`
-	Description   string              `yaml:"description,omitempty"`
-	Language      string              `yaml:"language,omitempty"`
-	Env           string              `yaml:"env,omitempty"`
-	Envs          Envs                `yaml:"envs,omitempty"`
-	Classified    bool                `yaml:"classified,omitempty"`
-	Modular       bool                `yaml:"modular,omitempty"`
-	Scripts       map[string]string   `yaml:"scripts,omitempty"`
-	Dependencies  []string            `yaml:"dependencies,omitempty"`
-	Classifiers   map[string]string   `yaml:"classifiers,omitempty"`
-	Repos         []map[string]string `yaml:"repos,omitempty"`
-	Args          map[string]string   `yaml:"args,omitempty"`
-	Excludes      []string            `yaml:"excludes,omitempty"`
-	OtherSections map[string]any      `yaml:",inline,omitempty"`
+	Main          string
+	Package       string
+	Packages      []string
+	Src           string
+	Version       string
+	Description   string
+	Language      string
+	Env           string
+	Envs          Envs
+	Classified    bool
+	Modular       bool
+	Scripts       map[string]string
+	Dependencies  []string
+	Classifiers   map[string]string
+	Repos         []map[string]string
+	Args          map[string]string
+	Excludes      []string
+	OtherSections map[string]any
 }
 
 // PackageYAML represents the structure of package.yml with ordered fields
@@ -1039,13 +1039,11 @@ func LinkToDependencies(lang string) {
 		homeDir = filepath.Join(homeDir, "libs")
 	}
 	if strings.Contains(lang, "kotlin") {
-		kotlinFiles := []string{"kotlin-test.jar", "annotations-13.0.jar", "kotlin-stdlib.jar", "kotlin-reflect.jar"}
+		kotlinFiles := []string{"annotations-13.0.jar", "kotlin-stdlib.jar", "kotlin-reflect.jar"}
 		for _, file := range kotlinFiles {
-			var destPath string
+			destPath := filepath.Join("jpm_dependencies", file)
 			if file == "kotlin-test.jar" {
 				destPath = filepath.Join("jpm_dependencies", "tests", file)
-			} else {
-				destPath = filepath.Join("jpm_dependencies", file)
 			}
 
 			if _, err := os.Stat(destPath); os.IsNotExist(err) {

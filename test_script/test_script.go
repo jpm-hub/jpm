@@ -15,7 +15,7 @@ func TestScript() error {
 	}
 	extraArgs = " " + extraArgs
 	COM.FindPackageYML(true)
-	makeTestDirsIfNotExists()
+	MakeTestDirsIfNotExists()
 	argsMap := COM.ParseArgs()
 	os.RemoveAll(filepath.Join("out", "tests"))
 	modular := ""
@@ -58,7 +58,7 @@ func TestScript() error {
 	return nil
 }
 
-func makeTestDirsIfNotExists() {
+func MakeTestDirsIfNotExists() {
 	if _, err := os.Stat("tests"); os.IsNotExist(err) {
 		os.Mkdir("tests", os.ModePerm)
 		// create a sample test file if not exists

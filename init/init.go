@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	COM "jpm/common"
+	TEST "jpm/test_script"
 )
 
 func Init(cliargs []string) {
@@ -153,6 +154,7 @@ func Init(cliargs []string) {
 			fmt.Printf("Error creating module-info.java: %v\n", err)
 			os.Exit(1)
 		}
+		TEST.MakeTestDirsIfNotExists()
 	}
 	if appDir == src {
 		packaging = "" // no package declaration, will be set to "app" in template

@@ -56,17 +56,17 @@ func compileKotlin(dir string) error {
 	if jarFilesString == "" {
 		jarFilesString = "."
 	}
-	tstMods := ""
+	mods := ""
 	if COM.GetSection("modular", false).(bool) {
-		tstMods = "-Xmodule-path=jpm_dependencies" + separator + "jpm_dependencies/tests"
+		mods = "-Xmodule-path=jpm_dependencies" + separator + "jpm_dependencies/tests"
 	}
 	var err1 error
 	if COM.IsWindows() {
 		allKts := findListofAllSrcFile(dir, "*.kt")
-		err1 = COM.RunCMD(COM.KOTLINC()+" "+args+" "+tstMods+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
+		err1 = COM.RunCMD(COM.KOTLINC()+" "+args+" "+mods+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
 	} else {
 		allKts := findAllSrcFile(dir, "*.kt")
-		err1 = COM.RunScript("kotlinc "+args+" "+tstMods+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
+		err1 = COM.RunScript("kotlinc "+args+" "+mods+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
 	}
 
 	if err1 != nil {
