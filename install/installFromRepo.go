@@ -198,7 +198,7 @@ func saveAllRepoSubDependencies(dr *Repo) error {
 		// modify the yaml at this point
 		if dr.Alias != "default" {
 			COM.ReplaceDependency(fmt.Sprintf("%s %s %s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.Scope), fmt.Sprintf("%s %s %s:%s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.Scope))
-		} else {
+		} else if dr.Alias != ">" {
 			COM.ReplaceDependency(fmt.Sprintf("%s %s %s", dr.GroupID, dr.ArtefactID, dr.Scope), fmt.Sprintf("%s %s:%s %s", dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.Scope))
 		}
 	}

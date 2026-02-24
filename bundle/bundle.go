@@ -228,7 +228,14 @@ func makePublish(publishing bool, keepClassifiers bool) {
 	os.WriteFile(filepath.Join(dist, "README.md"), []byte(readmeContent), 0644)
 }
 
+func removeSections(dependencies COM.Dependencies) COM.Dependencies {
+	dependencies.Scripts = nil
+	dependencies.Dependencies = nil
+	return dependencies
+}
+
 func removeScopes(dependencies COM.Dependencies) COM.Dependencies {
+	dependencies = removeSections(dependencies)
 	for k, v := range dependencies.JPM {
 		dependencies.JPM[strings.TrimSuffix(k, "|")] = v
 		if strings.HasSuffix(k, "|") {

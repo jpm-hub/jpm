@@ -13,7 +13,7 @@ func addNewRepo(repoString string) {
 	if !strings.HasSuffix(addr, "/") {
 		addr = addr + "/"
 	}
-	if strings.HasPrefix(alias, "-") || alias == "raw" || alias == "jpm" || !strings.HasPrefix(addr, "http") {
+	if strings.HasPrefix(alias, ">") || strings.HasPrefix(alias, "-") || alias == "raw" || alias == "jpm" || !strings.HasPrefix(addr, "http") {
 		println("\t", repoString, "must not have - before it, must not be raw or jpm, must have http:// or https://\n")
 		os.Exit(1)
 	}

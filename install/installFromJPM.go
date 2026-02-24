@@ -16,8 +16,9 @@ type jpmRepo struct {
 }
 
 type LastestJPM struct {
-	Latest  string `json:"latest"`
-	Release string `json:"release"`
+	Latest   string `json:"latest"`
+	Release  string `json:"release"`
+	Redirect bool   `json:"redirect"`
 }
 
 func findAllJPM(unfiltteredDeps []string, aliases []string) (jpmDeps []string, noneJpmdeps []string) {
@@ -90,19 +91,18 @@ func disectJPMDepString(d string) (jpmRepo, error) {
 
 func saveAllJPMSubDependencies(d *jpmRepo) string {
 	version := ""
+	v, err := figureOutLatestJPM(d.Package)
 	switch d.Version {
 	case "latest":
 		// figure out version for this jpm dependency
-		v, err := figureOutLatestJPM(d.Package)
+
 		if err != nil {
 			println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get latest version\033[0m\n")
 			return ""
 		}
 		version = v
-
 	case "":
 		// figure out version for this jpm dependency
-		v, err := figureOutLatestJPM(d.Package)
 		if err != nil {
 			println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get latest version\033[0m\n")
 			return ""
@@ -110,6 +110,13 @@ func saveAllJPMSubDependencies(d *jpmRepo) string {
 		version = v
 		// modify the yaml at this point
 		COM.ReplaceDependency(fmt.Sprintf("%s %s", d.Package, d.Scope), fmt.Sprintf("%s:%s %s", d.Package, version, d.Scope))
+	case "<redirected>":
+		// figure out version for this jpm dependency
+		if err != nil {
+			println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get latest version\033[0m\n")
+			return ""
+		}
+		return handleRedirect(d)
 	default:
 		version = d.Version
 	}
@@ -120,6 +127,28 @@ func saveAllJPMSubDependencies(d *jpmRepo) string {
 	downloadDepsJPM(d)
 	println("]")
 	return COM.NormalizeSpaces(fmt.Sprint(d.Package + ":" + d.Version + " " + d.Scope))
+}
+
+func handleRedirect(d *jpmRepo) string {
+	depJson, err := downloadJson(jpmRepoUrl + strings.ToLower(d.Package[0:1]) + d.Package + "/dependencies.json")
+	if err != nil {
+		println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get redirection\033[0m\n")
+		return ""
+	}
+	dr := Repo{
+		Alias:      ">",
+		Repo:       depJson.Redirect["repo"],
+		GroupID:    depJson.Redirect["groupId"],
+		ArtefactID: depJson.Redirect["artifactId"],
+		ArtVer:     d.Version,
+		Scope:      d.Scope,
+	}
+	currentOuterScope = d.Scope
+	currentWorkingRepo = depJson.Redirect["repo"]
+	saveAllRepoSubDependencies(&dr)
+	currentWorkingRepo = jpmRepoUrl
+	COM.ReplaceDependency(fmt.Sprintf("%s %s", d.Package, d.Scope), fmt.Sprintf("%s:%s %s", d.Package, dr.ArtVer, d.Scope))
+	return COM.NormalizeSpaces(fmt.Sprint(d.Package + ":" + dr.ArtVer + " " + d.Scope))
 }
 
 func saveJPMExecToDownloadList(scope, dep, version string) {
@@ -294,6 +323,9 @@ func figureOutLatestJPM(p string) (string, error) {
 	err = json.Unmarshal([]byte(content), &doc)
 	if err != nil {
 		return "", err
+	}
+	if doc.Redirect == true {
+		return "<redirected>", nil
 	}
 	if doc.Release == "" {
 		return doc.Latest, nil

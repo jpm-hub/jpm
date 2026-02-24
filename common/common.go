@@ -32,11 +32,12 @@ var parsed []string = []string{}
 
 type Dependencies struct {
 	Classified   bool                         `json:"classified"`
-	Dependencies []string                     `json:"dependencies"`
+	Dependencies []string                     `json:"dependencies,omitempty"`
 	JPM          map[string]string            `json:"JPM"`
 	Repos        map[string]map[string]string `json:"repos"`
 	Scripts      map[string]string            `json:"scripts,omitempty"`
 	Locals       map[string][]string          `json:"locals,omitempty"`
+	Redirect     map[string]string            `json:"redirect,omitempty"`
 }
 
 type Envs struct {
@@ -242,7 +243,7 @@ func VerifyPackageYML() {
 			repoSectionMap := r.(map[string]string)
 			for k, v := range repoSectionMap {
 				k = strings.ToLower(k)
-				if strings.HasPrefix(k, "-") || slices.Contains(alreadyThere, k) || k == "local" || k == "raw" || k == "jpm" || v == "" || k == "_" {
+				if strings.HasPrefix(k, ">") || strings.HasPrefix(k, "-") || slices.Contains(alreadyThere, k) || k == "local" || k == "raw" || k == "jpm" || v == "" || k == "_" {
 					println("syntax error with: ", k, v)
 					os.Exit(1)
 				}
