@@ -36,6 +36,7 @@ type Dependencies struct {
 	JPM          map[string]string            `json:"JPM"`
 	Repos        map[string]map[string]string `json:"repos"`
 	Scripts      map[string]string            `json:"scripts,omitempty"`
+	Locals       map[string][]string          `json:"locals,omitempty"`
 }
 
 type Envs struct {
@@ -50,6 +51,7 @@ type PackageYAMLSimple struct {
 	Package       string
 	Packages      []string
 	Src           string
+	Out           string
 	Version       string
 	Description   string
 	Language      string
@@ -72,6 +74,7 @@ type PackageYAML struct {
 	Package       string         `yaml:"package,omitempty"`
 	Packages      []string       `yaml:"packages,omitempty"`
 	Src           string         `yaml:"src,omitempty"`
+	Out           string         `yaml:"out,omitempty"`
 	Version       string         `yaml:"version,omitempty"`
 	Description   string         `yaml:"description,omitempty"`
 	Language      string         `yaml:"language,omitempty"`
@@ -463,6 +466,8 @@ func GetSection(section string, isFatal bool) any {
 		return packages
 	case "src":
 		return strings.TrimSpace(ParseENV(packageYML.Src))
+	case "out":
+		return strings.TrimSpace(ParseENV(packageYML.Out))
 	case "classified":
 		return packageYML.Classified
 	case "scripts":
@@ -587,6 +592,14 @@ func loadInEnv(envireonment string) {
 			}
 		}
 	}
+	for _, kv := range os.Environ() {
+		parts := strings.SplitN(kv, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			val := strings.TrimSpace(parts[1])
+			env["ENV."+key] = val
+		}
+	}
 	env["jpm.OS"] = runtime.GOOS
 	env["jpm.ARCH"] = runtime.GOARCH
 	env["jpm.OS-ARCH"] = runtime.GOOS + "-" + runtime.GOARCH
@@ -628,7 +641,7 @@ func ParseENV(str string) string {
 			if val, ok = os.LookupEnv(strings.TrimPrefix(varName, "ENV.")); !ok {
 				found := false
 				if slices.Contains(parsed, varName) {
-					fmt.Println("\nError :", "\033[31m circular reference detected with", str, " : ", parsed, "\033[0m")
+					fmt.Println("\nError :", "\033[31m circular definition or no definition of {{", str, "}} : ", parsed, "\033[0m")
 					os.Exit(1)
 					return ""
 				}
@@ -642,7 +655,6 @@ func ParseENV(str string) string {
 					}
 				}
 				if !found {
-					println("\nError :", "\033[31m{{", varName, "}} was not found anywhere\033[0m")
 					// If not found, remove the unmatched {{KEY}} to avoid infinite loop
 					result = result[:startIdx] + result[endIdx+2:]
 					continue
@@ -873,6 +885,15 @@ func SrcDir() string {
 			return "."
 		}
 		return "."
+	}
+}
+
+func OutDir() string {
+	valsrc := GetSection("out", false)
+	if str := valsrc.(string); str != "" {
+		return strings.TrimSuffix(str, "/")
+	} else {
+		return "out"
 	}
 }
 func NormalizeSpaces(s string) string {

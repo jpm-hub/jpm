@@ -14,7 +14,7 @@ func compileTestKotlin() error {
 	if allBuildArgs, found := argsMap["kotlinc"]; found {
 		args = COM.NormalizeSpaces(allBuildArgs)
 	}
-	os.MkdirAll(filepath.Join("out", "tests"), 0755)
+	os.MkdirAll(filepath.Join(COM.OutDir(), "tests"), 0755)
 	_, errS := os.Stat("jpm_dependencies")
 	if errS != nil {
 		return fmt.Errorf("failed to read ./jpm_dependencies/tests, please run 'jpm install!'")
@@ -52,10 +52,10 @@ func compileTestKotlin() error {
 	var err4 error
 	if COM.IsWindows() {
 		allkts := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "."), findAllSrcFile("tests", ".")}, " ")
-		err4 = COM.RunCMD(COM.KOTLINC()+" "+args+" "+mods+" -cp \""+"out;"+jarFilesString+"\" -d out "+allkts, true)
+		err4 = COM.RunCMD(COM.KOTLINC()+" "+args+" "+mods+" -cp \""+COM.OutDir()+";"+jarFilesString+"\" -d "+COM.OutDir()+" "+allkts, true)
 	} else {
 		allkts := findAllSrcFile(COM.SrcDir(), "*.kt")
-		err4 = COM.RunScript("kotlinc  -cp \""+"out:"+jarFilesString+"\" "+args+" "+mods+" -d out "+allkts, true)
+		err4 = COM.RunScript("kotlinc  -cp \""+COM.OutDir()+":"+jarFilesString+"\" "+args+" "+mods+" -d "+COM.OutDir()+" "+allkts, true)
 	}
 	if err4 != nil {
 		return fmt.Errorf("\033[31m test compilation failed for kotlin\033[0m")

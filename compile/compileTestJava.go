@@ -14,7 +14,7 @@ func compileTestJava() error {
 	if allBuildArgs, found := argsMap["javac"]; found {
 		args = allBuildArgs
 	}
-	os.MkdirAll(filepath.Join("out", "tests"), 0755)
+	os.MkdirAll(filepath.Join(COM.OutDir(), "tests"), 0755)
 	_, errS := os.Stat("jpm_dependencies")
 	if errS != nil {
 		return fmt.Errorf("failed to read ./jpm_dependencies/tests, please run 'jpm install!'")
@@ -57,9 +57,9 @@ func compileTestJava() error {
 
 	var err4 error
 	if COM.IsWindows() {
-		err4 = COM.RunCMD("javac "+args+" "+mods+" -cp \""+"out;"+jarFilesString+"\" -d out "+allJavas, true)
+		err4 = COM.RunCMD("javac "+args+" "+mods+" -cp \""+COM.OutDir()+";"+jarFilesString+"\" -d "+COM.OutDir()+" "+allJavas, true)
 	} else {
-		err4 = COM.RunScript("javac "+args+" "+mods+" -cp \""+"out:"+jarFilesString+"\" -d out "+allJavas, true)
+		err4 = COM.RunScript("javac "+args+" "+mods+" -cp \""+COM.OutDir()+":"+jarFilesString+"\" -d "+COM.OutDir()+" "+allJavas, true)
 	}
 
 	err5 := endCheckLastLineForErrors(r, w, originalOut)

@@ -25,11 +25,11 @@ import (
 // TODO:
 // add comment support for package.yml (when updating repos and deps from cli)
 // add jpm bundle -fat (creates a fat jar)
-// add jpm bundle -native (creates a native executable with graalvm maybe or jlink)
-// add suport for additionnal classpath and modulepath in package.yml
+// add jpm bundle -native (creates a native executable with graalvm maybe or jlink && jpackage)
 // add detection of version downgrade in install
-// add support for inner projects and local dependencies
+// add support for inner projects
 // add support for multiple packages compilation and bundling to create classified jars
+// add support for package install redirect to maven
 
 func main() {
 	COM.Init()
@@ -91,7 +91,7 @@ func main() {
 		fmt.Println("\t\t\"(src/**)\": determines the file that will trigger the command ( _ to ignore)")
 		fmt.Println("\t\t\"<command>\": execute this command before compilation when files change ( _ to ignore)")
 		println()
-		fmt.Println(" \033[33mjpm bundle\033[0m [name] [-fat, -exec, -publish, --keep-classifiers] :") // add windows ach, arm ach and linux and darwin and all one day maybe
+		fmt.Println(" \033[33mjpm bundle\033[0m [-d <dir>,-fat, -exec, -publish, --keep-classifiers] [name]:") // add windows ach, arm ach and linux and darwin and all one day maybe
 		fmt.Println("\t\tCreates a jar")
 		fmt.Println("\t\t-fat: Creates a fat jar (all inccluded, one file)")
 		fmt.Println("\t\t-exec: Creates an executable jar and scripts")

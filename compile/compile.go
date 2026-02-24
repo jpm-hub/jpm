@@ -19,7 +19,7 @@ var testing bool = false
 
 func initCompile() {
 	COM.FindPackageYML(true)
-	os.MkdirAll("out", 0755)
+	os.MkdirAll(COM.OutDir(), 0755)
 	if COM.IsWindows() {
 		separator = ";"
 	}

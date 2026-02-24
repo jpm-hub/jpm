@@ -63,10 +63,10 @@ func compileKotlin(dir string) error {
 	var err1 error
 	if COM.IsWindows() {
 		allKts := findListofAllSrcFile(dir, "*.kt")
-		err1 = COM.RunCMD(COM.KOTLINC()+" "+args+" "+mods+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
+		err1 = COM.RunCMD(COM.KOTLINC()+" "+args+" "+mods+" -cp \""+jarFilesString+"\" -d "+COM.OutDir()+" "+allKts, true)
 	} else {
 		allKts := findAllSrcFile(dir, "*.kt")
-		err1 = COM.RunScript("kotlinc "+args+" "+mods+" -cp \""+jarFilesString+"\" -d out "+allKts, true)
+		err1 = COM.RunScript("kotlinc "+args+" "+mods+" -cp \""+jarFilesString+"\" -d "+COM.OutDir()+" "+allKts, true)
 	}
 
 	if err1 != nil {

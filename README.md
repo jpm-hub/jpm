@@ -312,7 +312,7 @@ jpm bundle -publish
 
 # Create a executable JAR with scripts, creates dependencies.json and a MD file.
 # keeps the classifiers you've set in you project in dependencies.json
-jpm bundle -publish -keep-classifiers
+jpm bundle -publish -keep-classifiers "custom-jar-name"
 ```
 
 #### `jpm setup <component>`

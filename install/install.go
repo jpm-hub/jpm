@@ -46,6 +46,7 @@ var failedInstalledList []string = []string{}
 var latests []string = []string{}
 var finishMessages []string = []string{}
 var excludes []string = []string{}
+var alreadyInstalled = map[string][]string{}
 
 func Install() {
 	force := false
@@ -240,10 +241,76 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 }
 
 func fromLocal(localDeps []string) {
-	for _, dep := range localDeps {
-		println("local dependencies are not supported yet: " + dep)
-		os.Exit(1)
+	if len(localDeps) == 0 {
+		return
 	}
+	print("\033[32m  --- LOCALS: Building \033[0m|")
+	for _, dep := range localDeps {
+		dep := strings.TrimPrefix(dep, "local ")
+		scope := ""
+		done := false
+		if strings.HasSuffix(dep, "test") {
+			scope = "tests"
+			dep = strings.TrimSuffix(dep, " test")
+		} else if strings.HasSuffix(dep, "exec") {
+			scope = "execs"
+			dep = strings.TrimSuffix(dep, " exec")
+		}
+		wd, _ := os.Getwd()
+		jarFilename := filepath.Base(dep)
+		if strings.HasPrefix(dep, "./") {
+			_, err := os.Stat(dep)
+			if err != nil {
+				addFinishMessage("local dependency does not exist: " + dep)
+				continue
+			}
+			g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
+			LinkDeps(filepath.Join(wd, dep), jarFilename, scope, false, nil)
+			done = true
+		} else if strings.HasPrefix(dep, "/") {
+			volume := ""
+			if COM.IsWindows() {
+				volume = filepath.VolumeName(wd)
+			}
+			_, err := os.Stat(filepath.Join(volume, dep))
+			if err != nil {
+				addFinishMessage("local dependency does not exist: " + dep)
+				continue
+			}
+			g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
+			LinkDeps(dep, jarFilename, scope, false, nil)
+			done = true
+		} else if strings.HasPrefix(dep, "~/") {
+			home, _ := os.UserHomeDir()
+			dep = filepath.Join(home, strings.TrimPrefix(dep, "~/"))
+			_, err := os.Stat(dep)
+			if err != nil {
+				println("local dependency does not exist: " + dep)
+				continue
+			}
+			g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
+			LinkDeps(dep, jarFilename, scope, false, nil)
+			done = true
+		} else if strings.HasPrefix(dep, "../") {
+			_, err := os.Stat(dep)
+			if err != nil {
+				addFinishMessage("local dependency does not exist: " + dep)
+				continue
+			}
+			g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
+			LinkDeps(filepath.Join(wd, dep), jarFilename, scope, false, nil)
+			done = true
+		}
+		if scope == "execs" {
+			scriptName := strings.TrimSuffix(jarFilename, filepath.Ext(jarFilename))
+			g_lockDeps.Scripts[scriptName] = jarFilename + "|" + filepath.Join(wd, dep)
+		}
+		if !done {
+			println("local dependencies that is not a file are not supported yet: " + dep)
+			os.Exit(1)
+		}
+	}
+	println("|")
 }
 
 func findAllLocalDeps(deps []string) (localDeps []string, noneLocal []string) {
@@ -384,6 +451,11 @@ func download(url string, filename string, scope string, raw bool, depsInstalled
 			os.MkdirAll(filepath.Join("jpm_dependencies", "execs"), 0755)
 		})
 	}
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		// local file
+		LinkDeps(url, filename, sc, false, depsInstalled)
+		return
+	}
 	switch sc {
 	case "test":
 		downloadAndMakeLinks(raw, extract, url, filename, depsInstalled, "tests")
@@ -394,7 +466,28 @@ func download(url string, filename string, scope string, raw bool, depsInstalled
 	}
 
 }
-
+func LinkDeps(path string, filename string, scope string, extract bool, depsInstalled map[string][]string) {
+	depsInstalledList, ok := depsInstalled[strings.TrimSuffix(scope, "s")]
+	if ok && slices.Contains(depsInstalledList, filename) {
+		if COM.Verbose {
+			println(filename, "already exists, skipping download")
+		}
+		return
+	}
+	destPath := filepath.Join("jpm_dependencies", scope, filename)
+	if _, err := os.Stat(destPath); os.IsNotExist(err) {
+		if err := os.Link(path, destPath); err != nil {
+			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
+			print("\033[31m█\033[0m")
+			return
+		}
+	}
+	print("█")
+	if extract {
+		COM.Extract(filepath.Join("jpm_dependencies", scope), filename)
+		COM.CleanupExtract(filepath.Join("jpm_dependencies", scope), filename)
+	}
+}
 func downloadAndMakeLinks(raw bool, extract bool, url string, filename string, depsInstalled map[string][]string, scope string) {
 	depsInstalledList, ok := depsInstalled[strings.TrimSuffix(scope, "s")]
 	if ok && slices.Contains(depsInstalledList, filename) {
@@ -432,28 +525,37 @@ func downloadAndMakeLinks(raw bool, extract bool, url string, filename string, d
 }
 
 func listAlreadyInstalledDeps() map[string][]string {
+	if len(alreadyInstalled) != 0 {
+		return alreadyInstalled
+	}
 	dir := "jpm_dependencies"
 	entries, err := os.ReadDir(dir)
-	if err != nil {
-		println("Could not fetch list of already installed jars")
-		return map[string][]string{}
-	}
-	list := []string{}
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() {
-			continue
-		}
-		list = append(list, name)
-	}
 	maped := make(map[string][]string, 3)
-	maped["jpm_dependencies"] = list
+	if err != nil {
+		if COM.Verbose {
+			addFinishMessage("Could not fetch list of already installed jars")
+		}
+		goto alreadyInstalledTestJars
+	} else {
+		list := []string{}
+		for _, entry := range entries {
+			name := entry.Name()
+			if entry.IsDir() {
+				continue
+			}
+			list = append(list, name)
+		}
+		maped["jpm_dependencies"] = list
+	}
+alreadyInstalledTestJars:
 	testList := []string{}
 	dir = filepath.Join("jpm_dependencies", "tests")
 	entries, err = os.ReadDir(dir)
 	if err != nil {
-		println("Could not fetch list of already installed test jars")
-		return maped
+		if COM.Verbose {
+			addFinishMessage("Could not fetch list of already installed test jars")
+		}
+		goto alreadyInstalledExecJars
 	}
 	for _, entry := range entries {
 		name := entry.Name()
@@ -463,11 +565,14 @@ func listAlreadyInstalledDeps() map[string][]string {
 		testList = append(testList, name)
 	}
 	maped["test"] = testList
+alreadyInstalledExecJars:
 	execList := []string{}
 	dir = filepath.Join("jpm_dependencies", "execs")
 	entries, err = os.ReadDir(dir)
 	if err != nil {
-		return maped
+		if COM.Verbose {
+			addFinishMessage("Could not fetch list of already installed exec jars")
+		}
 	}
 	for _, entry := range entries {
 		name := entry.Name()
@@ -477,6 +582,7 @@ func listAlreadyInstalledDeps() map[string][]string {
 		execList = append(execList, name)
 	}
 	maped["exec"] = execList
+	alreadyInstalled = maped
 	return maped
 }
 func resolveDependecy() map[string]string {
@@ -546,6 +652,7 @@ func loadLockDependencies() []string {
 			JPM:          map[string]string{},
 			Repos:        map[string]map[string]string{},
 			Scripts:      map[string]string{},
+			Locals:       map[string][]string{},
 		}
 		return []string{}
 	}
@@ -562,6 +669,9 @@ func loadLockDependencies() []string {
 	}
 	if g_lockDeps.JPM == nil {
 		g_lockDeps.JPM = map[string]string{}
+	}
+	if g_lockDeps.Locals == nil {
+		g_lockDeps.Locals = map[string][]string{}
 	}
 	if g_lockDeps.Repos == nil {
 		g_lockDeps.Repos = map[string]map[string]string{}
@@ -714,6 +824,20 @@ func cleanup() {
 				execjars = append(execjars, jar, aid)
 			default:
 				jar = gid + "." + aid + "-" + v + classifier + ".jar"
+				jars = append(jars, jar)
+			}
+		}
+	}
+
+	for sc, depMap := range g_lockDeps.Locals {
+		for _, v := range depMap {
+			jar := v
+			switch sc {
+			case "tests":
+				testjars = append(testjars, jar)
+			case "execs":
+				execjars = append(execjars, jar, strings.TrimSuffix(jar, filepath.Ext(jar)))
+			default:
 				jars = append(jars, jar)
 			}
 		}
