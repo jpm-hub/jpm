@@ -92,6 +92,14 @@ func disectJPMDepString(d string) (jpmRepo, error) {
 func saveAllJPMSubDependencies(d *jpmRepo) string {
 	version := ""
 	v, err := figureOutLatestJPM(d.Package)
+	if v == "<redirected>" {
+		// figure out version for this jpm dependency
+		if err != nil {
+			println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get latest version\033[0m\n")
+			return ""
+		}
+		return handleRedirect(d)
+	}
 	switch d.Version {
 	case "latest":
 		// figure out version for this jpm dependency
@@ -110,13 +118,6 @@ func saveAllJPMSubDependencies(d *jpmRepo) string {
 		version = v
 		// modify the yaml at this point
 		COM.ReplaceDependency(fmt.Sprintf("%s %s", d.Package, d.Scope), fmt.Sprintf("%s:%s %s", d.Package, version, d.Scope))
-	case "<redirected>":
-		// figure out version for this jpm dependency
-		if err != nil {
-			println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get latest version\033[0m\n")
-			return ""
-		}
-		return handleRedirect(d)
 	default:
 		version = d.Version
 	}
@@ -130,7 +131,7 @@ func saveAllJPMSubDependencies(d *jpmRepo) string {
 }
 
 func handleRedirect(d *jpmRepo) string {
-	depJson, err := downloadJson(jpmRepoUrl + strings.ToLower(d.Package[0:1]) + d.Package + "/dependencies.json")
+	depJson, err := downloadJson(jpmRepoUrl + strings.ToLower(d.Package[0:1]) + "/" + d.Package + "/dependencies.json")
 	if err != nil {
 		println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get redirection\033[0m\n")
 		return ""
@@ -147,7 +148,9 @@ func handleRedirect(d *jpmRepo) string {
 	currentWorkingRepo = depJson.Redirect["repo"]
 	saveAllRepoSubDependencies(&dr)
 	currentWorkingRepo = jpmRepoUrl
-	COM.ReplaceDependency(fmt.Sprintf("%s %s", d.Package, d.Scope), fmt.Sprintf("%s:%s %s", d.Package, dr.ArtVer, d.Scope))
+	if d.Version == "" {
+		COM.ReplaceDependency(fmt.Sprintf("%s %s", d.Package, d.Scope), fmt.Sprintf("%s:%s %s", d.Package, dr.ArtVer, d.Scope))
+	}
 	return COM.NormalizeSpaces(fmt.Sprint(d.Package + ":" + dr.ArtVer + " " + d.Scope))
 }
 

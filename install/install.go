@@ -3,6 +3,7 @@ package install
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	COM "jpm/common"
 	"maps"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"gopkg.in/yaml.v2"
 )
 
 var jpmRepoUrl string = COM.JPM_REPO_API + "packages/"
@@ -49,6 +52,7 @@ var excludes []string = []string{}
 var alreadyInstalled = map[string][]string{}
 
 func Install() {
+	os.Mkdir("jpm_dependencies", 0755)
 	force := false
 	COM.FindPackageYML(true)
 	for i := 0; i < len(os.Args); i++ {
@@ -106,7 +110,7 @@ func Install() {
 			os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
 		}
 		// load in the lock.json
-		lockDeps := loadLockDependencies()
+		lockDeps := loadLockDependencies(filepath.Join("jpm_dependencies", "lock.json"))
 		yamlDeps := COM.GetDependencies(false)
 		deps := []string{}
 		for _, dep := range yamlDeps {
@@ -119,7 +123,7 @@ func Install() {
 	case 3:
 		if os.Args[2] == "-update" {
 			os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
-			loadLockDependencies()
+			loadLockDependencies(filepath.Join("jpm_dependencies", "lock.json"))
 			deps := COM.GetDependencies(false)
 			deps = COM.StripVersionInfo(deps...)
 			aliases := findExistingAliases()
@@ -133,7 +137,7 @@ func Install() {
 		}
 		aliases := findExistingAliases()
 		// load in the lock.json
-		lockDeps := loadLockDependencies()
+		lockDeps := loadLockDependencies(filepath.Join("jpm_dependencies", "lock.json"))
 		yamlDeps := COM.GetDependencies(false)
 		deps := []string{}
 		for _, dep := range yamlDeps {
@@ -143,8 +147,9 @@ func Install() {
 		}
 		ds := strings.Split(strings.TrimPrefix(strings.TrimSuffix(strings.Join(os.Args[2:], " "), ","), ","), ",")
 		for _, d := range ds {
-			if !slices.Contains(yamlDeps, d) {
-				COM.AddToSection("dependencies", COM.NormalizeSpaces(d))
+			d = COM.NormalizeSpaces(d)
+			if !slices.Contains(yamlDeps, d) && !strings.HasPrefix(d, "-") {
+				COM.AddToSection("dependencies", d)
 			}
 		}
 		ds = append(deps, ds...)
@@ -244,11 +249,12 @@ func fromLocal(localDeps []string) {
 	if len(localDeps) == 0 {
 		return
 	}
-	print("\033[32m  --- LOCALS: Building \033[0m|")
+	print("\033[32m  --- LOCALS: \033[0m|")
 	for _, dep := range localDeps {
-		dep := strings.TrimPrefix(dep, "local ")
+		dep := strings.TrimPrefix(COM.NormalizeSpaces(dep), "local ")
 		scope := ""
 		done := false
+		wildcard := false
 		if strings.HasSuffix(dep, "test") {
 			scope = "tests"
 			dep = strings.TrimSuffix(dep, " test")
@@ -256,54 +262,110 @@ func fromLocal(localDeps []string) {
 			scope = "execs"
 			dep = strings.TrimSuffix(dep, " exec")
 		}
+		if strings.Count(dep, "*") > 0 && !strings.HasSuffix(dep, "/**") {
+			addFinishMessage("only accepted wildacrd is : /**")
+			continue
+		} else if strings.HasSuffix(dep, "/**") {
+			wildcard = true
+			dep = strings.TrimSuffix(dep, "/**")
+		}
 		wd, _ := os.Getwd()
 		jarFilename := filepath.Base(dep)
-		if strings.HasPrefix(dep, "./") {
-			_, err := os.Stat(dep)
-			if err != nil {
-				addFinishMessage("local dependency does not exist: " + dep)
-				continue
-			}
-			g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
-			LinkDeps(filepath.Join(wd, dep), jarFilename, scope, false, nil)
-			done = true
-		} else if strings.HasPrefix(dep, "/") {
+		var info os.FileInfo
+		var err error
+		if strings.HasPrefix(dep, "/") {
 			volume := ""
 			if COM.IsWindows() {
 				volume = filepath.VolumeName(wd)
 			}
-			_, err := os.Stat(filepath.Join(volume, dep))
+			dep = filepath.Join(append([]string{volume}, strings.Split(dep, "/")...)...)
+			info, err = os.Stat(dep)
 			if err != nil {
 				addFinishMessage("local dependency does not exist: " + dep)
 				continue
 			}
-			g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
-			LinkDeps(dep, jarFilename, scope, false, nil)
-			done = true
 		} else if strings.HasPrefix(dep, "~/") {
 			home, _ := os.UserHomeDir()
-			dep = filepath.Join(home, strings.TrimPrefix(dep, "~/"))
-			_, err := os.Stat(dep)
+			dep = filepath.Join(append([]string{home}, strings.Split(strings.TrimPrefix(dep, "~/"), "/")...)...)
+			info, err = os.Stat(dep)
 			if err != nil {
 				println("local dependency does not exist: " + dep)
 				continue
 			}
-			g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
-			LinkDeps(dep, jarFilename, scope, false, nil)
-			done = true
-		} else if strings.HasPrefix(dep, "../") {
-			_, err := os.Stat(dep)
+		} else {
+			dep = filepath.Base(dep)
+			info, err = os.Stat(dep)
 			if err != nil {
 				addFinishMessage("local dependency does not exist: " + dep)
 				continue
 			}
-			g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
-			LinkDeps(filepath.Join(wd, dep), jarFilename, scope, false, nil)
-			done = true
 		}
-		if scope == "execs" {
-			scriptName := strings.TrimSuffix(jarFilename, filepath.Ext(jarFilename))
-			g_lockDeps.Scripts[scriptName] = jarFilename + "|" + filepath.Join(wd, dep)
+		if !info.IsDir() {
+			g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
+			LinkDeps(dep, jarFilename, scope, false, nil)
+			if scope == "execs" {
+				scriptName := strings.TrimSuffix(jarFilename, filepath.Ext(jarFilename))
+				g_lockDeps.Scripts[scriptName] = jarFilename + "|" + filepath.Join(wd, dep)
+			}
+			done = true
+		} else {
+			pkgyml := filepath.Join(dep, "package.yml")
+			lockJson := filepath.Join(dep, "jpm_dependencies", "lock.json")
+			if _, err = os.Stat(pkgyml); err == nil {
+				fpath, _ := filepath.Abs(filepath.Join("jpm_dependencies", scope))
+				COM.RunScript("cd "+dep+" && jpm bundle -bare -d "+fpath, false)
+				data, err := os.ReadFile(pkgyml)
+				if err != nil {
+					fmt.Println(err)
+					print("\033[31m█\033[0m")
+					continue
+				}
+				// load in package.yml
+				packageYML := COM.PackageYAMLSimple{}
+				if err := yaml.Unmarshal(data, &packageYML); err != nil {
+					fmt.Println(err)
+					print("\033[31m█\033[0m")
+					continue
+				}
+				loadLockDependencies(lockJson)
+				jarFilename = packageYML.Package + "-" + packageYML.Version + ".jar"
+				g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
+				print("█")
+				if scope == "execs" {
+					g_lockDeps.Scripts[packageYML.Package] = jarFilename
+				}
+			} else {
+				entries, err := os.ReadDir(dep)
+				if err != nil {
+					addFinishMessage("local dependency " + dep + " error: " + err.Error())
+					continue
+				}
+				if wildcard {
+					separator := "/"
+					if COM.IsWindows() {
+						separator = "\\"
+					}
+					filepath.WalkDir(dep, func(path string, f fs.DirEntry, err error) error {
+						if !f.IsDir() && strings.HasSuffix(f.Name(), ".jar") {
+							name := strings.TrimPrefix(strings.ReplaceAll(path, separator, "."), dep+".")
+							g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], name)
+							fmt.Println(dep)
+							LinkDeps(path, name, scope, false, nil)
+							return nil
+						}
+						return nil
+					})
+				} else {
+					for _, f := range entries {
+						if f.IsDir() || !strings.HasSuffix(f.Name(), ".jar") {
+							continue
+						}
+						g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], f.Name())
+						LinkDeps(filepath.Join(dep, f.Name()), f.Name(), scope, false, nil)
+					}
+				}
+			}
+			done = true
 		}
 		if !done {
 			println("local dependencies that is not a file are not supported yet: " + dep)
@@ -639,8 +701,8 @@ func resolveDependecy() map[string]string {
 	}
 	return depMap
 }
-func loadLockDependencies() []string {
-	file, err := os.Open(filepath.Join("jpm_dependencies", "lock.json"))
+func loadLockDependencies(path string) []string {
+	file, err := os.Open(path)
 	classified := false
 	if COM.GetSection("classified", false) != nil {
 		classified = COM.GetSection("classified", false).(bool)
@@ -718,9 +780,11 @@ func installScripts() {
 			go func(ky, value string) {
 				defer wg.Done()
 				parts := strings.Split(value, "|")
-				download(parts[1], parts[0], "exec", false, already)
-				if len(parts) == 3 {
-					download(parts[2], ky, "exec", false, already)
+				if len(parts) > 1 {
+					download(parts[1], parts[0], "exec", false, already)
+					if len(parts) == 3 {
+						download(parts[2], ky, "exec", false, already)
+					}
 				}
 			}(k, v)
 		}
@@ -881,10 +945,10 @@ func cleanup() {
 	}
 }
 func addFinishMessage(s string) {
-	finishMessages = append(finishMessages, s)
+	finishMessages = append(finishMessages, "> "+s)
 }
 func GetDependenciesJson() []byte {
-	loadLockDependencies()
+	loadLockDependencies(filepath.Join("jpm_dependencies", "lock.json"))
 	depsJson, err := json.MarshalIndent(g_lockDeps, "", "  ")
 	if err != nil {
 		return nil
@@ -956,7 +1020,7 @@ func createExecScript(scriptName, filename string) {
 	fi`
 		err := COM.RunScript(scriptCmd, true)
 		if err != nil {
-			print("\033[33m=\033[0m")
+			print("\033[33m█\033[0m")
 			delete(g_lockDeps.Scripts, scriptName)
 			if COM.Verbose {
 				addFinishMessage("\033[33mNo Main-Class in " + filename + "\033[0m")

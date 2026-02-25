@@ -154,6 +154,10 @@ func main() {
 			fmt.Println("Available options are:", sw)
 			os.Exit(1)
 		}
+	case "init":
+		INIT.Init(os.Args)
+	case "create":
+		CREATE.Create()
 	}
 	scriptName = strings.TrimSuffix(scriptName, "!")
 	switch scriptName {
@@ -167,12 +171,6 @@ func main() {
 	COM.FindPackageYML(false)
 
 	switch scriptName {
-	case "init":
-		SCRIPTS.ExecOverride("init")
-		INIT.Init(os.Args)
-	case "create":
-		SCRIPTS.ExecOverride("create")
-		CREATE.Create()
 	case "compile":
 		SCRIPTS.ExecOverride("compile")
 		args := []string{}

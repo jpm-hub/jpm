@@ -338,6 +338,11 @@ func ReplaceDependency(oldDepString string, newDepString string) {
 	if !replaced {
 		AddToSection("dependencies", newDepString)
 		return
+	} else {
+		if err := WriteYAML(g_yamlPath, pkgYAML); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	}
 
 }

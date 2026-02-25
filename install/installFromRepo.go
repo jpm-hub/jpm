@@ -196,7 +196,7 @@ func saveAllRepoSubDependencies(dr *Repo) error {
 		}
 		dr.ArtVer = version
 		// modify the yaml at this point
-		if dr.Alias != "default" {
+		if dr.Alias != "default" && dr.Alias != ">" {
 			COM.ReplaceDependency(fmt.Sprintf("%s %s %s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.Scope), fmt.Sprintf("%s %s %s:%s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.Scope))
 		} else if dr.Alias != ">" {
 			COM.ReplaceDependency(fmt.Sprintf("%s %s %s", dr.GroupID, dr.ArtefactID, dr.Scope), fmt.Sprintf("%s %s:%s %s", dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.Scope))
@@ -211,7 +211,7 @@ func saveAllRepoSubDependencies(dr *Repo) error {
 		dr.ArtVer = version
 	}
 	al := ">"
-	if dr.Alias != "default" {
+	if dr.Alias != "default" && dr.Alias != ">" {
 		al = strings.ToUpper(dr.Alias) + ":"
 	}
 	println("\033[32m  --- " + al + " Resolving " + dr.ArtefactID + ":" + version + "\033[0m")

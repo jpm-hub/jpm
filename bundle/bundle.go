@@ -40,6 +40,7 @@ func Bundle() {
 	classes := ""
 	exec := ""
 	clean := true
+	bare := false
 	var builder strings.Builder
 	builder.WriteString("jar cf")
 	handled := []string{}
@@ -60,6 +61,8 @@ func Bundle() {
 				println("invalid destination directory")
 				os.Exit(1)
 			}
+		case "-bare":
+			bare = true
 		case "-no-clean":
 			clean = false
 		case "-fat":
@@ -84,7 +87,7 @@ func Bundle() {
 		os.RemoveAll(filepath.Join(COM.OutDir()))
 	}
 	exec = makeExec(name)
-	makePublish(publishing, keepClassifiers)
+	makePublish(publishing && !bare, keepClassifiers)
 	println("\033[32mCompiling \033[0m")
 	err = COM.RunScript("jpm compile", true)
 	if err != nil {
@@ -99,16 +102,22 @@ func Bundle() {
 	// this means -fat was not triggered (only compiled classes will be in jar)
 	if classes == "" {
 		classes = " -C _dump ."
-		os.MkdirAll(filepath.Join(dist, "jar_libraries"), 0755)
 		copyFromOut()
-		copyFromDependencies(filepath.Join(dist, "jar_libraries"))
+		if !bare {
+			os.MkdirAll(filepath.Join(dist, "jar_libraries"), 0755)
+			copyFromDependencies(filepath.Join(dist, "jar_libraries"))
+		}
 	}
 	builder.WriteString(classes)
 	if !strings.HasSuffix(name, ".jar") {
 		name = name + ".jar"
 	}
 	println("\t --- JAR :", filepath.Join(dist, name))
-	COM.RunScript("cd "+dist+" && "+builder.String(), true)
+	if COM.IsWindows() {
+		COM.RunCMD("cd "+dist+" && "+builder.String(), true)
+	} else {
+		COM.RunScript("cd "+dist+" && "+builder.String(), true)
+	}
 	packs := COM.GetSection("packages", false).([]string)
 	if len(packs) > 0 {
 		executeMultipleBundles(packs, name, version)
@@ -198,11 +207,12 @@ fi; echo "unknown OS" && exit 1`, depsArg, packageName, modularwin, main, depsAr
 }
 
 func makePublish(publishing bool, keepClassifiers bool) {
+	deps := INSTALL.QuickInstall(publishing)
 	if !publishing {
 		return
 	}
 	println("\033[32mInstalling \033[0m")
-	depsJson := removeClassifiers(removeScopes(INSTALL.QuickInstall(publishing)), keepClassifiers)
+	depsJson := removeClassifiers(removeScopes(deps), keepClassifiers)
 	fp := filepath.Join("dist", "dependencies.json")
 
 	file, err := os.Create(fp)
