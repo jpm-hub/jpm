@@ -66,7 +66,7 @@ type PackageYAMLSimple struct {
 	Repos         []map[string]string
 	Args          map[string]string
 	Excludes      []string
-	OtherSections map[string]any
+	OtherSections map[string]any `yaml:",inline,omitempty"`
 }
 
 // PackageYAML represents the structure of package.yml with ordered fields
@@ -606,6 +606,15 @@ func loadInEnv(envireonment string) {
 			env["ENV."+key] = val
 		}
 	}
+	env["jpm.version"] = VERSION
+	env["jpm.kotlin-version"] = KOTLIN_VERSION
+	env["jpm.home"] = HomeDir()
+	env["jpm.cwd"] = g_yamlPath
+	env["jpm.verbose"] = strconv.FormatBool(Verbose)
+	env["jpm.env"] = envireonment
+	env["jpm.bin.kotlinc"] = KOTLINC()
+
+	env["jpm.repo-url"] = JPM_REPO_API
 	env["jpm.OS"] = runtime.GOOS
 	env["jpm.ARCH"] = runtime.GOARCH
 	env["jpm.OS-ARCH"] = runtime.GOOS + "-" + runtime.GOARCH
@@ -614,6 +623,7 @@ func loadInEnv(envireonment string) {
 	env["src"] = ParseENV(packageYML.Src)
 	env["version"] = ParseENV(packageYML.Version)
 	env["language"] = ParseENV(packageYML.Language)
+	env["env"] = ParseENV(packageYML.Env)
 	for k, v := range packageYML.OtherSections {
 		if str, ok := v.(string); ok {
 			env[k] = ParseENV(str)

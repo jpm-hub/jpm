@@ -293,7 +293,6 @@ func fromLocal(localDeps []string) {
 				continue
 			}
 		} else {
-			dep = filepath.Base(dep)
 			info, err = os.Stat(dep)
 			if err != nil {
 				addFinishMessage("local dependency does not exist: " + dep)

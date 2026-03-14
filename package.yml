@@ -6,6 +6,7 @@ version: 0.0.1
 language: kotlin
 classified: true
 scripts:
+  print: echo "Hello, World! $(jpm args kt)"
   build: jpm build-{{jpm.OS}}
   build-linux: make build -B
   build-darwin: make build -B
@@ -23,3 +24,6 @@ languages:
   - groovy
   - clojure
 paths: []
+jvm-target: 1.8
+args:
+  kotlinc: -Xplugin={{jvm-target}} 

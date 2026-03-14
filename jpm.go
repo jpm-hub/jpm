@@ -156,8 +156,10 @@ func main() {
 		}
 	case "init":
 		INIT.Init(os.Args)
+		return
 	case "create":
 		CREATE.Create()
+		return
 	}
 	scriptName = strings.TrimSuffix(scriptName, "!")
 	switch scriptName {

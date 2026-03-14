@@ -10,8 +10,8 @@ import (
 )
 
 func Kotlinlib(homeDir string) {
-	url := "https://github.com/JetBrains/kotlin/releases/download/v2.2.21/kotlin-compiler-2.2.21.zip"
-	filename := "kotlin-compiler-2.2.21.zip"
+	url := "https://github.com/JetBrains/kotlin/releases/download/v" + COM.KOTLIN_VERSION + "/kotlin-compiler-" + COM.KOTLIN_VERSION + ".zip"
+	filename := "kotlin-compiler-" + COM.KOTLIN_VERSION + ".zip"
 	println("  --- Downloading")
 	COM.DownloadFile(url, homeDir, filename, true, false)
 	println("  --- Extracting")
@@ -29,8 +29,8 @@ func Kotlinlib(homeDir string) {
 	println("\033[32m  --- Kotlin lib setup done\033[0m")
 }
 func Kotlinc(homeDir string) {
-	url := "https://github.com/JetBrains/kotlin/releases/download/v2.2.21/kotlin-compiler-2.2.21.zip"
-	filename := "kotlin-compiler-2.2.21.zip"
+	url := "https://github.com/JetBrains/kotlin/releases/download/v" + COM.KOTLIN_VERSION + "/kotlin-compiler-" + COM.KOTLIN_VERSION + ".zip"
+	filename := "kotlin-compiler-" + COM.KOTLIN_VERSION + ".zip"
 	println("  --- Downloading")
 	COM.DownloadFile(url, homeDir, filename, true, false)
 	println("  --- Extracting")
