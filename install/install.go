@@ -50,10 +50,10 @@ var latests []string = []string{}
 var finishMessages []string = []string{}
 var excludes []string = []string{}
 var alreadyInstalled = map[string][]string{}
+var force bool = false
 
 func Install() {
 	os.Mkdir("jpm_dependencies", 0755)
-	force := false
 	COM.FindPackageYML(true)
 	for i := 0; i < len(os.Args); i++ {
 		if i == 0 || i == 1 {
@@ -558,7 +558,7 @@ func downloadAndMakeLinks(raw bool, extract bool, url string, filename string, d
 		return
 	}
 	if !raw {
-		if err, _ := COM.DownloadFile(url, filepath.Join(COM.HomeDir(), "libs"), filename, true, false); err != nil {
+		if err, _ := COM.DownloadFile(url, filepath.Join(COM.HomeDir(), "libs"), filename, force, false); err != nil {
 			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
 			print("\033[31m█\033[0m")
 			return
