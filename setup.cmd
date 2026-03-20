@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-set VERSION=1.2.3
+set VERSION=1.2.9
 
 :: JPM Windows Setup Script
 echo ===============================================
@@ -29,8 +29,6 @@ echo    - %JPM_HOME%\jpm.exe
 echo.
 echo 4. Add the following directories to your user PATH:
 echo    - %JPM_HOME%
-echo.
-echo 5. Update PATH environment variable
 echo.
 pause
 
@@ -105,31 +103,16 @@ if %errorLevel% neq 0 (
 del %ZIP_FILE%
 echo - Files extracted successfully
 echo.
-
-:: Update PATH environment variable
-echo Updating user PATH...
-set CURRENT_PATH=%PATH%
-set JPM_PATH=%JPM_HOME%
-
-:: Check if JPM paths are already in PATH
-echo %CURRENT_PATH% | findstr /i "%JPM_HOME%" >nul
-if %errorLevel% equ 0 (
-    echo - %JPM_HOME% is already in PATH
-) else (
-    echo Adding JPM directories to user PATH...
-    powershell -command "[Environment]::SetEnvironmentVariable('PATH', '%CURRENT_PATH%;%JPM_PATH%', 'User')"
-    if %errorLevel% equ 0 (
-        echo - Added JPM directories to user PATH
-        echo - PATH will be updated after restarting Command Prompt
-    )
-)
-
 echo.
 echo ===============================================
 echo           Installation Complete!
 echo ===============================================
 echo.
-echo JPM has been successfully installed to: %JPM_HOME%
+echo Please add %JPM_HOME% to your PATH environment variable.
+echo run : win + r > SystemPropertiesAdvanced.exe 
+echo              > Environment Variables 
+echo              > User variables > Path > Edit 
+echo              > New > %JPM_HOME%
 echo.
 echo IMPORTANT: You may need to restart your Command Prompt or
 echo            PowerShell for PATH changes to take effect.

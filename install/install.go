@@ -42,7 +42,8 @@ var depsList map[string][]string = map[string][]string{}
 var importList []string = []string{}
 var currentWorkingRepo string
 var currentOuterScope string
-var cache map[string]pom = map[string]pom{}
+var pomCache map[string]pom = map[string]pom{}
+var fileCache map[string]string
 var g_lockDeps COM.Dependencies = COM.Dependencies{}
 var downloadInfo map[string][]string = map[string][]string{}
 var failedInstalledList []string = []string{}
@@ -51,6 +52,8 @@ var finishMessages []string = []string{}
 var excludes []string = []string{}
 var alreadyInstalled = map[string][]string{}
 var force bool = false
+var firstInstall bool = false
+var shouldOnlyDownload bool = true
 
 func Install() {
 	os.Mkdir("jpm_dependencies", 0755)
@@ -111,15 +114,19 @@ func Install() {
 		}
 		// load in the lock.json
 		lockDeps := loadLockDependencies(filepath.Join("jpm_dependencies", "lock.json"))
-		yamlDeps := COM.GetDependencies(false)
-		deps := []string{}
+		yamlDeps := COM.GetDependencies(true)
 		for _, dep := range yamlDeps {
 			if !slices.Contains(lockDeps, dep) {
-				deps = append(deps, dep)
+				shouldOnlyDownload = false
+				break
 			}
 		}
+		if shouldOnlyDownload {
+			yamlDeps = []string{}
+		}
+
 		aliases := findExistingAliases()
-		installFromYML(aliases, deps, true)
+		installFromYML(aliases, yamlDeps, true)
 	case 3:
 		if os.Args[2] == "-update" {
 			os.Remove(filepath.Join("jpm_dependencies", "lock.json"))
@@ -137,22 +144,21 @@ func Install() {
 		}
 		aliases := findExistingAliases()
 		// load in the lock.json
-		lockDeps := loadLockDependencies(filepath.Join("jpm_dependencies", "lock.json"))
-		yamlDeps := COM.GetDependencies(false)
-		deps := []string{}
-		for _, dep := range yamlDeps {
-			if !slices.Contains(lockDeps, dep) {
-				deps = append(deps, dep)
-			}
-		}
+		loadLockDependencies(filepath.Join("jpm_dependencies", "lock.json"))
+		yamlDeps := COM.GetDependencies(true)
+		shouldOnlyDownload = false
 		ds := strings.Split(strings.TrimPrefix(strings.TrimSuffix(strings.Join(os.Args[2:], " "), ","), ","), ",")
 		for _, d := range ds {
 			d = COM.NormalizeSpaces(d)
-			if !slices.Contains(yamlDeps, d) && !strings.HasPrefix(d, "-") {
-				COM.AddToSection("dependencies", d)
+			if !slices.Contains(yamlDeps, d) {
+				if !strings.HasPrefix(d, "-") {
+					COM.AddToSection("dependencies", d)
+				} else {
+					println("\033[31mInvalid dependency: " + d + "\033[0m")
+				}
 			}
 		}
-		ds = append(deps, ds...)
+		ds = append(yamlDeps, ds...)
 		//ds = strings.ReplaceAll(ds, "--save-dev", "exec")
 		depStrings := COM.NormalizeDependencies(ds)
 		installFromYML(aliases, depStrings, true)
@@ -226,10 +232,14 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 	// jpm first
 	jpmDeps, noneJpmdeps := findAllJPM(noneLocal, aliases)
 	fromJPM(jpmDeps)
+	repoList := getRepoList()
+
+	// github second
+	githubDeps, noneGithubDeps := findAllGithub(noneJpmdeps, aliases, repoList)
+	fromGithub(githubDeps)
 
 	// maven second
-	repoList := getRepoList()
-	repoDeps, _ := findAllRepoDeps(noneJpmdeps, repoList)
+	repoDeps, _ := findAllRepoDeps(noneGithubDeps, repoList)
 	fromRepo(repoDeps)
 	installDependencies()
 	if clean {
@@ -243,6 +253,29 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 	g_lockDeps.Dependencies = COM.GetDependencies(false)
 	dumpDependencies()
 
+}
+func findAllRepoDeps(deps []string, repoList Repositories) (repos map[string][]Repo, raws []string) {
+	repos = map[string][]Repo{}
+	for _, v := range deps {
+		found := false
+		for _, repoFromYaml := range repoList.Repos {
+			v = COM.NormalizeSpaces(v)
+			if strings.HasPrefix(v, repoFromYaml.Alias) {
+				r, err := disectRepoDepString(v, repoFromYaml.Repo, repoFromYaml.Alias)
+				if err == nil {
+					found = true
+					repos[repoFromYaml.Repo] = append(repos[repoFromYaml.Repo], r)
+				}
+			}
+		}
+		if !found {
+			raws = append(raws, v)
+		}
+	}
+	return repos, raws
+}
+func findAllGithub(noneJpmdeps []string, aliases []string, repoList Repositories) ([]string, []string) {
+	return []string{}, noneJpmdeps
 }
 
 func fromLocal(localDeps []string) {
@@ -309,7 +342,6 @@ func fromLocal(localDeps []string) {
 			done = true
 		} else {
 			pkgyml := filepath.Join(dep, "package.yml")
-			lockJson := filepath.Join(dep, "jpm_dependencies", "lock.json")
 			if _, err = os.Stat(pkgyml); err == nil {
 				fpath, _ := filepath.Abs(filepath.Join("jpm_dependencies", scope))
 				COM.RunScript("cd "+dep+" && jpm bundle -bare -d "+fpath, false)
@@ -326,7 +358,6 @@ func fromLocal(localDeps []string) {
 					print("\033[31m█\033[0m")
 					continue
 				}
-				loadLockDependencies(lockJson)
 				jarFilename = packageYML.Package + "-" + packageYML.Version + ".jar"
 				g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], jarFilename)
 				print("█")
@@ -404,6 +435,10 @@ func fromJPM(deps []string) string {
 	}
 	addJPMSubDependenciesToDownloadList()
 	return depString
+}
+
+func fromGithub(deps []string) {
+
 }
 func fromRepo(dependenciesWithRepo map[string][]Repo) {
 	for _, v := range dependenciesWithRepo {
@@ -557,8 +592,11 @@ func downloadAndMakeLinks(raw bool, extract bool, url string, filename string, d
 		}
 		return
 	}
+	colorPrint := "█"
 	if !raw {
-		if err, _ := COM.DownloadFile(url, filepath.Join(COM.HomeDir(), "libs"), filename, force, false); err != nil {
+		if _, err := os.Stat(filepath.Join(COM.HomeDir(), "libs", filename)); err == nil && !force {
+			colorPrint = "\033[32m█\033[0m"
+		} else if err, _ := COM.DownloadFile(url, filepath.Join(COM.HomeDir(), "libs"), filename, force, false); err != nil {
 			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
 			print("\033[31m█\033[0m")
 			return
@@ -571,14 +609,15 @@ func downloadAndMakeLinks(raw bool, extract bool, url string, filename string, d
 				return
 			}
 		}
+		print(colorPrint)
 	} else {
 		if err, _ := COM.DownloadFile(url, filepath.Join("jpm_dependencies", scope), filename, true, false); err != nil {
 			failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
 			print("\033[31m█\033[0m")
 			return
 		}
+		print("█")
 	}
-	print("█")
 	if extract {
 		COM.Extract(filepath.Join("jpm_dependencies", scope), filename)
 		COM.CleanupExtract(filepath.Join("jpm_dependencies", scope), filename)
@@ -701,12 +740,29 @@ func resolveDependecy() map[string]string {
 	return depMap
 }
 func loadLockDependencies(path string) []string {
-	file, err := os.Open(path)
 	classified := false
+	// load in file cache
+	fileCachePath := filepath.Join(COM.HomeDir(), "dependency_cache.json")
+	if _, err := os.Stat(fileCachePath); os.IsNotExist(err) {
+		err = os.WriteFile(fileCachePath, []byte("{}"), 0644)
+		if err != nil {
+			addFinishMessage("\033[31mError creating dependency_cache.json:" + err.Error() + "\033[0m")
+			fileCache = map[string]string{}
+		}
+	}
+	cacheFile, err := os.ReadFile(fileCachePath)
+	if err != nil {
+		addFinishMessage("\033[31mError reading dependency_cache.json:" + err.Error() + "\033[0m")
+		fileCache = map[string]string{}
+	} else {
+		json.Unmarshal(cacheFile, &fileCache)
+	}
 	if COM.GetSection("classified", false) != nil {
 		classified = COM.GetSection("classified", false).(bool)
 	}
-	if err != nil {
+	file, err1 := os.Open(path)
+	if err1 != nil {
+		firstInstall = true
 		g_lockDeps = COM.Dependencies{
 			Classified:   classified,
 			Dependencies: COM.GetDependencies(false),
@@ -714,20 +770,21 @@ func loadLockDependencies(path string) []string {
 			Repos:        map[string]map[string]string{},
 			Scripts:      map[string]string{},
 			Locals:       map[string][]string{},
+			Excludes:     excludes,
+			Classifiers:  COM.GetSection("classifiers", false).(map[string]string),
 		}
 		return []string{}
 	}
 	defer file.Close()
 	decoder := json.NewDecoder(file)
-	var lockDeps COM.Dependencies
-	if err := decoder.Decode(&lockDeps); err != nil {
+	if err := decoder.Decode(&g_lockDeps); err != nil {
 		println("Error decoding lock.json:", err)
 		os.Exit(1)
 	}
-	g_lockDeps = lockDeps
 	if g_lockDeps.Scripts == nil {
 		g_lockDeps.Scripts = map[string]string{}
 	}
+
 	if g_lockDeps.JPM == nil {
 		g_lockDeps.JPM = map[string]string{}
 	}
@@ -740,17 +797,28 @@ func loadLockDependencies(path string) []string {
 	if g_lockDeps.Dependencies == nil {
 		g_lockDeps.Dependencies = []string{}
 	}
-	for k, v := range lockDeps.JPM {
-		depsList[jpmRepoUrl] = append(depsList[jpmRepoUrl], k, v)
+
+	if g_lockDeps.Classifiers == nil {
+		g_lockDeps.Classifiers = map[string]string{}
 	}
-	for k, v := range lockDeps.Repos {
-		for k2, v2 := range v {
-			depsList[k] = append(depsList[k], k2, v2)
+
+	if g_lockDeps.Excludes == nil {
+		g_lockDeps.Excludes = []string{}
+	}
+	if shouldOnlyDownload {
+		for k, v := range g_lockDeps.JPM {
+			depsList[jpmRepoUrl] = append(depsList[jpmRepoUrl], k, v)
+		}
+		for k, v := range g_lockDeps.Repos {
+			for k2, v2 := range v {
+				depsList[k] = append(depsList[k], k2, v2)
+			}
 		}
 	}
-	for i, d := range lockDeps.Dependencies {
+	for i, d := range g_lockDeps.Dependencies {
 		g_lockDeps.Dependencies[i] = COM.NormalizeSpaces(d)
 	}
+
 	return g_lockDeps.Dependencies
 }
 func installDependencies() {
@@ -828,6 +896,21 @@ func dumpDependencies() {
 	if err := encoder.Encode(g_lockDeps); err != nil {
 		fmt.Println("Error encoding lock.json:", err)
 	}
+
+	// dump file cache
+	cacheFilePath := filepath.Join(COM.HomeDir(), "dependency_cache.json")
+	cacheFile, err := os.Create(cacheFilePath)
+	if err != nil {
+		addFinishMessage("\033[31mError creating dependency_cache.json:" + err.Error() + "\033[0m")
+		return
+	}
+	defer cacheFile.Close()
+	encoder = json.NewEncoder(cacheFile)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(fileCache); err != nil {
+		addFinishMessage("\033[31mError encoding dependency_cache.json:" + err.Error() + "\033[0m")
+	}
+
 }
 func cleanup() {
 	jars := []string{}
@@ -962,8 +1045,10 @@ func foundExcluded(s string) {
 }
 func checkUnexcluded() {
 	for _, v := range excludes {
-		if !excluded[v] && !strings.Contains(v, "|") {
-			addFinishMessage("\033[33mInfo : was not excluded anywhere " + v + " in this install process\033[0m")
+		if !excluded[v] && !strings.Contains(v, "|") && firstInstall {
+			addFinishMessage("\033[33mInfo : " + v + " was not excluded anywhere (might be not needed)\033[0m")
+		} else if !excluded[v] && !strings.Contains(v, "|") && COM.Verbose {
+			addFinishMessage("\033[33mInfo : " + v + " was not excluded anywhere in this install process\033[0m")
 		}
 	}
 }

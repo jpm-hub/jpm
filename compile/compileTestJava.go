@@ -48,7 +48,7 @@ func compileTestJava() error {
 	if err != nil {
 		return err
 	}
-	allJavas := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "*.java"), findAllSrcFile("tests", "*.java")}, " ")
+	allJavas := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "*.java"), findAllSrcFile(COM.TestsDir(), "*.java")}, " ")
 
 	mods := ""
 	if COM.GetSection("modular", false).(bool) {

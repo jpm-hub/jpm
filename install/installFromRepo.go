@@ -7,6 +7,8 @@ import (
 	"io"
 	COM "jpm/common"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -93,6 +95,10 @@ type props struct {
 
 var resolvedAlready map[string]uint8 = map[string]uint8{}
 
+func makePomFileName(groupID, artifactID, version string) string {
+	return groupID + "." + artifactID + "-" + version + ".pom"
+}
+
 func getRepoList() Repositories {
 	repoSection := COM.GetSection("repos", false)
 	repos := Repositories{
@@ -136,26 +142,7 @@ func findExistingAliases() []string {
 	}
 	return aliases
 }
-func findAllRepoDeps(deps []string, repoList Repositories) (repos map[string][]Repo, raws []string) {
-	repos = map[string][]Repo{}
-	for _, v := range deps {
-		found := false
-		for _, repoFromYaml := range repoList.Repos {
-			v = COM.NormalizeSpaces(v)
-			if strings.HasPrefix(v, repoFromYaml.Alias) {
-				r, err := disectRepoDepString(v, repoFromYaml.Repo, repoFromYaml.Alias)
-				if err == nil {
-					found = true
-					repos[repoFromYaml.Repo] = append(repos[repoFromYaml.Repo], r)
-				}
-			}
-		}
-		if !found {
-			raws = append(raws, v)
-		}
-	}
-	return repos, raws
-}
+
 func disectRepoDepString(depString string, repoURL string, alias string) (Repo, error) {
 	dSlice := strings.Split(depString, " ")
 	if len(dSlice) < 3 {
@@ -328,10 +315,10 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 	pomURL := generateRepoDepUrl(repo, groupID, artifactID, version, artifactID+"-"+version+".pom")
 	dep := groupID + "|" + artifactID + "|" + currentOuterScope
 	pomContent := ""
-	_, ok := cache[pomURL]
+	_, ok := pomCache[pomURL]
 	if !ok {
 		var err error
-		pomContent, err = downloadPOM(pomURL)
+		pomContent, err = downloadPOM(pomURL, groupID, artifactID, version)
 		if err != nil {
 			if COM.Verbose {
 				println("\n  --- " + artifactID + " " + err.Error())
@@ -341,9 +328,9 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		// Parse POM XML
 		p := parsePOM(pomContent)
 		p.Url = repo
-		cache[pomURL] = p
+		pomCache[pomURL] = p
 	}
-	pom := cache[pomURL]
+	pom := pomCache[pomURL]
 	// Check if already resolved, 3 might be overkill to avoid circular deps
 	already := resolvedAlready[groupID+"|"+artifactID] > 3
 	if already && pom.Packaging != "pom" {
@@ -384,7 +371,7 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		dep.Scope = scope
 		optional := figureOutOptional(repo, dep, pom)
 
-		if (optional == "" || strings.ToLower(optional) == "false") && !strings.HasPrefix(groupID, "org.junit") {
+		if optional == "" || strings.ToLower(optional) == "false" {
 			groupid := figureOutGroupID(repo, dep, pom)
 			artifactid := figureOutArtifactID(repo, dep, pom)
 			excludeAll, scopedExcludes := addToExludes(dep)
@@ -480,29 +467,31 @@ func checkRepoExcludes(dep dependency) bool {
 		if dep.GroupID+"|"+dep.ArtifactID == ex {
 			if COM.Verbose {
 				addFinishMessage("Info : excluded " + dep.ArtifactID)
-				foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
 			}
+			foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
 			return true
 		}
 		if dep.GroupID+"|*" == ex {
 			if COM.Verbose {
 				addFinishMessage("Info : excluded " + dep.ArtifactID)
-				foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
 			}
+			foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
 			return true
 		}
-		if "*|"+dep.ArtifactID == ex {
+
+		if "*|"+dep.ArtifactID == ex || dep.ArtifactID == ex {
 			if COM.Verbose {
 				addFinishMessage("Info : excluded " + dep.ArtifactID)
-				foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
 			}
+			foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
+			foundExcluded(dep.ArtifactID)
 			return true
 		}
 		if "*|*" == ex {
 			if COM.Verbose {
 				addFinishMessage("Info : excluded " + dep.ArtifactID)
-				foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
 			}
+			foundExcluded(dep.GroupID + "|" + dep.ArtifactID)
 			return true
 		}
 	}
@@ -858,7 +847,19 @@ func figureOutLastestRepo(groupID string, artifactID string) (string, error) {
 	}
 	return doc.Versioning.Release, nil
 }
-func downloadPOM(pomURL string) (string, error) {
+func downloadPOM(pomURL, groupID, artifactID, version string) (string, error) {
+	//check cache first
+	if depFile, ok := fileCache[pomURL]; ok && !force {
+		depFilePath := filepath.Join(COM.HomeDir(), "libs", depFile)
+		if _, err := os.Stat(depFilePath); err == nil {
+			content, err := os.ReadFile(depFilePath)
+			if err == nil {
+				print("\033[32m-\033[0m")
+				return string(content), nil
+			}
+		}
+
+	}
 	resp, err := http.Get(pomURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to download POM: %w", err)
@@ -874,6 +875,9 @@ func downloadPOM(pomURL string) (string, error) {
 		return "", fmt.Errorf("failed to read POM content: %w", err)
 	}
 	print("-")
+	fname := makePomFileName(groupID, artifactID, version)
+	os.WriteFile(filepath.Join(COM.HomeDir(), "libs", fname), body, 0644)
+	fileCache[pomURL] = fname
 	return string(body), nil
 }
 

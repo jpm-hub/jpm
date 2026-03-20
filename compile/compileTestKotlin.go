@@ -50,11 +50,22 @@ func compileTestKotlin() error {
 		mods = "-Xmodule-path=jpm_dependencies" + separator + "jpm_dependencies/tests"
 	}
 	var err4 error
+	var testkts string
 	if COM.IsWindows() {
-		allkts := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "."), findAllSrcFile("tests", ".")}, " ")
+		if COM.SrcDir() == "." {
+			testkts = ""
+		} else {
+			testkts = findAllSrcFile(COM.TestsDir(), ".")
+		}
+		allkts := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "."), testkts}, " ")
 		err4 = COM.RunCMD(COM.KOTLINC()+" "+args+" "+mods+" -cp \""+COM.OutDir()+";"+jarFilesString+"\" -d "+COM.OutDir()+" "+allkts, true)
 	} else {
-		allkts := findAllSrcFile(COM.SrcDir(), "*.kt")
+		if COM.SrcDir() == "." {
+			testkts = ""
+		} else {
+			testkts = findAllSrcFile(COM.TestsDir(), "*.kt")
+		}
+		allkts := strings.Join([]string{findAllSrcFile(COM.SrcDir(), "*.kt"), testkts}, " ")
 		err4 = COM.RunScript("kotlinc  -cp \""+COM.OutDir()+":"+jarFilesString+"\" "+args+" "+mods+" -d "+COM.OutDir()+" "+allkts, true)
 	}
 	if err4 != nil {

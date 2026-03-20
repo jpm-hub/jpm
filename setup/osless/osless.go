@@ -39,13 +39,13 @@ func Kotlinc(homeDir string) {
 	println("\033[32m  --- Kotlinc setup done\033[0m")
 }
 func JunitPlugin(homeDir string) {
-	url := "https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.9.3/junit-platform-console-standalone-1.9.3.jar"
-	filename := "junit-platform-console-standalone-1.9.3.jar"
+	url := "https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/" + COM.JUNIT_STANDALONE_VERSION + "/junit-platform-console-standalone-" + COM.JUNIT_STANDALONE_VERSION + ".jar"
+	filename := "junit-platform-console-standalone-" + COM.JUNIT_STANDALONE_VERSION + ".jar"
 	pluginDir := filepath.Join(homeDir, "libs")
 	os.MkdirAll(pluginDir, 0755)
 	println("  --- Downloading")
 	COM.DownloadFile(url, pluginDir, filename, true, false)
-	os.Rename(filepath.Join(pluginDir, filename), filepath.Join(pluginDir, "junit.jar"))
+	os.Rename(filepath.Join(pluginDir, filename), filepath.Join(pluginDir, filename))
 	println("\033[32m  --- JUnit5 setup done\033[0m")
 }
 func HotSwapAgentPlugin(homeDir string) {

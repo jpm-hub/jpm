@@ -138,12 +138,12 @@ func GetJavaTestTemplate(packaging string, className string) string {
 		iprt = ""
 	}
 	return `package tests;
-import org.junit.*;` + iprt + `
+importimport org.junit.jupiter.api.*;` + iprt + `
 public class Test` + className + ` {
 	@Test
 	public void test() {
 		` + className + ` app = new ` + className + `();
-		Assert.assertEquals("Hello, World",app.run());
+		Assertions.assertEquals("Hello, World",app.run());
 	}
 }`
 }
@@ -154,7 +154,7 @@ func GetKotlinTestTemplate(packaging string, className string) string {
 		iprt = ""
 	}
 	return `package tests;
-import org.junit.*
+import org.junit.jupiter.api.*
 import kotlin.test.*` + iprt + `
 class Test` + className + ` {
 	@Test
@@ -168,8 +168,8 @@ func GetDockerFileTempalte(packaging string) string {
 	return `FROM eclipse-temurin:25-jdk
 WORKDIR /app
 COPY dist/ ./
-RUN chmod +x ` + packaging + `.sh
-CMD ["./` + packaging + `.sh"]
+RUN chmod +x ` + packaging + `
+CMD ["./` + packaging + `"]
 `
 }
 
@@ -182,7 +182,7 @@ services:
       dockerfile: Dockerfile
     container_name: ` + packaging + `
     image: ` + packaging + `:latest
-    ports: ["3000:3000"]
+    # ports: ["8080:8080"] <- specify ports
 `
 }
 

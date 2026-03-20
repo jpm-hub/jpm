@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-VERSION="1.2.3"
+VERSION="1.2.9"
 
 # Default install directory
 INSTALL_DIR="/usr/local/bin"
@@ -11,6 +11,7 @@ INSTALL_DIR="/usr/local/bin"
 if [ $# -ge 1 ]; then
     INSTALL_DIR="$1"
     INSTALL_DIR="${INSTALL_DIR#\\}"
+    INSTALL_DIR="${INSTALL_DIR#./}"
 fi
 # ...existing code...
 

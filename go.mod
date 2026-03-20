@@ -1,10 +1,11 @@
 module jpm
 
-go 1.24.2
+go 1.25.0
 
 require (
 	github.com/codeclysm/extract/v4 v4.0.0
 	github.com/fsnotify/fsnotify v1.7.0
+	golang.org/x/sys v0.42.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -16,6 +17,5 @@ require (
 	github.com/klauspost/compress v1.15.13 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
-	golang.org/x/sys v0.33.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 )

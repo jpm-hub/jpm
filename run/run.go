@@ -24,7 +24,7 @@ func Run() error {
 	langs := COM.GetSection("language", true).(string)
 	_, err := os.Stat("jpm_dependencies")
 	if strings.Contains(langs, "kotlin") && err != nil {
-		COM.CopyToDependencies(langs)
+		COM.LinkToDependencies(langs)
 	}
 	separator := ":"
 	if COM.IsWindows() {

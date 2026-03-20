@@ -187,8 +187,9 @@ func checkHotSwapAgent(silent bool) bool {
 	return true
 }
 func checkJUnit(silent bool) bool {
-	hotswapFile := filepath.Join(COM.HomeDir(), "libs", "junit.jar")
-	if _, err := os.Stat(hotswapFile); err != nil && !silent {
+	filename := "junit-platform-console-standalone-" + COM.JUNIT_STANDALONE_VERSION + ".jar"
+	junitFile := filepath.Join(COM.HomeDir(), "libs", filename)
+	if _, err := os.Stat(junitFile); err != nil && !silent {
 		println("\n\033[33m( junit5 )\033[0m is not accesible (necessary for 'jpm test' with no dependecies)")
 		if asked {
 			println("\tfix: jpm setup -junit\n")

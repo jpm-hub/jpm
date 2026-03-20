@@ -104,7 +104,6 @@ func Bundle() {
 		classes = " -C _dump ."
 		copyFromOut()
 		if !bare {
-			os.MkdirAll(filepath.Join(dist, "jar_libraries"), 0755)
 			copyFromDependencies(filepath.Join(dist, "jar_libraries"))
 		}
 	}
@@ -155,6 +154,10 @@ func copyFromOut() {
 	}
 }
 func copyFromDependencies(dir string) {
+	if publishing {
+		return
+	}
+	os.MkdirAll(filepath.Join(dist, "jar_libraries"), 0755)
 	src := "jpm_dependencies"
 	dst := dir
 	if COM.IsWindows() {
@@ -187,31 +190,31 @@ func createScripts(main string) {
 		modularwin := strings.ReplaceAll(modular, ":", ";")
 		depsArg := strings.ReplaceAll(args, "../jpm_dependencies", "jpm_dependencies")
 		unix := fmt.Sprintf(`#!/bin/bash
-`+COM.ParseEnvVars("export ", true)+`
+# modify this script to implement custom execution logic, such as setting environment variables, or adding extra arguments
 if $(jpm is-windows > /dev/null ); then
-    java %s $(jpm args %s) %s -cp "jpm_dependencies/*;jpm_dependencies/execs/*" %s $@
+    java %s $(jpm args %s) %s -cp "jpm_dependencies/*;jpm_dependencies/execs/*" %s "$@"
     exit $?; else
-    java %s $(jpm args %s) %s -cp "jpm_dependencies/*:jpm_dependencies/execs/*" %s $@
+    java %s $(jpm args %s) %s -cp "jpm_dependencies/*:jpm_dependencies/execs/*" %s "$@"
     exit $?
 fi; echo "unknown OS" && exit 1`, depsArg, packageName, modularwin, main, depsArg, packageName, modular, main)
 		os.WriteFile(filepath.Join(dist, packageName), []byte(unix+"\n"), 0755)
 		return
 	}
 	depsArg := strings.ReplaceAll(args, "../jpm_dependencies", "jar_libraries")
-	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ", true)+"java %s %s -cp ./*:jar_libraries/* %s $@", depsArg, modular, main)
+	unix := fmt.Sprintf("#!/bin/bash\n"+COM.ParseEnvVars("export ", true)+"java %s %s -cp ./*:jar_libraries/* %s \"$@\"", depsArg, modular, main)
 	depsArg = strings.ReplaceAll(args, "..\\jpm_dependencies", "jar_libraries")
-	windows := fmt.Sprintf(COM.ParseEnvVars("set ", false)+"java %s %s -cp ./*;jar_libraries/* %s ", depsArg, modular, main)
+	windows := fmt.Sprintf("@echo off \n"+COM.ParseEnvVars("set ", false)+"java %s %s -cp ./*;jar_libraries/* %s ", depsArg, modular, main)
 	windows = windows + `%*`
 	os.WriteFile(filepath.Join(dist, packageName), []byte(unix+"\n"), 0755)
 	os.WriteFile(filepath.Join(dist, packageName+".cmd"), []byte(windows+"\r\n"), 0755)
 }
 
 func makePublish(publishing bool, keepClassifiers bool) {
+	println("\033[32mInstalling \033[0m")
 	deps := INSTALL.QuickInstall(publishing)
 	if !publishing {
 		return
 	}
-	println("\033[32mInstalling \033[0m")
 	depsJson := removeClassifiers(removeScopes(deps), keepClassifiers)
 	fp := filepath.Join("dist", "dependencies.json")
 

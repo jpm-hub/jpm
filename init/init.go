@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	COM "jpm/common"
-	TEST "jpm/test_script"
 )
 
 func Init(cliargs []string) {
@@ -147,14 +146,13 @@ func Init(cliargs []string) {
 	}
 	if modular {
 		if packaging == "" {
-			fmt.Println("Modular projects require a package name : jpm init your.package.name -mod")
+			fmt.Println("Modular projects require a package name : jpm init \033[34myour.package.name\033[0m -mod")
 			os.Exit(1)
 		}
 		if err := os.WriteFile(filepath.Join(src, "module-info.java"), []byte(COM.GetModuleInfoTemplate(packaging, language)), 0644); err != nil {
 			fmt.Printf("Error creating module-info.java: %v\n", err)
 			os.Exit(1)
 		}
-		TEST.MakeTestDirsIfNotExists()
 	}
 	if appDir == src {
 		packaging = "" // no package declaration, will be set to "app" in template

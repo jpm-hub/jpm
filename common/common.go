@@ -33,6 +33,8 @@ var parsed []string = []string{}
 type Dependencies struct {
 	Classified   bool                         `json:"classified"`
 	Dependencies []string                     `json:"dependencies,omitempty"`
+	Excludes     []string                     `json:"excludes,omitempty"`
+	Classifiers  map[string]string            `json:"classifiers,omitempty"`
 	JPM          map[string]string            `json:"JPM"`
 	Repos        map[string]map[string]string `json:"repos"`
 	Scripts      map[string]string            `json:"scripts,omitempty"`
@@ -53,6 +55,7 @@ type PackageYAMLSimple struct {
 	Packages      []string
 	Src           string
 	Out           string
+	Tests         string
 	Version       string
 	Description   string
 	Language      string
@@ -76,6 +79,7 @@ type PackageYAML struct {
 	Packages      []string       `yaml:"packages,omitempty"`
 	Src           string         `yaml:"src,omitempty"`
 	Out           string         `yaml:"out,omitempty"`
+	Tests         string         `yaml:"tests,omitempty"`
 	Version       string         `yaml:"version,omitempty"`
 	Description   string         `yaml:"description,omitempty"`
 	Language      string         `yaml:"language,omitempty"`
@@ -474,6 +478,8 @@ func GetSection(section string, isFatal bool) any {
 		return strings.TrimSpace(ParseENV(packageYML.Src))
 	case "out":
 		return strings.TrimSpace(ParseENV(packageYML.Out))
+	case "tests":
+		return strings.TrimSpace(ParseENV(packageYML.Tests))
 	case "classified":
 		return packageYML.Classified
 	case "scripts":
@@ -912,6 +918,16 @@ func OutDir() string {
 		return "out"
 	}
 }
+
+func TestsDir() string {
+	valtests := GetSection("tests", false)
+	if str := valtests.(string); str != "" {
+		return strings.TrimSuffix(str, "/")
+	} else {
+		return "tests"
+	}
+}
+
 func NormalizeSpaces(s string) string {
 	// Split by spaces and filter out empty strings
 	parts := strings.Fields(s)
@@ -1040,31 +1056,6 @@ func CopyFile(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, data, 0644)
-}
-
-func CopyToDependencies(lang string) {
-	homeDir := HomeDir()
-	os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), 0755)
-	CopyFile(filepath.Join(homeDir, "libs", "junit.jar"), filepath.Join("jpm_dependencies", "tests", "junit.jar"))
-	if IsWindows() {
-		homeDir = filepath.Join(homeDir, "kotlinc", "lib")
-	} else {
-		homeDir = filepath.Join(homeDir, "libs")
-	}
-	if strings.Contains(lang, "kotlin") {
-		if err := CopyFile(filepath.Join(homeDir, "kotlin-test.jar"), filepath.Join("jpm_dependencies", "tests", "kotlin-test.jar")); err != nil {
-			fmt.Printf("Error copying kotlin-test.jar: %v\n", err)
-		}
-		if err := CopyFile(filepath.Join(homeDir, "annotations-13.0.jar"), filepath.Join("jpm_dependencies", "annotations-13.0.jar")); err != nil {
-			fmt.Printf("Error copying annotations-13.0.jar: %v\n", err)
-		}
-		if err := CopyFile(filepath.Join(homeDir, "kotlin-stdlib.jar"), filepath.Join("jpm_dependencies", "kotlin-stdlib.jar")); err != nil {
-			fmt.Printf("Error copying kotlin-stdlib.jar: %v\n", err)
-		}
-		if err := CopyFile(filepath.Join(homeDir, "kotlin-reflect.jar"), filepath.Join("jpm_dependencies", "kotlin-reflect.jar")); err != nil {
-			fmt.Printf("Error copying kotlin-reflect.jar: %v\n", err)
-		}
-	}
 }
 
 func LinkToDependencies(lang string) {

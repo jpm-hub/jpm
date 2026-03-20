@@ -26,6 +26,9 @@ func initCompile() {
 	argsMap = COM.ParseArgs()
 }
 func Compile(src ...string) error {
+	if len(src) > 0 && src[0] == "-test" {
+		return CompileTest()
+	}
 	testing = false
 	initCompile()
 	languageList := findLanguages()

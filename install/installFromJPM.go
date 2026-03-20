@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	COM "jpm/common"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -21,6 +23,9 @@ type LastestJPM struct {
 	Redirect bool   `json:"redirect"`
 }
 
+func makeJsonFileName(pack, ver string) string {
+	return fmt.Sprintf("jpm.%s-%s.json", pack, ver)
+}
 func findAllJPM(unfiltteredDeps []string, aliases []string) (jpmDeps []string, noneJpmdeps []string) {
 	jpmDeps = []string{}
 	noneJpmdeps = []string{}
@@ -131,7 +136,7 @@ func saveAllJPMSubDependencies(d *jpmRepo) string {
 }
 
 func handleRedirect(d *jpmRepo) string {
-	depJson, err := downloadJson(jpmRepoUrl + strings.ToLower(d.Package[0:1]) + "/" + d.Package + "/dependencies.json")
+	depJson, err := downloadJson(jpmRepoUrl+strings.ToLower(d.Package[0:1])+"/"+d.Package+"/dependencies.json", d.Package, d.Version)
 	if err != nil {
 		println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get redirection\033[0m\n")
 		return ""
@@ -171,7 +176,7 @@ func downloadDepsJPM(d *jpmRepo) {
 		return
 	}
 	url := generateJpmDepUrl(currentWorkingRepo, d.Package, d.Version, "dependencies.json")
-	deps, err := downloadJson(url)
+	deps, err := downloadJson(url, d.Package, d.Version)
 	if err != nil {
 		addFinishMessage("\033[31m ! Unable to download " + url + " \033[0m\n")
 		return
@@ -218,16 +223,31 @@ func checkJPMExcludes(dep string) bool {
 	dep = depS[len(depS)-1]
 	if slices.Contains(excludes, dep) {
 		if COM.Verbose {
-			addFinishMessage("Info : excluded " + strings.Split(dep, "|")[1])
-			foundExcluded(strings.Split(dep, "|")[1])
+			addFinishMessage("Info : excluded " + dep)
 		}
-		excluded[dep] = true
+		foundExcluded(dep)
 		return true
 	}
 	return false
 }
 
-func downloadJson(url string) (COM.Dependencies, error) {
+func downloadJson(url, pack, ver string) (COM.Dependencies, error) {
+	// check cache first
+	if cachedFileName, ok := fileCache[url]; ok && !force {
+		cachedFilePath := filepath.Join(COM.HomeDir(), "libs", cachedFileName)
+		if _, err := os.Stat(cachedFilePath); err == nil {
+			content, err := os.ReadFile(cachedFilePath)
+			if err == nil {
+				var doc COM.Dependencies
+				err = json.Unmarshal(content, &doc)
+				if err == nil {
+					return doc, nil
+				}
+			}
+		}
+
+	}
+
 	var doc COM.Dependencies
 	err, content := COM.DownloadFile(url, "", "", false, true)
 	if err != nil {
@@ -237,6 +257,9 @@ func downloadJson(url string) (COM.Dependencies, error) {
 	if err != nil {
 		return doc, err
 	}
+	fname := makeJsonFileName(pack, ver)
+	os.WriteFile(filepath.Join(COM.HomeDir(), "libs", fname), []byte(content), 0644)
+	fileCache[url] = fname
 	return doc, nil
 }
 func figureOutJPMClassifier(d COM.Dependencies, info jpmRepo) (string, bool) {
