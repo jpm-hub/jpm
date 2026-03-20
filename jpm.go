@@ -20,8 +20,6 @@ import (
 	TEST "jpm/test_script"
 	UPGRADE "jpm/upgrade"
 	WATCH "jpm/watch"
-
-	"golang.org/x/sys/windows"
 )
 
 // TODO:
@@ -215,16 +213,5 @@ func main() {
 		INSTALL.Install()
 	default:
 		SCRIPTS.Scripts(scriptName)
-	}
-}
-
-func enableANSI() {
-	for _, handle := range []windows.Handle{
-		windows.Handle(os.Stdout.Fd()),
-		windows.Handle(os.Stderr.Fd()),
-	} {
-		var mode uint32
-		windows.GetConsoleMode(handle, &mode)
-		windows.SetConsoleMode(handle, mode|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING)
 	}
 }
