@@ -32,7 +32,7 @@ import (
 // add support for package install redirect to maven
 
 func main() {
-	enableANSI()
+	enableANSIWindows()
 	COM.Init()
 	if len(os.Args) == 1 {
 		COM.PrintArt()

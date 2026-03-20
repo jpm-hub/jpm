@@ -8,7 +8,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func enableANSI() {
+func enableANSIWindows() {
 	for _, handle := range []windows.Handle{
 		windows.Handle(os.Stdout.Fd()),
 		windows.Handle(os.Stderr.Fd()),

@@ -2,5 +2,5 @@
 
 package main
 
-func enableANSI() {
+func enableANSIWindows() {
 }
