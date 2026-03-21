@@ -9,15 +9,18 @@ import (
 )
 
 var scripts map[string]string
+var pack string
 
 func Scripts(scriptName string) {
 	scripts = COM.ParseScripts()
+	pack = COM.GetSection("package", true).(string)
 	scriptCmd, found := scripts[scriptName]
 	if !found {
 		fmt.Printf("Script '%s' not found in package.yml\n", scriptName)
 		os.Exit(1)
 	}
 	cmd := "export PATH=\"$PATH:$(pwd)/jpm_dependencies/execs\"\n" + argsReplacer(scriptCmd)
+	println(">", pack+":", scriptName)
 	if err := COM.RunScript(cmd, true); err != nil {
 		fmt.Printf("Error running script '%s': %v \n", scriptName, err)
 		os.Exit(1)
@@ -110,6 +113,7 @@ func argsReplacer(scriptCmd string) string {
 func ExecOverride(sc string) {
 	if len(scripts) == 0 {
 		scripts = COM.ParseScripts()
+		pack = COM.GetSection("package", true).(string)
 	}
 	scriptsS := []string{}
 	for k := range scripts {
@@ -128,6 +132,7 @@ func ExecOverride(sc string) {
 				println("\033[33mOverriding: "+"'"+"jpm", sc+"'", "for "+"'"+"jpm", sc+"@"+"'", "\033[0m")
 			}
 			cmd := "export JPM_OVERRIDE=" + sc + "\nexport PATH=\"$PATH:$(pwd)/jpm_dependencies/execs\"\n" + argsReplacer(scripts[sc+"@"])
+			println(">", pack+":", sc+"@")
 			if err := COM.RunScript(cmd, true); err != nil {
 				fmt.Printf("Error running script '%s': %v \n", sc, err)
 				os.Exit(1)

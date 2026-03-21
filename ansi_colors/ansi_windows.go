@@ -17,6 +17,6 @@ func EnableANSIWindows() {
 		if err := windows.GetConsoleMode(handle, &mode); err != nil {
 			continue
 		}
-		_ = windows.SetConsoleMode(handle, mode|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+		windows.SetConsoleMode(handle, mode|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING)
 	}
 }
