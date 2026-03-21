@@ -1,6 +1,6 @@
 //go:build windows
 
-package main
+package ansi_colors
 
 import (
 	"os"
@@ -8,7 +8,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func enableANSIWindows() {
+func EnableANSIWindows() {
 	for _, handle := range []windows.Handle{
 		windows.Handle(os.Stdout.Fd()),
 		windows.Handle(os.Stderr.Fd()),

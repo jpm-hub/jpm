@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	ANSI "jpm/ansi_colors"
 	ARGS "jpm/args"
 	BUNDLE "jpm/bundle"
 	COM "jpm/common"
@@ -29,10 +30,9 @@ import (
 // add detection of version downgrade in install
 // add support for inner projects
 // add support for multiple packages compilation and bundling to create classified jars
-// add support for package install redirect to maven
 
 func main() {
-	enableANSIWindows()
+	ANSI.EnableANSIWindows()
 	COM.Init()
 	if len(os.Args) == 1 {
 		COM.PrintArt()
