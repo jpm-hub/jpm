@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 > NUL 2>&1
 setlocal enabledelayedexpansion
 set VERSION=1.2.9
 
@@ -109,10 +110,10 @@ echo           Installation Complete!
 echo ===============================================
 echo.
 echo Please add %JPM_HOME% to your PATH environment variable.
-echo run : win + r > SystemPropertiesAdvanced.exe 
-echo              > Environment Variables 
-echo              > User variables > Path > Edit 
-echo              > New > %JPM_HOME%
+echo run : win + r ▶ SystemPropertiesAdvanced.exe 
+echo              ▶ Environment Variables 
+echo              ▶ User variables > Path > Edit 
+echo              ▶ New > %JPM_HOME%
 echo.
 echo IMPORTANT: You may need to restart your Command Prompt or
 echo            PowerShell for PATH changes to take effect.
