@@ -8,15 +8,17 @@ classified: true
 scripts:
   print: echo "Hello, World! $(jpm args kt)"
   build: jpm build-{{jpm.OS}}
-  build-linux: make build -B
-  build-darwin: make build -B
-  build-windows: go build; rm -f ~/.jpm/jpm.exe; cp jpm.exe ~/.jpm/jpm.exe
+  build-linux: go build && rm -f ~/.local/bin/jpm && cp -f jpm ~/.local/bin/jpm
+  build-darwin: go build && rm -f /Applications/cli/jpm && cp -f jpm /Applications/cli/jpm
+  build-windows: go build && rm -f ~/.jpm/jpm.exe && cp jpm.exe ~/.jpm/jpm.exe
 dependencies:
   - rsync:1.0.0 exec
   - com.github.lalyos jfiglet:0.0.9 exec
 repos:
   - default: https://repo1.maven.org/maven2/
   - google: https://maven.google.com/
+  - gh: https://github.com/
+    type: github
 languages:
   - kotlin
   - java
