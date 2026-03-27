@@ -27,7 +27,7 @@ if [ $# -eq 0 ]; then
 	echo "available commands :"
 	for file in "$curdir/jpm_dependencies/execs/"*; do
 		if [ -x "$file" ] && [ -f "$file" ]; then
-			echo " > $(basename "$file")"
+			echo " ▶ $(basename "$file")"
 		fi
 	done
 else

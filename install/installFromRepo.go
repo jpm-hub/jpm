@@ -17,6 +17,7 @@ type dependencyManagement struct {
 	Dependencies []dependency
 }
 type dependency struct {
+	Repo       string
 	GroupID    string
 	ArtifactID string
 	Version    string
@@ -143,11 +144,11 @@ func findExistingAliases() []string {
 	return aliases
 }
 
-func disectRepoDepString(depString string, repoURL string, alias string) (Repo, error) {
+func disectRepoDepString(depString string, repoURL string, alias string) (dependency, error) {
 	dSlice := strings.Split(depString, " ")
 	if len(dSlice) < 3 {
 		println("\033[31m" + tab + "The dependency : " + depString + " is ambigious and will be ignored\033[0m")
-		return Repo{}, errors.New("The dependency : " + depString + " is ambigious")
+		return dependency{}, errors.New("The dependency : " + depString + " is ambigious")
 	}
 	artver := strings.Split(dSlice[2], ":")
 	t := ""
@@ -157,53 +158,52 @@ func disectRepoDepString(depString string, repoURL string, alias string) (Repo, 
 		t = dSlice[3]
 	} else {
 		println("\033[31m" + tab + "The dependency : " + depString + " is ambigious\033[0m")
-		return Repo{}, errors.New("The dependency : " + depString + " is ambigious")
+		return dependency{}, errors.New("The dependency : " + depString + " is ambigious")
 	}
 	version := ""
 	if len(artver) == 2 {
 		version = artver[1]
 	}
-	return Repo{
+	return dependency{
 		Repo:       repoURL,
-		Alias:      alias,
 		GroupID:    dSlice[1],
-		ArtefactID: artver[0],
-		ArtVer:     COM.NormalizeSpaces(version),
+		ArtifactID: artver[0],
+		Version:    COM.NormalizeSpaces(version),
 		Scope:      t,
 	}, nil
 }
-func saveAllRepoSubDependencies(dr *Repo) error {
-	version := dr.ArtVer
+func saveAllRepoSubDependencies(dr *dependency, alias string) error {
+	version := dr.Version
 	var err error
-	if dr.ArtVer == "" {
-		version, err = figureOutLastestRepo(dr.GroupID, dr.ArtefactID)
+	if dr.Version == "" {
+		version, err = figureOutLastestRepo(dr.GroupID, dr.ArtifactID)
 		if err != nil {
-			println("\033[31m  --- " + strings.ToUpper(dr.Alias) + ": Resolving " + dr.ArtefactID + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
+			println("\033[31m  --- " + strings.ToUpper(alias) + ": Resolving " + dr.ArtifactID + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
 			return errors.New("not nil")
 		}
-		dr.ArtVer = version
+		dr.Version = version
 		// modify the yaml at this point
-		if dr.Alias != "default" && dr.Alias != ">" {
-			COM.ReplaceDependency(fmt.Sprintf("%s %s %s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.Scope), fmt.Sprintf("%s %s %s:%s %s", dr.Alias, dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.Scope))
-		} else if dr.Alias != ">" {
-			COM.ReplaceDependency(fmt.Sprintf("%s %s %s", dr.GroupID, dr.ArtefactID, dr.Scope), fmt.Sprintf("%s %s:%s %s", dr.GroupID, dr.ArtefactID, dr.ArtVer, dr.Scope))
+		if alias != "default" && alias != ">" {
+			COM.ReplaceDependency(fmt.Sprintf("%s %s %s %s", alias, dr.GroupID, dr.ArtifactID, dr.Scope), fmt.Sprintf("%s %s %s:%s %s", alias, dr.GroupID, dr.ArtifactID, dr.Version, dr.Scope))
+		} else if alias != ">" {
+			COM.ReplaceDependency(fmt.Sprintf("%s %s %s", dr.GroupID, dr.ArtifactID, dr.Scope), fmt.Sprintf("%s %s:%s %s", dr.GroupID, dr.ArtifactID, dr.Version, dr.Scope))
 		}
 	}
-	if dr.ArtVer == "latest" {
-		version, err = figureOutLastestRepo(dr.GroupID, dr.ArtefactID)
+	if dr.Version == "latest" {
+		version, err = figureOutLastestRepo(dr.GroupID, dr.ArtifactID)
 		if err != nil {
-			println("\033[31m  --- " + strings.ToUpper(dr.Alias) + ": Resolving " + dr.ArtefactID + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
+			println("\033[31m  --- " + strings.ToUpper(alias) + ": Resolving " + dr.ArtifactID + " ! " + "Unable to get latest version: " + err.Error() + " \033[0m\n")
 			return errors.New("not nil")
 		}
-		dr.ArtVer = version
+		dr.Version = version
 	}
 	al := ">"
-	if dr.Alias != "default" && dr.Alias != ">" {
-		al = strings.ToUpper(dr.Alias) + ":"
+	if alias != "default" && alias != ">" {
+		al = strings.ToUpper(alias) + ":"
 	}
-	println("\033[32m  --- " + al + " Resolving " + dr.ArtefactID + ":" + version + "\033[0m")
+	println("\033[32m  --- " + al + " Resolving " + dr.ArtifactID + ":" + version + "\033[0m")
 	print("      Resolving   [")
-	p := downloadDepsRepo(currentWorkingRepo, dr.GroupID, dr.ArtefactID, version, false)
+	p := downloadDepsRepo(currentWorkingRepo, dr.GroupID, dr.ArtifactID, version, false)
 	if p == nil {
 		print("\033[31m-\033[0m")
 	}

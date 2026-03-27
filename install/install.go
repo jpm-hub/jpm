@@ -22,14 +22,11 @@ var once sync.Once
 // var mu sync.Mutex
 
 type Repo struct {
-	Alias      string
-	Repo       string
-	Username   string
-	Password   string
-	GroupID    string
-	ArtVer     string
-	ArtefactID string
-	Scope      string
+	Alias    string
+	Repo     string
+	Username string
+	Password string
+	Type     string
 }
 
 type Repositories struct {
@@ -235,7 +232,7 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 	repoList := getRepoList()
 
 	// github second
-	githubDeps, noneGithubDeps := findAllGithub(noneJpmdeps, aliases, repoList)
+	githubDeps, noneGithubDeps := findAllGithub(noneJpmdeps, repoList)
 	fromGithub(githubDeps)
 
 	// maven second
@@ -254,17 +251,16 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 	dumpDependencies()
 
 }
-func findAllRepoDeps(deps []string, repoList Repositories) (repos map[string][]Repo, raws []string) {
-	repos = map[string][]Repo{}
+func findAllRepoDeps(deps []string, repoList Repositories) (repos map[string][]dependency, raws []string) {
+	repos = map[string][]dependency{}
 	for _, v := range deps {
 		found := false
 		for _, repoFromYaml := range repoList.Repos {
-			v = COM.NormalizeSpaces(v)
 			if strings.HasPrefix(v, repoFromYaml.Alias) {
 				r, err := disectRepoDepString(v, repoFromYaml.Repo, repoFromYaml.Alias)
 				if err == nil {
 					found = true
-					repos[repoFromYaml.Repo] = append(repos[repoFromYaml.Repo], r)
+					repos[repoFromYaml.Alias] = append(repos[repoFromYaml.Alias], r)
 				}
 			}
 		}
@@ -274,8 +270,25 @@ func findAllRepoDeps(deps []string, repoList Repositories) (repos map[string][]R
 	}
 	return repos, raws
 }
-func findAllGithub(noneJpmdeps []string, aliases []string, repoList Repositories) ([]string, []string) {
-	return []string{}, noneJpmdeps
+func findAllGithub(deps []string, repoList Repositories) ([]jpmDependency, []string) {
+	ghDeps := []jpmDependency{}
+	noneGHdeps := []string{}
+	for _, v := range deps {
+		found := false
+		for _, repoFromYaml := range repoList.Repos {
+			if strings.HasPrefix(v, repoFromYaml.Alias) && "github" == strings.TrimSpace(repoFromYaml.Type) {
+				r, err := disectGithubDepString(v)
+				if err == nil {
+					found = true
+					ghDeps = append(ghDeps, r)
+				}
+			}
+		}
+		if !found {
+			noneGHdeps = append(noneGHdeps, v)
+		}
+	}
+	return ghDeps, noneGHdeps
 }
 
 func fromLocal(localDeps []string) {
@@ -344,18 +357,28 @@ func fromLocal(localDeps []string) {
 			pkgyml := filepath.Join(dep, "package.yml")
 			if _, err = os.Stat(pkgyml); err == nil {
 				fpath, _ := filepath.Abs(filepath.Join("jpm_dependencies", scope))
-				COM.RunScript("cd "+dep+" && jpm bundle -bare -d "+fpath, false)
+				var err error = nil
+				if !COM.IsWindows() {
+					err = COM.RunScript("cd "+dep+" && jpm bundle -bare -d "+fpath, false)
+				} else {
+					err = COM.RunScript("cd "+dep+" && jpm bundle -bare -d $(cygpath '"+fpath+"')", false)
+				}
+				if err != nil {
+					print("\033[31m█\033[0m")
+					addFinishMessage("Failed to bundle local dependency: " + dep)
+					continue
+				}
 				data, err := os.ReadFile(pkgyml)
 				if err != nil {
-					fmt.Println(err)
 					print("\033[31m█\033[0m")
+					addFinishMessage("Failed to read package.yml for local dependency: " + dep + " ERR: " + err.Error())
 					continue
 				}
 				// load in package.yml
 				packageYML := COM.PackageYAMLSimple{}
 				if err := yaml.Unmarshal(data, &packageYML); err != nil {
-					fmt.Println(err)
 					print("\033[31m█\033[0m")
+					addFinishMessage("Failed to parse package.yml for local dependency: " + dep + " ERR: " + err.Error())
 					continue
 				}
 				jarFilename = packageYML.Package + "-" + packageYML.Version + ".jar"
@@ -367,6 +390,7 @@ func fromLocal(localDeps []string) {
 			} else {
 				entries, err := os.ReadDir(dep)
 				if err != nil {
+					print("\033[31m█\033[0m")
 					addFinishMessage("local dependency " + dep + " error: " + err.Error())
 					continue
 				}
@@ -379,7 +403,6 @@ func fromLocal(localDeps []string) {
 						if !f.IsDir() && strings.HasSuffix(f.Name(), ".jar") {
 							name := strings.TrimPrefix(strings.ReplaceAll(path, separator, "."), dep+".")
 							g_lockDeps.Locals[scope] = append(g_lockDeps.Locals[scope], name)
-							fmt.Println(dep)
 							LinkDeps(path, name, scope, false, nil)
 							return nil
 						}
@@ -437,11 +460,22 @@ func fromJPM(deps []string) string {
 	return depString
 }
 
-func fromGithub(deps []string) {
-
+func fromGithub(deps []jpmDependency) {
+	for _, jDep := range deps {
+		currentWorkingRepo = "https://github.com/"
+		currentOuterScope = jDep.Scope
+		saveAllJPMSubDependencies(&jDep)
+		if currentOuterScope == "exec" {
+			jarfilename := "gh" + jDep.GhUsername + "." + jDep.Package + "-" + jDep.Version + ".jar"
+			urljar := generateGithubDepUrl(jDep.GhUsername, jDep.Package, jDep.Version, jarfilename)
+			urljscript := generateGithubDepUrl(jDep.GhUsername, jDep.Package, jDep.Version, jDep.Package)
+			g_lockDeps.Scripts[jDep.Package] = jarfilename + "|" + urljar + "|" + urljscript
+		}
+	}
+	addJPMSubDependenciesToDownloadList()
 }
-func fromRepo(dependenciesWithRepo map[string][]Repo) {
-	for _, v := range dependenciesWithRepo {
+func fromRepo(dependenciesWithRepo map[string][]dependency) {
+	for alias, v := range dependenciesWithRepo {
 		for _, dr := range v {
 			if !checkValidScope(dr.Scope) {
 				printNotValidScope(dr.Scope)
@@ -450,11 +484,11 @@ func fromRepo(dependenciesWithRepo map[string][]Repo) {
 			}
 			currentOuterScope = dr.Scope
 			currentWorkingRepo = dr.Repo
-			saveAllRepoSubDependencies(&dr)
+			saveAllRepoSubDependencies(&dr, alias)
 			if currentOuterScope == "exec" {
-				jarfilename := dr.GroupID + "." + dr.ArtefactID + "-" + dr.ArtVer + ".jar"
-				url := generateRepoDepUrl(currentWorkingRepo, dr.GroupID, dr.ArtefactID, dr.ArtVer, jarfilename)
-				g_lockDeps.Scripts[dr.ArtefactID] = jarfilename + "|" + url
+				jarfilename := dr.GroupID + "." + dr.ArtifactID + "-" + dr.Version + ".jar"
+				url := generateRepoDepUrl(currentWorkingRepo, dr.GroupID, dr.ArtifactID, dr.Version, jarfilename)
+				g_lockDeps.Scripts[dr.ArtifactID] = jarfilename + "|" + url
 			}
 		}
 	}
@@ -998,6 +1032,7 @@ func cleanup() {
 					if file.Name() == "annotations-13.0.jar" || file.Name() == "kotlin-stdlib.jar" || file.Name() == "kotlin-reflect.jar" {
 						continue
 					}
+					println("removing", file.Name())
 					os.Remove(filepath.Join("jpm_dependencies", file.Name()))
 				}
 			}
@@ -1021,7 +1056,7 @@ func cleanup() {
 	if err == nil {
 		for _, file := range files {
 			if !slices.Contains(execjars, file.Name()) {
-				os.Remove(filepath.Join("jpm_dependencies", "execs", file.Name()))
+				os.RemoveAll(filepath.Join("jpm_dependencies", "execs", file.Name()))
 			}
 		}
 	}

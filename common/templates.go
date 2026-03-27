@@ -128,7 +128,7 @@ jpm_dependencies/*
 !jpm_dependencies/lock.json
 dist
 *.log
-.env
+*.env*
 `
 }
 

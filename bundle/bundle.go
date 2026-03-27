@@ -183,7 +183,7 @@ func createScripts(main string) {
 		args = ""
 	}
 	packageName := COM.GetSection("package", true).(string)
-	if publishing {
+	if publishing && execing {
 		if len(modular) > 0 {
 			modular = "-p jpm_dependencies:jpm_dependencies/execs"
 		}

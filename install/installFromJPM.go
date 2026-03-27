@@ -11,10 +11,11 @@ import (
 	"strings"
 )
 
-type jpmRepo struct {
-	Package string
-	Version string
-	Scope   string
+type jpmDependency struct {
+	GhUsername string
+	Package    string
+	Version    string
+	Scope      string
 }
 
 type LastestJPM struct {
@@ -65,11 +66,11 @@ func findAllJPM(unfiltteredDeps []string, aliases []string) (jpmDeps []string, n
 	return
 }
 
-func disectJPMDepString(d string) (jpmRepo, error) {
+func disectJPMDepString(d string) (jpmDependency, error) {
 	dSlices := strings.Split(d, " ")
 	if len(dSlices) > 2 {
 		println(tab + "JPM Dependency " + d + " Does not exist")
-		return jpmRepo{}, errors.New("not nil")
+		return jpmDependency{}, errors.New("not nil")
 	}
 	scope := ""
 	version := ""
@@ -79,7 +80,7 @@ func disectJPMDepString(d string) (jpmRepo, error) {
 		} else {
 			println("\033[38;5;208m" + tab + "Did you add a repository url for " + dSlices[1] + " ?\033[0m")
 			printNotValidScope(dSlices[1])
-			return jpmRepo{}, errors.New("wrong scope")
+			return jpmDependency{}, errors.New("wrong scope")
 		}
 	}
 	depAndVersion := strings.Split(dSlices[0], ":")
@@ -87,14 +88,14 @@ func disectJPMDepString(d string) (jpmRepo, error) {
 	if len(depAndVersion) > 1 {
 		version = depAndVersion[1]
 	}
-	return jpmRepo{
+	return jpmDependency{
 		Package: dep,
 		Scope:   scope,
 		Version: version,
 	}, nil
 }
 
-func saveAllJPMSubDependencies(d *jpmRepo) string {
+func saveAllJPMSubDependencies(d *jpmDependency) string {
 	version := ""
 	v, err := figureOutLatestJPM(d.Package)
 	if v == "<redirected>" {
@@ -135,28 +136,27 @@ func saveAllJPMSubDependencies(d *jpmRepo) string {
 	return COM.NormalizeSpaces(fmt.Sprint(d.Package + ":" + d.Version + " " + d.Scope))
 }
 
-func handleRedirect(d *jpmRepo) string {
+func handleRedirect(d *jpmDependency) string {
 	depJson, err := downloadJson(jpmRepoUrl+strings.ToLower(d.Package[0:1])+"/"+d.Package+"/dependencies.json", d.Package, d.Version)
 	if err != nil {
 		println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get redirection\033[0m\n")
 		return ""
 	}
-	dr := Repo{
-		Alias:      ">",
+	dr := dependency{
 		Repo:       depJson.Redirect["repo"],
 		GroupID:    depJson.Redirect["groupId"],
-		ArtefactID: depJson.Redirect["artifactId"],
-		ArtVer:     d.Version,
+		ArtifactID: depJson.Redirect["artifactId"],
+		Version:    d.Version,
 		Scope:      d.Scope,
 	}
 	currentOuterScope = d.Scope
 	currentWorkingRepo = depJson.Redirect["repo"]
-	saveAllRepoSubDependencies(&dr)
+	saveAllRepoSubDependencies(&dr, ">")
 	currentWorkingRepo = jpmRepoUrl
 	if d.Version == "" {
-		COM.ReplaceDependency(fmt.Sprintf("%s %s", d.Package, d.Scope), fmt.Sprintf("%s:%s %s", d.Package, dr.ArtVer, d.Scope))
+		COM.ReplaceDependency(fmt.Sprintf("%s %s", d.Package, d.Scope), fmt.Sprintf("%s:%s %s", d.Package, dr.Version, d.Scope))
 	}
-	return COM.NormalizeSpaces(fmt.Sprint(d.Package + ":" + dr.ArtVer + " " + d.Scope))
+	return COM.NormalizeSpaces(fmt.Sprint(d.Package + ":" + dr.Version + " " + d.Scope))
 }
 
 func saveJPMExecToDownloadList(scope, dep, version string) {
@@ -171,7 +171,7 @@ func generateJpmDepUrl(repo, pack, ver, filename string) string {
 	firstLetter := strings.ToLower(pack[0:1])
 	return repo + firstLetter + "/" + pack + "/" + ver + "/" + filename
 }
-func downloadDepsJPM(d *jpmRepo) {
+func downloadDepsJPM(d *jpmDependency) {
 	if checkJPMExcludes(d.Package) {
 		return
 	}
@@ -262,7 +262,7 @@ func downloadJson(url, pack, ver string) (COM.Dependencies, error) {
 	fileCache[url] = fname
 	return doc, nil
 }
-func figureOutJPMClassifier(d COM.Dependencies, info jpmRepo) (string, bool) {
+func figureOutJPMClassifier(d COM.Dependencies, info jpmDependency) (string, bool) {
 	classifier := COM.GetSection("classifiers", false).(map[string]string)
 	v, ok := classifier[info.Package]
 	vs, oks := classifier["*"]

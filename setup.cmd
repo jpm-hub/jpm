@@ -112,8 +112,8 @@ echo.
 echo Please add %JPM_HOME% to your PATH environment variable.
 echo run : win + r ▶ SystemPropertiesAdvanced.exe 
 echo              ▶ Environment Variables 
-echo              ▶ User variables > Path > Edit 
-echo              ▶ New > %JPM_HOME%
+echo              ▶ User variables ▶ Path ▶ Edit 
+echo              ▶ New ▶ %JPM_HOME%
 echo.
 echo IMPORTANT: You may need to restart your Command Prompt or
 echo            PowerShell for PATH changes to take effect.

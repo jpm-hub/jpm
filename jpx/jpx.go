@@ -37,7 +37,7 @@ else
 	export PATH="$curdir/jpm_dependencies/execs:$PATH"
 	if [ "$1" = "-d" ]; then
 		shift
-		"$@" > /dev/null 2>&1 &
+		"$@" ▶ /dev/null 2>&1 &
 		echo "Started in detached mode: $*"
 	else
 		exec "$@"
