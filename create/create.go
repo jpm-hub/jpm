@@ -62,6 +62,7 @@ func Create() {
 
 	// Download from jpm repo (override local)
 	COM.DownloadFile(COM.JPM_REPO_API+"templates/"+os.Args[2]+"/"+template, templatesDir, template, true, false)
+
 	// Check if the template file exists
 	templatePath = filepath.Join(templatesDir, template)
 	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
@@ -87,9 +88,8 @@ jump:
 	}
 	//start message
 	if msg, ok := templateYml["<start-message>"].(string); ok {
-		println(removeSpacer(msg))
+		println(parse(removeSpacer(msg)))
 	}
-
 	// run <init-script>
 	if msg, ok := templateYml["<init-script>"].(string); ok {
 		if err := COM.RunScript(parse(msg), true); err != nil {
@@ -110,7 +110,7 @@ jump:
 	}
 	// print <finish-message>
 	if msg, ok := templateYml["<finish-message>"].(string); ok {
-		println(removeSpacer(parse(msg)))
+		println(parse(removeSpacer(msg)))
 	}
 }
 
