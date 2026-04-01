@@ -138,7 +138,7 @@ func GetJavaTestTemplate(packaging string, className string) string {
 		iprt = ""
 	}
 	return `package tests;
-importimport org.junit.jupiter.api.*;` + iprt + `
+import org.junit.jupiter.api.*;` + iprt + `
 public class Test` + className + ` {
 	@Test
 	public void test() {

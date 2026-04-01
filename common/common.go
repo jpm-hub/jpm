@@ -968,7 +968,7 @@ func DownloadFile(url string, dirpath string, filename string, override bool, re
 	}
 
 	// Check server response before creating file
-	if resp.StatusCode <= http.StatusOK && resp.StatusCode >= 300 {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= 300 {
 		if Verbose {
 			println("\033[31m" + url + "\033[0m")
 		}
