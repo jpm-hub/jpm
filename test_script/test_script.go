@@ -60,34 +60,29 @@ func TestScript() error {
 
 func MakeTestDirsIfNotExists() {
 	filename := "junit-platform-console-standalone-" + COM.JUNIT_STANDALONE_VERSION + ".jar"
-	if _, err := os.Stat(COM.TestsDir()); os.IsNotExist(err) {
-		os.Mkdir(COM.TestsDir(), os.ModePerm)
-		// create a sample test file if not exists
-
-		if strings.Contains(COM.GetSection("language", false).(string), "kotlin") {
-			if matches, _ := filepath.Glob(filepath.Join(COM.TestsDir(), "*.kt")); len(matches) == 0 {
-				sample := strings.ReplaceAll(COM.GetKotlinTestTemplate("", ""), "run()", "\"Hello, World\"")
-				sample = strings.ReplaceAll(sample, " Test ", " TestKotlin ")
-				os.WriteFile(filepath.Join(COM.TestsDir(), "TestKotlin.kt"), []byte(sample), 0644)
-			}
-		}
-		if strings.Contains(COM.GetSection("language", false).(string), "java") {
-			if matches, _ := filepath.Glob(filepath.Join(COM.TestsDir(), "*.java")); len(matches) == 0 {
-				sample := strings.ReplaceAll(COM.GetJavaTestTemplate("", ""), "app.run()", "\"Hello, World\"")
-				sample = strings.ReplaceAll(sample, "app = new ();", "")
-				sample = strings.ReplaceAll(sample, " Test ", " TestJava ")
-				os.WriteFile(filepath.Join(COM.TestsDir(), "TestJava.java"), []byte(sample), 0644)
-			}
+	os.Mkdir(COM.TestsDir(), os.ModePerm)
+	if strings.Contains(COM.GetSection("language", false).(string), "kotlin") {
+		if matches, _ := filepath.Glob(filepath.Join(COM.TestsDir(), "*.kt")); len(matches) == 0 {
+			sample := strings.ReplaceAll(COM.GetKotlinTestTemplate("", ""), "run()", "\"Hello, World\"")
+			sample = strings.ReplaceAll(sample, " Test ", " TestKotlin ")
+			os.WriteFile(filepath.Join(COM.TestsDir(), "TestKotlin.kt"), []byte(sample), 0644)
 		}
 	}
-	if _, err := os.Stat(filepath.Join("jpm_dependencies", "tests", "junit.jar")); os.IsNotExist(err) {
-		os.MkdirAll(filepath.Join("jpm_dependencies", "tests"), os.ModePerm)
-		junitPath := filepath.Join("jpm_dependencies", "tests", "junit.jar")
-		if _, err := os.Stat(junitPath); os.IsNotExist(err) {
-			os.Link(filepath.Join(COM.HomeDir(), "libs", filename), junitPath)
-			if strings.Contains(COM.GetSection("language", false).(string), "kotlin") {
-				os.Link(filepath.Join(COM.HomeDir(), "libs", "kotlin-test.jar"), filepath.Join("jpm_dependencies", "tests", "kotlin-test.jar"))
-			}
+	if strings.Contains(COM.GetSection("language", false).(string), "java") {
+		if matches, _ := filepath.Glob(filepath.Join(COM.TestsDir(), "*.java")); len(matches) == 0 {
+			sample := strings.ReplaceAll(COM.GetJavaTestTemplate("", ""), "app.run()", "\"Hello, World\"")
+			sample = strings.ReplaceAll(sample, "app = new ();", "")
+			sample = strings.ReplaceAll(sample, " Test ", " TestJava ")
+			os.WriteFile(filepath.Join(COM.TestsDir(), "TestJava.java"), []byte(sample), 0644)
 		}
+	}
+	os.MkdirAll("jpm_dependencies/tests", os.ModePerm)
+	if _, err := os.Stat(filepath.Join("jpm_dependencies", "tests", "junit.jar")); os.IsNotExist(err) {
+		junitPath := filepath.Join("jpm_dependencies", "tests", "junit.jar")
+		os.Link(filepath.Join(COM.HomeDir(), "libs", filename), junitPath)
+	}
+	if strings.Contains(COM.GetSection("language", false).(string), "kotlin") {
+		kotlinlibPath := filepath.Join("jpm_dependencies", "tests", "kotlin-test.jar")
+		os.Link(filepath.Join(COM.HomeDir(), "kotlinc", "lib", "kotlin-test.jar"), kotlinlibPath)
 	}
 }
