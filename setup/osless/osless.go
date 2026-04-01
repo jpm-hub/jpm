@@ -49,8 +49,8 @@ func JunitPlugin(homeDir string) {
 	println("\033[32m  --- JUnit5 setup done\033[0m")
 }
 func HotSwapAgentPlugin(homeDir string) {
-	url := "https://github.com/HotswapProjects/HotswapAgent/releases/download/RELEASE-2.0.0/hotswap-agent-2.0.0.jar"
-	filename := "hotswap-agent-2.0.0.jar"
+	url := "https://github.com/HotswapProjects/HotswapAgent/releases/download/RELEASE-2.0.3/hotswap-agent-2.0.3.jar"
+	filename := "hotswap-agent-2.0.3.jar"
 	pluginDir := filepath.Join(homeDir, "libs")
 	os.MkdirAll(pluginDir, 0755)
 	println("  --- Downloading")
