@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -620,7 +621,7 @@ func loadInEnv(envireonment string) {
 	env["jpm.env"] = envireonment
 	env["jpm.bin.kotlinc"] = KOTLINC()
 
-	env["jpm.repo-url"] = JPM_REPO_API
+	env["jpm.repo-urlString"] = JPM_REPO_API
 	env["jpm.OS"] = runtime.GOOS
 	env["jpm.ARCH"] = runtime.GOARCH
 	env["jpm.OS-ARCH"] = runtime.GOOS + "-" + runtime.GOARCH
@@ -944,13 +945,40 @@ func CleanupExtract(dirname string, filename string) {
 		//println("failed to remove", filename, ":", err.Error())
 	}
 }
-func DownloadFile(url string, dirpath string, filename string, override bool, returnContent bool) (error, []byte) {
+func DownloadFile(urlString string, dirpath string, filename string, override bool, returnContent bool) (error, []byte) {
 	filePath := filepath.Join(dirpath, filename)
 	// Get the data first to check response
-	resp, err := http.Get(url)
+	if strings.HasPrefix(urlString, "file:") {
+		// Handle file URLs
+		localPath, _ := url.PathUnescape(strings.TrimPrefix(urlString, "file:///"))
+		data, err := os.ReadFile(localPath)
+		if err != nil {
+			if Verbose {
+				println("\033[31m" + urlString + "\033[0m")
+			}
+			return err, nil
+		}
+		if returnContent {
+			return nil, data
+		} else {
+			if _, err := os.Stat(filePath); err == nil {
+				if override {
+					os.Remove(filePath)
+				} else {
+					if Verbose {
+						println(filename, "already exists, skipping download")
+					}
+					return errors.New("file already exist"), nil
+				}
+			}
+			os.WriteFile(filePath, data, 0644)
+			return nil, nil
+		}
+	}
+	resp, err := http.Get(urlString)
 	if err != nil {
 		if Verbose {
-			println("\033[31m" + url + "\033[0m")
+			println("\033[31m" + urlString + "\033[0m")
 		}
 		return err, nil
 	}
@@ -970,7 +998,7 @@ func DownloadFile(url string, dirpath string, filename string, override bool, re
 	// Check server response before creating file
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= 300 {
 		if Verbose {
-			println("\033[31m" + url + "\033[0m")
+			println("\033[31m" + urlString + "\033[0m")
 		}
 		return fmt.Errorf("%s", resp.Status), nil
 	}
@@ -979,7 +1007,7 @@ func DownloadFile(url string, dirpath string, filename string, override bool, re
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			if Verbose {
-				println("\033[31m" + url + "\033[0m")
+				println("\033[31m" + urlString + "\033[0m")
 			}
 			return err, nil
 		}
@@ -989,7 +1017,7 @@ func DownloadFile(url string, dirpath string, filename string, override bool, re
 		out, err := os.Create(filePath)
 		if err != nil {
 			if Verbose {
-				println("\033[31m" + url + "\033[0m")
+				println("\033[31m" + urlString + "\033[0m")
 			}
 			return err, nil
 		}
@@ -1083,8 +1111,8 @@ func LinkToDependencies(lang string) {
 		}
 	}
 }
-func Ping(url string) bool {
-	resp, err := http.Get(url)
+func Ping(urlString string) bool {
+	resp, err := http.Get(urlString)
 	if err != nil {
 		return false
 	}

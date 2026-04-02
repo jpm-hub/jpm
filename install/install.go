@@ -581,11 +581,6 @@ func download(url string, filename string, scope string, raw bool, depsInstalled
 			os.MkdirAll(filepath.Join("jpm_dependencies", "execs"), 0755)
 		})
 	}
-	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		// local file
-		LinkDeps(url, filename, sc, false, depsInstalled)
-		return
-	}
 	switch sc {
 	case "test":
 		downloadAndMakeLinks(raw, extract, url, filename, depsInstalled, "tests")
@@ -636,6 +631,9 @@ func downloadAndMakeLinks(raw bool, extract bool, url string, filename string, d
 			return
 		}
 		destPath := filepath.Join("jpm_dependencies", scope, filename)
+		if force {
+			os.Remove(filepath.Join(destPath, filename))
+		}
 		if _, err := os.Stat(destPath); os.IsNotExist(err) {
 			if err := os.Link(filepath.Join(COM.HomeDir(), "libs", filename), destPath); err != nil {
 				failedInstalledList = append(failedInstalledList, tab+"Failed to correctly install : "+filename+" ERR:"+err.Error())
