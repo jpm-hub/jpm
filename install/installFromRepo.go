@@ -332,18 +332,19 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 	}
 	pom := pomCache[pomURL]
 	// Check if already resolved, 3 might be overkill to avoid circular deps
-	already := resolvedAlready[groupID+"|"+artifactID] > 3
-	if already && pom.Packaging != "pom" {
-		classifier, classified := figureOutRepoClassifier(dependency{
-			GroupID:    groupID,
-			ArtifactID: artifactID,
-			Classifier: "",
-		})
-		depsList[repo] = append(depsList[repo], groupID+"|"+artifactID+"|"+currentOuterScope, version)
-		if classified {
-			depsList[repo] = append(depsList[repo], classifier+groupID+"|"+artifactID+"|"+currentOuterScope, version)
-		}
+	if resolvedAlready[groupID+"|"+artifactID] > 3 {
 		return &pom
+	}
+	classifier, classified := figureOutRepoClassifier(dependency{
+		GroupID:    groupID,
+		ArtifactID: artifactID,
+		Classifier: "",
+	})
+	if pom.Packaging != "pom" {
+		depsList[repo] = append(depsList[repo], groupID+"|"+artifactID+"|"+currentOuterScope, version)
+	}
+	if classified {
+		depsList[repo] = append(depsList[repo], classifier+groupID+"|"+artifactID+"|"+currentOuterScope, version)
 	}
 	if scopeImport {
 		savingImports(repo, &pom)
@@ -777,8 +778,11 @@ func figureOutRepoClassifier(dep dependency) (string, bool) {
 	classDep := COM.GetSection("classifiers", false).(map[string]string)
 	vals, oks := classDep["*"]
 	valA, okA := classDep[dep.ArtifactID]
+	valAG, okAG := classDep[dep.GroupID+":"+dep.ArtifactID]
 	valG, okG := classDep[dep.GroupID]
-	if okA {
+	if okAG {
+		return valAG + "|", true
+	} else if okA {
 		return valA + "|", true
 	} else if okG {
 		return valG + "|", true
