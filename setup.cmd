@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 > NUL 2>&1
 setlocal enabledelayedexpansion
-set VERSION=1.2.9
+set VERSION=1.2.10
 
 :: JPM Windows Setup Script
 echo ===============================================
