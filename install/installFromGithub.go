@@ -1,8 +1,10 @@
 package install
 
 import (
+	"errors"
 	"fmt"
 	COM "jpm/common"
+	"strings"
 )
 
 func makeGHJsonFileName(username, pack, ver string) string {
@@ -13,18 +15,43 @@ func generateGithubDepUrl(username, pack, ver, filename string) string {
 	return fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/%s", username, pack, ver, filename)
 }
 
-func disectGithubDepString(d string) (jpmDependency, error) {
-
-	return jpmDependency{}, nil
+func disectGithubDepString(depString string) (jpmDependency, error) {
+	dSlice := strings.Split(depString, " ")
+	if len(dSlice) < 3 {
+		println("\033[31m" + tab + "The dependency : " + depString + " is ambigious and will be ignored\033[0m")
+		return jpmDependency{}, errors.New("The dependency : " + depString + " is ambigious")
+	}
+	artver := strings.Split(dSlice[2], ":")
+	t := ""
+	if len(dSlice) == 3 {
+		t = ""
+	} else if len(dSlice) == 4 {
+		t = dSlice[3]
+	} else {
+		println("\033[31m" + tab + "The dependency : " + depString + " is ambigious\033[0m")
+		return jpmDependency{}, errors.New("The dependency : " + depString + " is ambigious")
+	}
+	version := ""
+	if len(artver) == 2 {
+		version = artver[1]
+	}
+	return jpmDependency{
+		Alias:      dSlice[0],
+		Type:       "github",
+		GhUsername: dSlice[1],
+		Package:    artver[0],
+		Version:    COM.NormalizeSpaces(version),
+		Scope:      t,
+	}, nil
 }
 
 func saveAllGithubSubDependencies(d *jpmDependency, alias string) {
 	version := ""
-	v, err := figureOutLatestGithub(d)
 
 	switch d.Version {
 	case "latest":
 		// figure out version for this github dependency
+		v, err := figureOutLatestGithub(d)
 		if err != nil {
 			println("\033[31m  --- " + alias + ": Resolving " + d.Package + " ! " + "Unable to get latest version\033[0m\n")
 			return
@@ -32,6 +59,7 @@ func saveAllGithubSubDependencies(d *jpmDependency, alias string) {
 		version = v
 	case "":
 		// figure out version for this github dependency
+		v, err := figureOutLatestGithub(d)
 		if err != nil {
 			println("\033[31m  --- " + alias + ": Resolving " + d.Package + " ! " + "Unable to get latest version\033[0m\n")
 			return
@@ -46,17 +74,20 @@ func saveAllGithubSubDependencies(d *jpmDependency, alias string) {
 		version = d.Version
 	}
 	d.Version = version
-	println("\033[32m  --- " + alias + ": Resolving " + d.Package + ":" + version + "\033[0m")
+	al := ">"
+	if alias != "default" && alias != ">" {
+		al = strings.ToUpper(alias) + ":"
+	}
+	println("\033[32m  --- " + al + " Resolving " + d.Package + ":" + version + "\033[0m")
 	print("      Resolving   [")
-	saveGithubExecToDownloadList(d)
-	downloadDepsJPM(d)
+	saveJPMExecToDownloadList(d)
+	url := generateGithubDepUrl(d.GhUsername, d.Package, d.Version, "dependencies.json")
+	downloadDepsJPM(d, url)
 	println("]")
 }
-
-func saveGithubExecToDownloadList(d *jpmDependency) {
+func addGithubSubDependenciesToDownloadList() {
 
 }
-
 func figureOutLatestGithub(d *jpmDependency) (string, error) {
 
 	return "latest", nil

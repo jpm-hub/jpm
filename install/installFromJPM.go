@@ -5,17 +5,18 @@ import (
 	"errors"
 	"fmt"
 	COM "jpm/common"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 )
 
 type jpmDependency struct {
+	Type       string
 	GhUsername string
+	Alias      string
 	Package    string
 	Version    string
 	Scope      string
+	RepoUrl    string
 }
 
 type LastestJPM struct {
@@ -89,6 +90,7 @@ func disectJPMDepString(d string) (jpmDependency, error) {
 		version = depAndVersion[1]
 	}
 	return jpmDependency{
+		Type:    "jpm",
 		Package: dep,
 		Scope:   scope,
 		Version: version,
@@ -97,7 +99,10 @@ func disectJPMDepString(d string) (jpmDependency, error) {
 
 func saveAllJPMSubDependencies(d *jpmDependency) string {
 	version := ""
-	v, err := figureOutLatestJPM(d.Package)
+	var err error
+	var v string
+	v, err = figureOutLatestJPM(*d)
+
 	if v == "<redirected>" {
 		// figure out version for this jpm dependency
 		if err != nil {
@@ -109,7 +114,6 @@ func saveAllJPMSubDependencies(d *jpmDependency) string {
 	switch d.Version {
 	case "latest":
 		// figure out version for this jpm dependency
-
 		if err != nil {
 			println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get latest version\033[0m\n")
 			return ""
@@ -130,14 +134,15 @@ func saveAllJPMSubDependencies(d *jpmDependency) string {
 	d.Version = version
 	println("\033[32m  --- JPM: Resolving " + d.Package + ":" + version + "\033[0m")
 	print("      Resolving   [")
-	saveJPMExecToDownloadList(d.Scope, d.Package, d.Version)
-	downloadDepsJPM(d)
+	saveJPMExecToDownloadList(d)
+	url := generateJpmDepUrl(currentWorkingRepo, d.Package, d.Version, "dependencies.json")
+	downloadDepsJPM(d, url)
 	println("]")
 	return COM.NormalizeSpaces(fmt.Sprint(d.Package + ":" + d.Version + " " + d.Scope))
 }
 
 func handleRedirect(d *jpmDependency) string {
-	depJson, err := downloadJson(jpmRepoUrl+strings.ToLower(d.Package[0:1])+"/"+d.Package+"/dependencies.json", d.Package, d.Version)
+	depJson, err := downloadJson(generateJpmDepUrl(d.RepoUrl, d.Package, d.Version, "dependencies.json"), d)
 	if err != nil {
 		println("\033[31m  --- JPM: Resolving " + d.Package + " ! " + "Unable to get redirection\033[0m\n")
 		return ""
@@ -159,30 +164,38 @@ func handleRedirect(d *jpmDependency) string {
 	return COM.NormalizeSpaces(fmt.Sprint(d.Package + ":" + dr.Version + " " + d.Scope))
 }
 
-func saveJPMExecToDownloadList(scope, dep, version string) {
-	firstLetter := strings.ToLower(dep[0:1])
-	if scope == "exec" {
-		filename := dep
-		url := currentWorkingRepo + firstLetter + "/" + dep + "/" + version + "/" + filename
-		downloadInfo[url] = []string{filename, scope + "|"}
+func saveJPMExecToDownloadList(d *jpmDependency) {
+	if d.Scope == "exec" {
+		filename := d.Package
+		switch d.Type {
+		case "jpm":
+			url := generateJpmDepUrl(currentWorkingRepo, d.Package, d.Version, filename)
+			downloadInfo[url] = []string{filename, d.Scope + "|"}
+		case "github":
+			url := generateGithubDepUrl(currentWorkingRepo, d.Package, d.Version, filename)
+			downloadInfo[url] = []string{filename, d.Scope + "|"}
+		default:
+			println("type :", d.Type, "not yet supported")
+		}
 	}
 }
 func generateJpmDepUrl(repo, pack, ver, filename string) string {
 	firstLetter := strings.ToLower(pack[0:1])
 	return repo + firstLetter + "/" + pack + "/" + ver + "/" + filename
 }
-func downloadDepsJPM(d *jpmDependency) {
+func downloadDepsJPM(d *jpmDependency, url string) {
 	if checkJPMExcludes(d.Package) {
 		return
 	}
-	url := generateJpmDepUrl(currentWorkingRepo, d.Package, d.Version, "dependencies.json")
-	deps, err := downloadJson(url, d.Package, d.Version)
+
+	deps, err := downloadJson(url, d)
 	if err != nil {
 		addFinishMessage("\033[31m ! Unable to download " + url + " \033[0m\n")
 		return
 	}
 	classifier, isThere := figureOutJPMClassifier(deps, *d)
-	for dep, version := range deps.JPM {
+
+	for dep, version := range deps.JPM[currentWorkingRepo] {
 		if checkJPMExcludes(dep) {
 			continue
 		}
@@ -231,37 +244,6 @@ func checkJPMExcludes(dep string) bool {
 	return false
 }
 
-func downloadJson(url, pack, ver string) (COM.Dependencies, error) {
-	// check cache first
-	if cachedFileName, ok := fileCache[url]; ok && !force {
-		cachedFilePath := filepath.Join(COM.HomeDir(), "libs", cachedFileName)
-		if _, err := os.Stat(cachedFilePath); err == nil {
-			content, err := os.ReadFile(cachedFilePath)
-			if err == nil {
-				var doc COM.Dependencies
-				err = json.Unmarshal(content, &doc)
-				if err == nil {
-					return doc, nil
-				}
-			}
-		}
-
-	}
-
-	var doc COM.Dependencies
-	err, content := COM.DownloadFile(url, "", "", false, true)
-	if err != nil {
-		return doc, err
-	}
-	err = json.Unmarshal([]byte(content), &doc)
-	if err != nil {
-		return doc, err
-	}
-	fname := makeJsonFileName(pack, ver)
-	os.WriteFile(filepath.Join(COM.HomeDir(), "libs", fname), []byte(content), 0644)
-	fileCache[url] = fname
-	return doc, nil
-}
 func figureOutJPMClassifier(d COM.Dependencies, info jpmDependency) (string, bool) {
 	classifier := COM.GetSection("classifiers", false).(map[string]string)
 	v, ok := classifier[info.Package]
@@ -307,9 +289,9 @@ func figureOutJPMInnerClassifier(d string, forRepos bool) (string, bool) {
 func figureOutJPMVersion(version string) string {
 	return version
 }
-func addJPMSubDependenciesToDownloadList() {
-	currentWorkingRepo = jpmRepoUrl
-	for dep, version := range resolveDependecy() {
+func addJPMSubDependenciesToDownloadList(repoUrl string, depMap map[string]string) {
+	currentWorkingRepo = repoUrl
+	for dep, version := range depMap {
 		depS := strings.Split(dep, "|")
 		classifier := ""
 		scope := ""
@@ -324,24 +306,16 @@ func addJPMSubDependenciesToDownloadList() {
 			scope = depS[2]
 			classifier = "-" + depS[0]
 		}
-		firstLetter := strings.ToLower(dep[0:1])
 		filename := dep + "-" + version + classifier + ".jar"
-		url := currentWorkingRepo + firstLetter + "/" + dep + "/" + version + "/" + filename
+		url := generateJpmDepUrl(currentWorkingRepo, dep, version, filename)
 		downloadInfo[url] = []string{filename, scope + "|"}
 	}
-	for k := range depsList {
-		if k == jpmRepoUrl {
-			continue
-		}
-		currentWorkingRepo = k
-		addRepoSubDependenciesToDownloadList(k)
-	}
+	g_lockDeps.JPM[repoUrl] = depMap
 }
-func figureOutLatestJPM(p string) (string, error) {
+func figureOutLatestJPM(p jpmDependency) (string, error) {
+
 	var doc LastestJPM
-	firstLetter := strings.ToLower(p[0:1])
-	vesionningUrl := fmt.Sprintf("%s/%s/versions.json", firstLetter, p)
-	vesionningUrl = currentWorkingRepo + strings.ReplaceAll(vesionningUrl, "//", "/")
+	vesionningUrl := generateJpmDepUrl(currentWorkingRepo, p.Package, p.Version, "versions.json")
 	err, content := COM.DownloadFile(vesionningUrl, "", "", false, true)
 	if err != nil {
 		return "", err

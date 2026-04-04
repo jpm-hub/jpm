@@ -103,10 +103,16 @@ func makePomFileName(groupID, artifactID, version string) string {
 func getRepoList() Repositories {
 	repoSection := COM.GetSection("repos", false)
 	repos := Repositories{
-		Repos: []Repo{},
+		Repos: []Repo{
+			{Alias: "default", Repo: mavenCentralRepoUrl, Type: "maven"},
+		},
 	}
 	if repoSection == nil {
-		return repos
+		return Repositories{
+			Repos: []Repo{
+				{Alias: "default", Repo: mavenCentralRepoUrl, Type: "maven"},
+			},
+		}
 	}
 	repoSectionListMap := repoSection.([]any)
 	for _, r := range repoSectionListMap {
@@ -115,6 +121,7 @@ func getRepoList() Repositories {
 		alias := ""
 		username := ""
 		password := ""
+		typeSection := "maven"
 		for k, v := range repoSectionMap {
 			switch k {
 			case "username":
@@ -124,6 +131,20 @@ func getRepoList() Repositories {
 			case "type":
 			default:
 				alias = k
+				if v == jpmRepoUrl || strings.TrimSuffix(v, "/") == strings.TrimSuffix(jpmRepoUrl, "/") {
+					break
+				}
+				if v == "maven" || v == "mavenCentral" || strings.TrimSuffix(v, "/") == strings.TrimSuffix(mavenCentralRepoUrl, "/") {
+					break
+				}
+				if v == "github" || strings.TrimSuffix(v, "/") == strings.TrimSuffix("https://github.com/", "/") {
+					repos.Repos = append(repos.Repos, Repo{Alias: k, Type: "github", Repo: googleRepoUrl})
+					break
+				}
+				if v == "google" {
+					repos.Repos = append(repos.Repos, Repo{Alias: k, Type: "maven", Repo: googleRepoUrl})
+					break
+				}
 				if !strings.HasSuffix(v, "/") {
 					url = v + "/"
 				} else {
@@ -131,7 +152,7 @@ func getRepoList() Repositories {
 				}
 			}
 		}
-		repos.Repos = append(repos.Repos, Repo{Alias: strings.ToLower(alias), Repo: url, Username: username, Password: password})
+		repos.Repos = append(repos.Repos, Repo{Alias: strings.ToLower(alias), Type: typeSection, Repo: url, Username: username, Password: password})
 	}
 	return repos
 }
@@ -144,7 +165,7 @@ func findExistingAliases() []string {
 	return aliases
 }
 
-func disectRepoDepString(depString string, repoURL string, alias string) (dependency, error) {
+func disectRepoDepString(depString string, repoURL string) (dependency, error) {
 	dSlice := strings.Split(depString, " ")
 	if len(dSlice) < 3 {
 		println("\033[31m" + tab + "The dependency : " + depString + " is ambigious and will be ignored\033[0m")
@@ -211,8 +232,8 @@ func saveAllRepoSubDependencies(dr *dependency, alias string) error {
 	println("]")
 	return nil
 }
-func addRepoSubDependenciesToDownloadList(url string) {
-	for k, v := range resolveDependecy() {
+func addRepoSubDependenciesToDownloadList(url string, depMap map[string]string) {
+	for k, v := range depMap {
 		gas := strings.Split(k, "|")
 		groupID := gas[0]
 		artefactID := gas[1]
@@ -224,10 +245,12 @@ func addRepoSubDependenciesToDownloadList(url string) {
 		}
 		version := v
 		scope := gas[len(gas)-1]
-		url := url + strings.ReplaceAll(groupID, ".", "/") + "/" + artefactID + "/" + version + "/" + artefactID + "-" + version + classifier + ".jar"
-		filename := groupID + "." + artefactID + "-" + version + classifier + ".jar"
+		urlFilename := artefactID + "-" + version + classifier + ".jar"
+		filename := groupID + "." + urlFilename
+		url := url + strings.ReplaceAll(groupID, ".", "/") + "/" + artefactID + "/" + version + "/" + urlFilename
 		downloadInfo[url] = []string{filename, "" + scope + "|"}
 	}
+	g_lockDeps.Repos[url] = depMap
 }
 
 func parsePOM(pomContent string) pom {

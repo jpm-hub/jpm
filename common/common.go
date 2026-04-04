@@ -36,8 +36,9 @@ type Dependencies struct {
 	Dependencies []string                     `json:"dependencies,omitempty"`
 	Excludes     []string                     `json:"excludes,omitempty"`
 	Classifiers  map[string]string            `json:"classifiers,omitempty"`
-	JPM          map[string]string            `json:"JPM"`
+	JPM          map[string]map[string]string `json:"JPM"`
 	Repos        map[string]map[string]string `json:"repos"`
+	Github       map[string]string            `json:"github"`
 	Scripts      map[string]string            `json:"scripts,omitempty"`
 	Locals       map[string][]string          `json:"locals,omitempty"`
 	Redirect     map[string]string            `json:"redirect,omitempty"`
@@ -254,6 +255,15 @@ func VerifyPackageYML() {
 				}
 				if k != "username" && k != "password" && k != "type" {
 					alreadyThere = append(alreadyThere, k)
+				}
+			}
+		}
+		for _, d := range GetDependencies(true) {
+			for _, a := range alreadyThere {
+				if strings.Split(d, " ")[0] == a {
+					println("syntax error: dependency \"", d+" \"", "has the same name as alias", a)
+					println("Change alias name")
+					os.Exit(1)
 				}
 			}
 		}

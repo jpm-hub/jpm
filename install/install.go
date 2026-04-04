@@ -15,8 +15,12 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var jpmRepoUrl string = COM.JPM_REPO_API + "packages/"
-var tab string = "  "
+const jpmRepoUrl string = COM.JPM_REPO_API + "packages/"
+const ghRepoUrl string = "https://github.com/"
+const mavenCentralRepoUrl string = "https://repo1.maven.org/maven2/"
+const googleRepoUrl string = "https://maven.google.com/"
+const tab string = "  "
+
 var once sync.Once
 
 // var mu sync.Mutex
@@ -33,8 +37,8 @@ type Repositories struct {
 	Repos []Repo `json:"repos"`
 }
 
-var scopesAccepted []string = []string{"compile", "runtime", ""}
-var jpmScopes []string = []string{"test", "exec", ""}
+var scopesAccepted []string = []string{"", "compile", "runtime"}
+var jpmScopes []string = []string{"", "test", "exec"}
 var depsList map[string][]string = map[string][]string{}
 var importList []string = []string{}
 var currentWorkingRepo string
@@ -51,6 +55,7 @@ var alreadyInstalled = map[string][]string{}
 var force bool = false
 var firstInstall bool = false
 var shouldOnlyDownload bool = true
+var repoList Repositories
 
 func Install() {
 	os.Mkdir("jpm_dependencies", 0755)
@@ -111,6 +116,7 @@ func Install() {
 		}
 		// load in the lock.json
 		lockDeps := loadLockDependencies(filepath.Join("jpm_dependencies", "lock.json"))
+
 		yamlDeps := COM.GetDependencies(true)
 		for _, dep := range yamlDeps {
 			if !slices.Contains(lockDeps, dep) {
@@ -121,7 +127,6 @@ func Install() {
 		if shouldOnlyDownload {
 			yamlDeps = []string{}
 		}
-
 		aliases := findExistingAliases()
 		installFromYML(aliases, yamlDeps, true)
 	case 3:
@@ -229,10 +234,10 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 	// jpm first
 	jpmDeps, noneJpmdeps := findAllJPM(noneLocal, aliases)
 	fromJPM(jpmDeps)
-	repoList := getRepoList()
+	repoList = getRepoList()
 
 	// github second
-	githubDeps, noneGithubDeps := findAllGithub(noneJpmdeps, repoList)
+	githubDeps, noneGithubDeps := findAllGithub(noneJpmdeps)
 	fromGithub(githubDeps)
 
 	// maven second
@@ -251,43 +256,43 @@ func installFromYML(aliases []string, deps []string, clean bool) {
 	dumpDependencies()
 
 }
-func findAllRepoDeps(deps []string, repoList Repositories) (repos map[string][]dependency, raws []string) {
+func findAllRepoDeps(deps []string, repoList Repositories) (repos map[string][]dependency, nonRepos []string) {
 	repos = map[string][]dependency{}
-	for _, v := range deps {
-		found := false
-		for _, repoFromYaml := range repoList.Repos {
-			if strings.HasPrefix(v, repoFromYaml.Alias) {
-				r, err := disectRepoDepString(v, repoFromYaml.Repo, repoFromYaml.Alias)
-				if err == nil {
-					found = true
-					repos[repoFromYaml.Alias] = append(repos[repoFromYaml.Alias], r)
+	for _, repoFromYaml := range repoList.Repos {
+		if "" == strings.TrimSpace(repoFromYaml.Type) || "maven" == strings.TrimSpace(repoFromYaml.Type) {
+			for _, v := range deps {
+				if strings.HasPrefix(v, repoFromYaml.Alias) {
+					r, err := disectRepoDepString(v, repoFromYaml.Repo)
+					if err == nil {
+						repos[repoFromYaml.Alias] = append(repos[repoFromYaml.Alias], r)
+					}
+				} else {
+					nonRepos = append(nonRepos, v)
 				}
 			}
 		}
-		if !found {
-			raws = append(raws, v)
-		}
 	}
-	return repos, raws
+	return repos, nonRepos
 }
-func findAllGithub(deps []string, repoList Repositories) ([]jpmDependency, []string) {
+func findAllGithub(deps []string) ([]jpmDependency, []string) {
 	ghDeps := []jpmDependency{}
 	noneGHdeps := []string{}
-	for _, v := range deps {
-		found := false
-		for _, repoFromYaml := range repoList.Repos {
-			if strings.HasPrefix(v, repoFromYaml.Alias) && "github" == strings.TrimSpace(repoFromYaml.Type) {
-				r, err := disectGithubDepString(v)
-				if err == nil {
-					found = true
-					ghDeps = append(ghDeps, r)
+	for _, repoFromYaml := range repoList.Repos {
+		if "github" == strings.TrimSpace(repoFromYaml.Type) {
+			for _, v := range deps {
+				if strings.HasPrefix(v, repoFromYaml.Alias) {
+					r, err := disectGithubDepString(v)
+					if err == nil {
+						ghDeps = append(ghDeps, r)
+					}
+				} else {
+					noneGHdeps = append(noneGHdeps, v)
 				}
 			}
 		}
-		if !found {
-			noneGHdeps = append(noneGHdeps, v)
-		}
 	}
+	fmt.Println(repoList)
+	fmt.Println(noneGHdeps)
 	return ghDeps, noneGHdeps
 }
 
@@ -448,6 +453,7 @@ func fromJPM(deps []string) string {
 		}
 		currentWorkingRepo = jpmRepoUrl
 		currentOuterScope = jDep.Scope
+		jDep.Alias = "JPM"
 		depString = saveAllJPMSubDependencies(&jDep)
 		if currentOuterScope == "exec" {
 			jarfilename := jDep.Package + "-" + jDep.Version + ".jar"
@@ -456,7 +462,6 @@ func fromJPM(deps []string) string {
 			g_lockDeps.Scripts[jDep.Package] = jarfilename + "|" + urljar + "|" + urljscript
 		}
 	}
-	addJPMSubDependenciesToDownloadList()
 	return depString
 }
 
@@ -464,7 +469,7 @@ func fromGithub(deps []jpmDependency) {
 	for _, jDep := range deps {
 		currentWorkingRepo = "https://github.com/"
 		currentOuterScope = jDep.Scope
-		saveAllJPMSubDependencies(&jDep)
+		saveAllGithubSubDependencies(&jDep, jDep.Alias)
 		if currentOuterScope == "exec" {
 			jarfilename := "gh" + jDep.GhUsername + "." + jDep.Package + "-" + jDep.Version + ".jar"
 			urljar := generateGithubDepUrl(jDep.GhUsername, jDep.Package, jDep.Version, jarfilename)
@@ -472,7 +477,6 @@ func fromGithub(deps []jpmDependency) {
 			g_lockDeps.Scripts[jDep.Package] = jarfilename + "|" + urljar + "|" + urljscript
 		}
 	}
-	addJPMSubDependenciesToDownloadList()
 }
 func fromRepo(dependenciesWithRepo map[string][]dependency) {
 	for alias, v := range dependenciesWithRepo {
@@ -491,11 +495,6 @@ func fromRepo(dependenciesWithRepo map[string][]dependency) {
 				g_lockDeps.Scripts[dr.ArtifactID] = jarfilename + "|" + url
 			}
 		}
-	}
-
-	for _, v := range getRepoList().Repos {
-		currentWorkingRepo = v.Repo
-		addRepoSubDependenciesToDownloadList(v.Repo)
 	}
 }
 
@@ -717,59 +716,61 @@ alreadyInstalledExecJars:
 	alreadyInstalled = maped
 	return maped
 }
-func resolveDependecy() map[string]string {
-	depMap := make(map[string]string, len(depsList[currentWorkingRepo])/2)
-
-	for i := 0; i < len(depsList[currentWorkingRepo]); i += 2 {
-		if depMap[depsList[currentWorkingRepo][i]] == "" {
-			depMap[depsList[currentWorkingRepo][i]] = depsList[currentWorkingRepo][i+1]
-		} else if depsList[currentWorkingRepo][i+1] == "" {
-			continue
-		} else if depMap[depsList[currentWorkingRepo][i]] < depsList[currentWorkingRepo][i+1] {
-			depMap[depsList[currentWorkingRepo][i]] = depsList[currentWorkingRepo][i+1]
-		}
+func resolveDependecy() map[string]map[string]string {
+	repoUrlList := []string{jpmRepoUrl}
+	for _, repo := range repoList.Repos {
+		repoUrlList = append(repoUrlList, repo.Repo)
 	}
-	if currentWorkingRepo != jpmRepoUrl {
-		for key, value := range depMap {
-			// try finding it in imports
-			if value == "" {
-				for i, v := range importList {
-					if v == key {
-						depMap[key] = importList[i+1]
+	depsMap := make(map[string]map[string]string, len(repoUrlList))
+	for _, workingRepo := range repoUrlList {
+		depMap := make(map[string]string, len(depsList[workingRepo])/2)
+		for i := 0; i < len(depsList[workingRepo]); i += 2 {
+			if depMap[depsList[workingRepo][i]] == "" {
+				depMap[depsList[workingRepo][i]] = depsList[workingRepo][i+1]
+			} else if depsList[workingRepo][i+1] == "" {
+				continue
+			} else if depMap[depsList[workingRepo][i]] < depsList[workingRepo][i+1] {
+				depMap[depsList[workingRepo][i]] = depsList[workingRepo][i+1]
+			}
+		}
+		if workingRepo != jpmRepoUrl {
+			for key, value := range depMap {
+				// try finding it in imports
+				if value == "" {
+					for i, v := range importList {
+						if v == key {
+							depMap[key] = importList[i+1]
+						}
 					}
 				}
 			}
 		}
-	}
-	for k := range depMap {
-		if strings.HasSuffix(k, "|test") {
-			d := strings.TrimSuffix(k, "test")
-			if _, ok := depMap[d]; ok {
-				if depMap[d] <= depMap[k] {
-					depMap[d] = depMap[k]
+		for k := range depMap {
+			if strings.HasSuffix(k, "|test") {
+				d := strings.TrimSuffix(k, "test")
+				if _, ok := depMap[d]; ok {
+					if depMap[d] <= depMap[k] {
+						depMap[d] = depMap[k]
+					}
+					depMap[k] = ""
 				}
-				depMap[k] = ""
+			}
+			if strings.HasSuffix(k, "|exec") {
+				d := strings.TrimSuffix(k, "exec")
+				if _, ok := depMap[d]; ok {
+					if depMap[d] <= depMap[k] {
+						depMap[d] = depMap[k]
+					}
+					depMap[k] = ""
+				}
 			}
 		}
-		if strings.HasSuffix(k, "|exec") {
-			d := strings.TrimSuffix(k, "exec")
-			if _, ok := depMap[d]; ok {
-				if depMap[d] <= depMap[k] {
-					depMap[d] = depMap[k]
-				}
-				depMap[k] = ""
-			}
-		}
+		maps.DeleteFunc(depMap, func(k string, v string) bool { return v == "" || k == "" || strings.HasPrefix(k, "|") })
+		depsMap[workingRepo] = depMap
 	}
-	maps.DeleteFunc(depMap, func(k string, v string) bool { return v == "" || k == "" || strings.HasPrefix(k, "|") })
-	switch currentWorkingRepo {
-	case jpmRepoUrl:
-		g_lockDeps.JPM = depMap
-	default:
-		maps.DeleteFunc(g_lockDeps.Repos, func(k string, v map[string]string) bool { return k == "" })
-		g_lockDeps.Repos[currentWorkingRepo] = depMap
-	}
-	return depMap
+	maps.DeleteFunc(g_lockDeps.JPM, func(k string, v map[string]string) bool { return k == "" })
+	maps.DeleteFunc(g_lockDeps.Repos, func(k string, v map[string]string) bool { return k == "" })
+	return depsMap
 }
 func loadLockDependencies(path string) []string {
 	classified := false
@@ -798,7 +799,7 @@ func loadLockDependencies(path string) []string {
 		g_lockDeps = COM.Dependencies{
 			Classified:   classified,
 			Dependencies: COM.GetDependencies(false),
-			JPM:          map[string]string{},
+			JPM:          map[string]map[string]string{},
 			Repos:        map[string]map[string]string{},
 			Scripts:      map[string]string{},
 			Locals:       map[string][]string{},
@@ -818,7 +819,7 @@ func loadLockDependencies(path string) []string {
 	}
 
 	if g_lockDeps.JPM == nil {
-		g_lockDeps.JPM = map[string]string{}
+		g_lockDeps.JPM = map[string]map[string]string{}
 	}
 	if g_lockDeps.Locals == nil {
 		g_lockDeps.Locals = map[string][]string{}
@@ -839,7 +840,9 @@ func loadLockDependencies(path string) []string {
 	}
 	if shouldOnlyDownload {
 		for k, v := range g_lockDeps.JPM {
-			depsList[jpmRepoUrl] = append(depsList[jpmRepoUrl], k, v)
+			for k2, v2 := range v {
+				depsList[k] = append(depsList[k], k2, v2)
+			}
 		}
 		for k, v := range g_lockDeps.Repos {
 			for k2, v2 := range v {
@@ -853,7 +856,57 @@ func loadLockDependencies(path string) []string {
 
 	return g_lockDeps.Dependencies
 }
+
+func downloadJson(url string, d *jpmDependency) (COM.Dependencies, error) {
+	// check cache first
+	if cachedFileName, ok := fileCache[url]; ok && !force {
+		cachedFilePath := filepath.Join(COM.HomeDir(), "libs", cachedFileName)
+		if _, err := os.Stat(cachedFilePath); err == nil {
+			content, err := os.ReadFile(cachedFilePath)
+			if err == nil {
+				var doc COM.Dependencies
+				err = json.Unmarshal(content, &doc)
+				if err == nil {
+					return doc, nil
+				}
+			}
+		}
+
+	}
+
+	var doc COM.Dependencies
+	err, content := COM.DownloadFile(url, "", "", false, true)
+	if err != nil {
+		return doc, err
+	}
+	err = json.Unmarshal([]byte(content), &doc)
+	if err != nil {
+		return doc, err
+	}
+	var fname string
+	switch d.Type {
+	case "github":
+		fname = makeGHJsonFileName(d.GhUsername, d.Package, d.Version)
+	case "jpm":
+		fname = makeJsonFileName(d.Package, d.Version)
+	}
+	os.WriteFile(filepath.Join(COM.HomeDir(), "libs", fname), []byte(content), 0644)
+	fileCache[url] = fname
+	return doc, nil
+}
+
 func installDependencies() {
+	depMap := resolveDependecy()
+	for k := range depMap {
+		addRepoSubDependenciesToDownloadList(k, depMap[k])
+		delete(depMap, k)
+	}
+	for k := range depMap {
+		addJPMSubDependenciesToDownloadList(k, depMap[k])
+		delete(depMap, k)
+	}
+	addGithubSubDependenciesToDownloadList()
+	delete(depMap, ghRepoUrl)
 	already := listAlreadyInstalledDeps()
 	if len(downloadInfo) != 0 {
 		print("      Downloading |")
@@ -942,36 +995,37 @@ func dumpDependencies() {
 	if err := encoder.Encode(fileCache); err != nil {
 		addFinishMessage("\033[31mError encoding dependency_cache.json:" + err.Error() + "\033[0m")
 	}
-
 }
 func cleanup() {
 	jars := []string{}
 	execjars := []string{}
 	testjars := []string{}
 
-	for key, v := range g_lockDeps.JPM {
-		jar := ""
-		if strings.HasSuffix(key, "|test") {
-			jar = "tests"
-		}
-		if strings.HasSuffix(key, "|exec") {
-			jar = "execs"
-		}
-		value := strings.TrimSuffix(key, "|test")
-		value = strings.TrimSuffix(value, "|exec")
-		valueS := strings.Split(strings.TrimSuffix(value, "|"), "|")
-		value = valueS[len(valueS)-1]
-		classifier := ""
-		if len(valueS) == 2 {
-			classifier = "-" + valueS[0]
-		}
-		switch jar {
-		case "tests":
-			testjars = append(testjars, value+"-"+v+classifier+".jar")
-		case "execs":
-			execjars = append(execjars, value+"-"+v+classifier+".jar", value)
-		default:
-			jars = append(jars, value+"-"+v+classifier+".jar")
+	for _, jpmr := range g_lockDeps.JPM {
+		for key, v := range jpmr {
+			jar := ""
+			if strings.HasSuffix(key, "|test") {
+				jar = "tests"
+			}
+			if strings.HasSuffix(key, "|exec") {
+				jar = "execs"
+			}
+			value := strings.TrimSuffix(key, "|test")
+			value = strings.TrimSuffix(value, "|exec")
+			valueS := strings.Split(strings.TrimSuffix(value, "|"), "|")
+			value = valueS[len(valueS)-1]
+			classifier := ""
+			if len(valueS) == 2 {
+				classifier = "-" + valueS[0]
+			}
+			switch jar {
+			case "tests":
+				testjars = append(testjars, value+"-"+v+classifier+".jar")
+			case "execs":
+				execjars = append(execjars, value+"-"+v+classifier+".jar", value)
+			default:
+				jars = append(jars, value+"-"+v+classifier+".jar")
+			}
 		}
 	}
 

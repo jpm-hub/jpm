@@ -263,12 +263,14 @@ func removeScopes(dependencies COM.Dependencies) COM.Dependencies {
 			}
 		}
 	}
-	maps.DeleteFunc(dependencies.JPM, func(key string, v string) bool {
-		if strings.HasSuffix(key, "|test") || strings.HasSuffix(key, "|exec") {
-			return true
-		}
-		return false
-	})
+	for _, v := range dependencies.JPM {
+		maps.DeleteFunc(v, func(key string, v string) bool {
+			if strings.HasSuffix(key, "|test") || strings.HasSuffix(key, "|exec") {
+				return true
+			}
+			return false
+		})
+	}
 	for k, _ := range dependencies.Repos {
 		maps.DeleteFunc(dependencies.Repos[k], func(key string, v string) bool {
 			if strings.HasSuffix(key, "|test") || strings.HasSuffix(key, "|exec") {
