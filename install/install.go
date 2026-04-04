@@ -57,7 +57,8 @@ var firstInstall bool = false
 var shouldOnlyDownload bool = true
 var repoList Repositories
 
-func Install() {
+func Install(f bool) {
+	force = f
 	os.Mkdir("jpm_dependencies", 0755)
 	COM.FindPackageYML(true)
 	for i := 0; i < len(os.Args); i++ {
