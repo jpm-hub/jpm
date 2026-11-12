@@ -202,15 +202,11 @@ func main() {
 			println("\n Tests failed")
 			os.Exit(1)
 		}
-	case "ci":
-		SCRIPTS.ExecOverride("ci")
-		COM.RunScript("rm -rf ./jpm_dependencies/*", false)
-		INSTALL.Install(true)
 	case "i":
 		fallthrough
 	case "install":
 		SCRIPTS.ExecOverride("install")
-		INSTALL.Install(false)
+		INSTALL.Install()
 	default:
 		SCRIPTS.Scripts(scriptName)
 	}
