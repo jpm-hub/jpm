@@ -366,6 +366,7 @@ func downloadDepsRepo(repo string, groupID string, artifactID string, version st
 		if classified {
 			depsList[repo] = append(depsList[repo], classifier+dep, version)
 		}
+		return &pom
 	}
 	for _, dep := range pom.Dependencies {
 		scope := figureOutScope(repo, dep, pom)
